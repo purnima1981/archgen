@@ -20,27 +20,18 @@ async function loadRegistry() {
 function findIconPath(name: string, iconHint?: string): string | null {
   if (!ICON_REGISTRY.length) return null;
   const lower = (iconHint || name).toLowerCase().trim();
-
-  // Exact match on id
   let m = ICON_REGISTRY.find(i => i.id === lower);
   if (m) return `/icons/gcp/${m.id}.svg`;
-
-  // Exact match on name
   m = ICON_REGISTRY.find(i => i.name.toLowerCase() === lower);
   if (m) return `/icons/gcp/${m.id}.svg`;
-
-  // Alias match
   m = ICON_REGISTRY.find(i => i.aliases.some(a => a === lower || lower.includes(a) || a.includes(lower)));
   if (m) return `/icons/gcp/${m.id}.svg`;
-
-  // Fuzzy: check if icon id words appear in the name
   const words = lower.replace(/[_-]/g, " ").split(/\s+/);
   m = ICON_REGISTRY.find(i => {
-    const iwords = i.id.replace(/_/g, " ").split(/\s+/);
-    return iwords.every(w => words.some(nw => nw.includes(w) || w.includes(nw)));
+    const iw = i.id.replace(/_/g, " ").split(/\s+/);
+    return iw.every(w => words.some(nw => nw.includes(w) || w.includes(nw)));
   });
   if (m) return `/icons/gcp/${m.id}.svg`;
-
   return null;
 }
 
@@ -80,7 +71,7 @@ const SAMPLES = [
   },
 ];
 
-// ─── LAYOUT ENGINE ─────────────────────────────────────────
+// ─── TYPES ─────────────────────────────────────────────────
 interface DiagramData {
   title: string;
   groups: Array<{
@@ -93,54 +84,67 @@ interface DiagramData {
 interface CompLayout {
   x: number; y: number; cx: number; cy: number;
   name: string; icon?: string; subtitle?: string; iconPath: string | null;
+  groupIdx: number;
+}
+
+interface FlowLayout {
+  from: string; to: string; label?: string; step?: number;
+  path: string; color: string; labelX: number; labelY: number;
+}
+
+interface GroupLayout {
+  x: number; y: number; w: number; h: number;
+  name: string; category: string; id: string;
+  components: any[];
 }
 
 interface LayoutResult {
-  groups: Array<any>;
+  groups: GroupLayout[];
   comps: Record<string, CompLayout>;
-  flows: Array<any>;
+  flows: FlowLayout[];
   w: number; h: number; title: string;
 }
 
-const ICON_W = 100;     // component cell width
-const ICON_H = 80;      // component cell height (icon 48 + text ~20 + gap)
+// ─── LAYOUT ENGINE ─────────────────────────────────────────
+const ICON_W = 110;     // component cell width
+const ICON_H = 88;      // component cell height
 const ICON_SZ = 48;     // rendered icon size
-const ICON_GAP = 16;    // gap between icons
-const GP = 20;           // group padding
-const GH = 28;           // group header height
-const GGX = 36;          // gap between group columns
-const GGY = 36;          // gap between group rows
-const MARGIN = 50;
-const TITLE_H = 44;
+const ICON_GAP = 20;    // gap between icons
+const GP = 22;           // group padding
+const GH = 32;           // group header height
+const GGX = 50;          // gap between group columns
+const GGY = 50;          // gap between group rows
+const MARGIN = 60;
+const TITLE_H = 50;
 
 function computeLayout(diag: DiagramData): LayoutResult {
   const groups = diag.groups || [];
   const compPos: Record<string, CompLayout> = {};
 
-  // Each group: how many icons in a row
+  // Calculate group sizes
   const gSizes = groups.map(g => {
     const n = g.components?.length || 1;
     const cols = Math.min(n, 3);
     const rows = Math.ceil(n / cols);
     return {
       w: cols * ICON_W + (cols - 1) * ICON_GAP + 2 * GP,
-      h: GH + rows * ICON_H + (rows - 1) * ICON_GAP + 2 * GP,
+      h: GH + rows * ICON_H + (rows - 1) * ICON_GAP + 2 * GP + 8,
       cols, rows
     };
   });
 
-  // Grid: 3 columns (or 2 if ≤4 groups)
-  const COLS = groups.length <= 4 ? 2 : 3;
+  // Flow-aware column count
+  const COLS = groups.length <= 3 ? groups.length : groups.length <= 6 ? 3 : 3;
 
-  // Column widths
+  // Column widths (max per column)
   const colW: number[] = [];
   for (let c = 0; c < COLS; c++) {
     let mx = 0;
     for (let g = c; g < groups.length; g += COLS) mx = Math.max(mx, gSizes[g].w);
-    colW.push(mx || 280);
+    colW.push(mx || 300);
   }
 
-  // Row heights
+  // Row heights (max per row)
   const numRows = Math.ceil(groups.length / COLS);
   const rowH: number[] = [];
   for (let r = 0; r < numRows; r++) {
@@ -152,14 +156,16 @@ function computeLayout(diag: DiagramData): LayoutResult {
     rowH.push(mx);
   }
 
-  // Positions
+  // Column X positions
   const colX = [MARGIN];
   for (let c = 1; c < COLS; c++) colX.push(colX[c - 1] + colW[c - 1] + GGX);
 
+  // Row Y positions
   const rowY = [MARGIN + TITLE_H];
   for (let r = 1; r < numRows; r++) rowY.push(rowY[r - 1] + rowH[r - 1] + GGY);
 
-  const gLayouts: any[] = [];
+  // Place groups and components
+  const gLayouts: GroupLayout[] = [];
   groups.forEach((g, gi) => {
     const row = Math.floor(gi / COLS);
     const col = gi % COLS;
@@ -167,22 +173,25 @@ function computeLayout(diag: DiagramData): LayoutResult {
     const gx = colX[col] + (colW[col] - sz.w) / 2;
     const gy = rowY[row];
 
-    gLayouts.push({ ...g, x: gx, y: gy, w: sz.w, h: sz.h, category: g.category || "processing" });
+    gLayouts.push({
+      x: gx, y: gy, w: sz.w, h: sz.h,
+      name: g.name, category: g.category || "processing", id: g.id,
+      components: g.components,
+    });
 
     (g.components || []).forEach((comp, ci) => {
       const cr = Math.floor(ci / sz.cols);
       const cc = ci % sz.cols;
-      const cx = gx + GP + cc * (ICON_W + ICON_GAP) + ICON_W / 2;
-      const cy = gy + GH + GP + cr * (ICON_H + ICON_GAP) + ICON_SZ / 2;
+      const cellX = gx + GP + cc * (ICON_W + ICON_GAP);
+      const cellY = gy + GH + GP + cr * (ICON_H + ICON_GAP);
+      const cx = cellX + ICON_W / 2;
+      const cy = cellY + ICON_SZ / 2 + 4;
 
       compPos[comp.id] = {
-        x: cx - ICON_W / 2,
-        y: gy + GH + GP + cr * (ICON_H + ICON_GAP),
-        cx, cy,
-        name: comp.name,
-        icon: comp.icon,
-        subtitle: comp.subtitle,
+        x: cellX, y: cellY, cx, cy,
+        name: comp.name, icon: comp.icon, subtitle: comp.subtitle,
         iconPath: findIconPath(comp.name, comp.icon),
+        groupIdx: gi,
       };
     });
   });
@@ -190,35 +199,71 @@ function computeLayout(diag: DiagramData): LayoutResult {
   const totW = colX[COLS - 1] + colW[COLS - 1] + MARGIN;
   const totH = rowY[numRows - 1] + rowH[numRows - 1] + MARGIN;
 
-  // Flows
-  const flows = (diag.flows || []).map((f, fi) => {
+  // ── Flow routing ──
+  // Build proper orthogonal paths between component centers
+  const flows: FlowLayout[] = [];
+
+  (diag.flows || []).forEach((f, fi) => {
     const fr = compPos[f.from];
     const to = compPos[f.to];
-    if (!fr || !to) return null;
-
-    const dx = to.cx - fr.cx, dy = to.cy - fr.cy;
-    let sx: number, sy: number, ex: number, ey: number;
-
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      sx = dx > 0 ? fr.cx + ICON_SZ / 2 + 2 : fr.cx - ICON_SZ / 2 - 2;
-      sy = fr.cy;
-      ex = dx > 0 ? to.cx - ICON_SZ / 2 - 2 : to.cx + ICON_SZ / 2 + 2;
-      ey = to.cy;
-    } else {
-      sx = fr.cx;
-      sy = dy > 0 ? fr.cy + ICON_SZ / 2 + 2 : fr.cy - ICON_SZ / 2 - 2;
-      ex = to.cx;
-      ey = dy > 0 ? to.cy - ICON_SZ / 2 - 2 : to.cy + ICON_SZ / 2 + 2;
-    }
-
-    const mx = (sx + ex) / 2, my = (sy + ey) / 2;
-    const path = Math.abs(dx) >= Math.abs(dy)
-      ? `M${sx},${sy} L${mx},${sy} L${mx},${ey} L${ex},${ey}`
-      : `M${sx},${sy} L${sx},${my} L${ex},${my} L${ex},${ey}`;
+    if (!fr || !to) return;
 
     const color = FLOW_COLORS[fi % FLOW_COLORS.length];
-    return { ...f, sx, sy, ex, ey, path, midX: mx, midY: my, color };
-  }).filter(Boolean);
+    const offset = (fi % 3) * 4 - 4; // Small offset to prevent overlapping parallel lines
+
+    // Determine best exit/entry direction
+    const dx = to.cx - fr.cx;
+    const dy = to.cy - fr.cy;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    let sx: number, sy: number, ex: number, ey: number;
+    let path: string;
+
+    const pad = ICON_SZ / 2 + 6; // clearance from icon edge
+
+    if (absDx > absDy * 0.5) {
+      // Primarily horizontal flow
+      sx = dx > 0 ? fr.cx + pad : fr.cx - pad;
+      sy = fr.cy + offset;
+      ex = dx > 0 ? to.cx - pad : to.cx + pad;
+      ey = to.cy + offset;
+
+      if (Math.abs(sy - ey) < 8) {
+        // Nearly same row — straight horizontal with slight bend
+        path = `M${sx},${sy} L${ex},${ey}`;
+      } else {
+        // Different rows — L-shaped or Z-shaped
+        const midX = (sx + ex) / 2;
+        path = `M${sx},${sy} L${midX},${sy} L${midX},${ey} L${ex},${ey}`;
+      }
+    } else {
+      // Primarily vertical flow
+      sx = fr.cx + offset;
+      sy = dy > 0 ? fr.cy + pad : fr.cy - pad;
+      ex = to.cx + offset;
+      ey = dy > 0 ? to.cy - pad : to.cy + pad;
+
+      if (Math.abs(sx - ex) < 8) {
+        // Nearly same column — straight vertical
+        path = `M${sx},${sy} L${ex},${ey}`;
+      } else {
+        // Different columns — L-shaped
+        const midY = (sy + ey) / 2;
+        path = `M${sx},${sy} L${sx},${midY} L${ex},${midY} L${ex},${ey}`;
+      }
+    }
+
+    // Label position at midpoint
+    const labelX = (sx + ex) / 2;
+    const labelY = (sy + ey) / 2;
+
+    flows.push({
+      from: f.from, to: f.to,
+      label: f.label, step: f.step,
+      path, color, labelX, labelY,
+    });
+  });
 
   return { groups: gLayouts, comps: compPos, flows, w: totW, h: totH, title: diag.title };
 }
@@ -239,14 +284,14 @@ function exportDrawio(layout: LayoutResult) {
   Object.entries(layout.comps).forEach(([compId, c]) => {
     const id = `c${++cid}`;
     cMap[compId] = id;
-    cs.push(`<mxCell id="${id}" value="${esc(c.name)}" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=${c.iconPath || ''};fontSize=10;fontFamily=Helvetica;" vertex="1" parent="1"><mxGeometry x="${c.cx - 24}" y="${c.cy - 24}" width="48" height="48" as="geometry"/></mxCell>`);
+    cs.push(`<mxCell id="${id}" value="${esc(c.name)}" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;fontSize=10;" vertex="1" parent="1"><mxGeometry x="${c.cx - 24}" y="${c.cy - 24}" width="48" height="48" as="geometry"/></mxCell>`);
   });
 
   layout.flows.forEach(f => {
     const src = cMap[f.from], tgt = cMap[f.to];
     if (!src || !tgt) return;
     const id = `c${++cid}`;
-    cs.push(`<mxCell id="${id}" value="${f.step || ''}" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=${f.color || '#666'};strokeWidth=2;endArrow=blockThin;endFill=1;fontSize=10;fontStyle=1;fontColor=${f.color || '#666'};" edge="1" parent="1" source="${src}" target="${tgt}"><mxGeometry relative="1" as="geometry"/></mxCell>`);
+    cs.push(`<mxCell id="${id}" value="${f.step || ''}" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=${f.color};strokeWidth=2;endArrow=blockThin;endFill=1;fontSize=10;fontStyle=1;fontColor=${f.color};" edge="1" parent="1" source="${src}" target="${tgt}"><mxGeometry relative="1" as="geometry"/></mxCell>`);
   });
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<mxfile><diagram name="Architecture"><mxGraphModel><root>\n<mxCell id="0"/><mxCell id="1" parent="0"/>\n${cs.join("\n")}\n</root></mxGraphModel></diagram></mxfile>`;
@@ -256,7 +301,7 @@ function exportDrawio(layout: LayoutResult) {
   a.click();
 }
 
-// ─── SVG DIAGRAM RENDERER ──────────────────────────────────
+// ─── SVG RENDERER ──────────────────────────────────────────
 function DiagramSVG({ layout }: { layout: LayoutResult }) {
   const [hComp, setHComp] = useState<string | null>(null);
   const [hFlow, setHFlow] = useState<number | null>(null);
@@ -266,55 +311,80 @@ function DiagramSVG({ layout }: { layout: LayoutResult }) {
       style={{ display: "block", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       <defs>
         {FLOW_COLORS.map((c, i) => (
-          <marker key={i} id={`a${i}`} markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-            <polygon points="0 0,8 3,0 6" fill={c} />
+          <marker key={i} id={`a${i}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0,10 3.5,0 7" fill={c} />
           </marker>
         ))}
-        <marker id="ag" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-          <polygon points="0 0,8 3,0 6" fill="#ccc" />
+        <marker id="ag" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0,10 3.5,0 7" fill="#bbb" />
         </marker>
         <filter id="ico-sh"><feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.08" /></filter>
-        <filter id="ico-sh-h"><feDropShadow dx="0" dy="2" stdDeviation="4" floodOpacity="0.15" /></filter>
+        <filter id="ico-hi"><feDropShadow dx="0" dy="2" stdDeviation="4" floodOpacity="0.16" /></filter>
       </defs>
 
       <rect width={layout.w} height={layout.h} fill="#ffffff" />
 
       {/* Title */}
-      <text x={layout.w / 2} y={34} textAnchor="middle"
-        style={{ fontSize: 18, fontWeight: 700, fill: "#111" }}>
+      <text x={layout.w / 2} y={38} textAnchor="middle"
+        style={{ fontSize: 18, fontWeight: 700, fill: "#111", letterSpacing: "-0.3px" }}>
         {layout.title}
       </text>
 
-      {/* Flows (behind) */}
-      {layout.flows.map((f: any, i: number) => {
+      {/* Groups (background) */}
+      {layout.groups.map((g, i) => {
+        const c = PALETTE[g.category] || PALETTE.processing;
+        return (
+          <g key={`g${i}`}>
+            <rect x={g.x} y={g.y} width={g.w} height={g.h}
+              rx={10} fill={c.bg} stroke={c.border} strokeWidth={1.2} opacity={0.65} />
+            {/* Header */}
+            <rect x={g.x} y={g.y} width={g.w} height={28} rx={10} fill={c.headerBg} opacity={0.75} />
+            <rect x={g.x} y={g.y + 18} width={g.w} height={10} fill={c.headerBg} opacity={0.75} />
+            {/* Left accent */}
+            <rect x={g.x} y={g.y} width={4} height={g.h} rx={2} fill={c.accent} />
+            <text x={g.x + 16} y={g.y + 20}
+              style={{ fontSize: 12, fontWeight: 700, fill: c.header }}>
+              {g.name}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Flows */}
+      {layout.flows.map((f, i) => {
         const active = hFlow === i || (hComp !== null && (f.from === hComp || f.to === hComp));
         const ci = i % FLOW_COLORS.length;
         return (
-          <g key={`f${i}`} onMouseEnter={() => setHFlow(i)} onMouseLeave={() => setHFlow(null)}
+          <g key={`f${i}`}
+            onMouseEnter={() => setHFlow(i)} onMouseLeave={() => setHFlow(null)}
             style={{ cursor: "pointer" }}>
-            <path d={f.path} fill="none" stroke="transparent" strokeWidth={16} />
+            {/* Hit area */}
+            <path d={f.path} fill="none" stroke="transparent" strokeWidth={18} />
+            {/* Line */}
             <path d={f.path} fill="none"
-              stroke={active ? f.color : "#d4d4d4"}
+              stroke={active ? f.color : "#c8c8c8"}
               strokeWidth={active ? 2.5 : 1.5}
-              strokeDasharray={active ? "6,3" : "none"}
+              strokeDasharray={active ? "7,3" : "none"}
               markerEnd={active ? `url(#a${ci})` : "url(#ag)"}
               style={{ transition: "all 0.15s" }}
             />
+            {/* Step badge */}
             {f.step != null && (
               <g>
-                <rect x={f.midX - 11} y={f.midY - 11} width={22} height={22} rx={5}
+                <circle cx={f.labelX} cy={f.labelY} r={13}
                   fill={active ? f.color : "#fb8c00"} />
-                <text x={f.midX} y={f.midY + 5} textAnchor="middle"
+                <text x={f.labelX} y={f.labelY + 4.5} textAnchor="middle"
                   style={{ fontSize: 11, fontWeight: 800, fill: "#fff" }}>
                   {f.step}
                 </text>
               </g>
             )}
+            {/* Hover label */}
             {active && f.label && (
               <g>
-                <rect x={f.midX - 55} y={f.midY - 30} width={110} height={18} rx={4}
+                <rect x={f.labelX - 55} y={f.labelY - 30} width={110} height={18} rx={4}
                   fill="#222" opacity={0.92} />
-                <text x={f.midX} y={f.midY - 18} textAnchor="middle"
+                <text x={f.labelX} y={f.labelY - 18} textAnchor="middle"
                   style={{ fontSize: 9, fill: "#fff" }}>
                   {f.label}
                 </text>
@@ -324,71 +394,46 @@ function DiagramSVG({ layout }: { layout: LayoutResult }) {
         );
       })}
 
-      {/* Groups */}
-      {layout.groups.map((g: any, i: number) => {
-        const c = PALETTE[g.category] || PALETTE.processing;
-        return (
-          <g key={`g${i}`}>
-            <rect x={g.x} y={g.y} width={g.w} height={g.h}
-              rx={8} fill={c.bg} stroke={c.border} strokeWidth={1.2} opacity={0.7} />
-            {/* Header */}
-            <rect x={g.x} y={g.y} width={g.w} height={26} rx={8} fill={c.headerBg} opacity={0.8} />
-            <rect x={g.x} y={g.y + 18} width={g.w} height={8} fill={c.headerBg} opacity={0.8} />
-            {/* Left accent bar */}
-            <rect x={g.x} y={g.y} width={4} height={g.h} rx={2} fill={c.accent} />
-            <text x={g.x + 14} y={g.y + 18}
-              style={{ fontSize: 11, fontWeight: 700, fill: c.header }}>
-              {g.name}
-            </text>
-          </g>
-        );
-      })}
-
-      {/* Component icons */}
-      {Object.entries(layout.comps).map(([id, c]: [string, CompLayout]) => {
+      {/* Components */}
+      {Object.entries(layout.comps).map(([id, c]) => {
         const active = hComp === id ||
           (hFlow !== null && layout.flows[hFlow] &&
             (layout.flows[hFlow].from === id || layout.flows[hFlow].to === id));
 
         return (
-          <g key={id} onMouseEnter={() => setHComp(id)} onMouseLeave={() => setHComp(null)}
+          <g key={id}
+            onMouseEnter={() => setHComp(id)} onMouseLeave={() => setHComp(null)}
             style={{ cursor: "pointer" }}>
-            {/* Icon */}
             {c.iconPath ? (
-              <image
-                href={c.iconPath}
-                x={c.cx - ICON_SZ / 2}
-                y={c.cy - ICON_SZ / 2}
-                width={ICON_SZ}
-                height={ICON_SZ}
-                filter={active ? "url(#ico-sh-h)" : "url(#ico-sh)"}
+              <image href={c.iconPath}
+                x={c.cx - ICON_SZ / 2} y={c.cy - ICON_SZ / 2}
+                width={ICON_SZ} height={ICON_SZ}
+                filter={active ? "url(#ico-hi)" : "url(#ico-sh)"}
                 style={{ transition: "filter 0.15s" }}
               />
             ) : (
               <g>
-                <rect
-                  x={c.cx - 20} y={c.cy - 20}
-                  width={40} height={40} rx={8}
-                  fill="#e8eaed" stroke="#dadce0" strokeWidth={1}
-                  filter={active ? "url(#ico-sh-h)" : "url(#ico-sh)"}
+                <rect x={c.cx - 22} y={c.cy - 22} width={44} height={44} rx={10}
+                  fill="#f0f0f0" stroke="#ddd" strokeWidth={1}
+                  filter={active ? "url(#ico-hi)" : "url(#ico-sh)"}
                 />
-                <text x={c.cx} y={c.cy + 4} textAnchor="middle"
-                  style={{ fontSize: 14, fill: "#9aa0a6" }}>?</text>
+                <text x={c.cx} y={c.cy + 5} textAnchor="middle"
+                  style={{ fontSize: 16, fill: "#aaa" }}>?</text>
               </g>
             )}
-            {/* Service name */}
-            <text x={c.cx} y={c.cy + ICON_SZ / 2 + 14} textAnchor="middle"
+            {/* Name label */}
+            <text x={c.cx} y={c.cy + ICON_SZ / 2 + 16} textAnchor="middle"
               style={{
-                fontSize: 10, fontWeight: active ? 600 : 500,
+                fontSize: 10.5, fontWeight: active ? 600 : 500,
                 fill: active ? "#111" : "#444",
                 transition: "all 0.15s",
               }}>
-              {c.name.length > 16 ? c.name.slice(0, 15) + "…" : c.name}
+              {c.name.length > 18 ? c.name.slice(0, 17) + "…" : c.name}
             </text>
             {/* Subtitle on hover */}
             {active && c.subtitle && (
-              <text x={c.cx} y={c.cy + ICON_SZ / 2 + 26} textAnchor="middle"
-                style={{ fontSize: 8, fill: "#999" }}>
+              <text x={c.cx} y={c.cy + ICON_SZ / 2 + 28} textAnchor="middle"
+                style={{ fontSize: 9, fill: "#999" }}>
                 {c.subtitle}
               </text>
             )}
@@ -399,7 +444,7 @@ function DiagramSVG({ layout }: { layout: LayoutResult }) {
   );
 }
 
-// ─── MAIN DASHBOARD ────────────────────────────────────────
+// ─── DASHBOARD ─────────────────────────────────────────────
 export default function Dashboard({ user }: { user: User }) {
   const { logout, isLoggingOut } = useAuth();
   const [prompt, setPrompt] = useState("");
@@ -424,8 +469,7 @@ export default function Dashboard({ user }: { user: User }) {
         throw new Error(d.error || "Generation failed");
       }
       const data = await res.json();
-      const diag = data.diagram as DiagramData;
-      setLayout(computeLayout(diag));
+      setLayout(computeLayout(data.diagram as DiagramData));
     } catch (e: any) {
       setError(e.message);
     }
@@ -485,9 +529,7 @@ export default function Dashboard({ user }: { user: User }) {
           <div style={{ fontSize: 10, fontWeight: 700, color: "#bbb", letterSpacing: 1 }}>
             DESCRIBE YOUR SYSTEM
           </div>
-          <textarea
-            value={prompt}
-            onChange={e => setPrompt(e.target.value)}
+          <textarea value={prompt} onChange={e => setPrompt(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) generate(); }}
             placeholder="Describe your architecture in plain English..."
             style={{
@@ -559,7 +601,7 @@ export default function Dashboard({ user }: { user: User }) {
         </div>
 
         {/* Canvas */}
-        <div style={{ flex: 1, overflow: "auto", padding: 20, background: "#f5f5f5" }}>
+        <div style={{ flex: 1, overflow: "auto", padding: 24, background: "#f5f5f5" }}>
           {!layout && !loading && (
             <div style={{
               height: "100%", display: "flex", alignItems: "center", justifyContent: "center",
@@ -584,7 +626,7 @@ export default function Dashboard({ user }: { user: User }) {
           )}
           {layout && (
             <div className="fade-up" style={{
-              background: "#fff", borderRadius: 8, border: "1px solid #e5e5e5",
+              background: "#fff", borderRadius: 10, border: "1px solid #e5e5e5",
               display: "inline-block", minWidth: "100%",
               boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
             }}>
