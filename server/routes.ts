@@ -7,103 +7,78 @@ import { eq, and, desc } from "drizzle-orm";
 
 const ICONS = `compute_engine,cloud_run,cloud_functions,app_engine,google_kubernetes_engine,cloud_gpu,cloud_tpu,batch,cloud_storage,bigquery,cloud_sql,cloud_spanner,firestore,bigtable,datastore,memorystore,filestore,persistent_disk,dataflow,dataproc,pubsub,data_catalog,dataprep,dataplex,datastream,analytics_hub,data_studio,looker,vertexai,ai_platform,automl,cloud_natural_language_api,cloud_vision_api,cloud_translation_api,speech-to-text,text-to-speech,dialogflow,document_ai,recommendations_ai,tensorflow_enterprise,cloud_load_balancing,cloud_cdn,cloud_dns,cloud_vpn,cloud_nat,cloud_armor,cloud_interconnect,virtual_private_cloud,traffic_director,identity_and_access_management,security_command_center,secret_manager,key_management_service,binary_authorization,identity_platform,cloud_audit_logs,cloud_build,artifact_registry,cloud_deploy,cloud_monitoring,cloud_logging,error_reporting,trace,cloud_scheduler,cloud_tasks,apigee_api_platform,cloud_api_gateway,cloud_endpoints,eventarc,workflows,connectors`;
 
-const SYSTEM_PROMPT = `You are a cloud solutions architect. Given a system description, produce a JSON architecture diagram.
+const SYSTEM_PROMPT = `You are a cloud architect. Generate a LEFT-TO-RIGHT pipeline architecture diagram.
 
-IMPORTANT RULES:
-1. Create 4-7 groups. Each group has 2-4 components. Groups represent pipeline stages.
-2. Every component gets a unique short id (like "bq", "run1", "dash").
-3. Flows connect components in DIFFERENT groups only. NEVER create a flow between two components in the same group.
-4. Flows are numbered sequentially: 1, 2, 3, 4, 5, 6... NO gaps, NO skipping.
-5. The flow chain tells the data story from source to destination.
-6. Every flow MUST have a descriptive label (what data moves).
-7. For icons, use exact IDs from: ${ICONS}. Set null if no match.
+LAYOUT RULE: The diagram reads LEFT → RIGHT. Group 1 is leftmost, last group is rightmost. Data flows from left to right through the pipeline stages.
 
-CRITICAL FLOW RULES:
-- Flows ONLY between DIFFERENT groups. If comp A and comp B are in the same group, do NOT connect them.
-- Number every flow starting at 1. If you have 6 flows, they are numbered 1,2,3,4,5,6.
-- The chain should be continuous: step N's target group is usually step N+1's source group.
+RULES:
+1. Create 4-6 groups ordered as pipeline stages (left to right).
+2. Each group has 2-3 components. Components in a group are related services at the same pipeline stage.
+3. Create 5-8 flows. EACH flow connects one component to one component in a DIFFERENT group.
+4. Flows are numbered 1, 2, 3, 4, 5... with NO gaps. Step 1 starts at the leftmost group.
+5. The flow chain should read left to right: step 1 exits group 1, step 2 exits group 1 or 2, etc.
+6. NEVER create flows between components in the SAME group.
+7. Every flow has a short label describing what data moves.
+8. For icons use exact IDs from: ${ICONS}. Use null if no match.
 
 Categories: actors, channels, ingestion, processing, ai, storage, serving, output, security, monitoring
 
-OUTPUT FORMAT (JSON only, no markdown):
+OUTPUT (JSON only):
 {
   "title": "Short Title",
   "groups": [
     {
       "id": "grp_id",
       "name": "Group Name",
-      "category": "category",
+      "category": "category_name",
       "components": [
         {"id": "comp_id", "name": "Display Name", "icon": "icon_id_or_null", "subtitle": "detail"}
       ]
     }
   ],
   "flows": [
-    {"from": "comp_id_in_group_A", "to": "comp_id_in_group_B", "label": "What moves", "step": 1}
+    {"from": "comp_in_group_A", "to": "comp_in_group_B", "label": "What moves", "step": 1}
   ]
 }
 
 EXAMPLE:
-Input: "Healthcare AI: EHR data → BigQuery → Vertex AI → dashboard"
-
 {
   "title": "Clinical AI Pipeline",
   "groups": [
-    {
-      "id": "src", "name": "Data Sources", "category": "actors",
-      "components": [
-        {"id": "ehr", "name": "Epic EHR", "icon": null, "subtitle": "FHIR R4"},
-        {"id": "labs", "name": "Lab Systems", "icon": null, "subtitle": "HL7"}
-      ]
-    },
-    {
-      "id": "ingest", "name": "Ingestion", "category": "ingestion",
-      "components": [
-        {"id": "ps", "name": "Pub/Sub", "icon": "pubsub", "subtitle": "Events"},
-        {"id": "df", "name": "Dataflow", "icon": "dataflow", "subtitle": "ETL"}
-      ]
-    },
-    {
-      "id": "store", "name": "Data Lake", "category": "storage",
-      "components": [
-        {"id": "bq", "name": "BigQuery", "icon": "bigquery", "subtitle": "Analytics"},
-        {"id": "gcs", "name": "Cloud Storage", "icon": "cloud_storage", "subtitle": "Raw"}
-      ]
-    },
-    {
-      "id": "ml", "name": "AI/ML", "category": "ai",
-      "components": [
-        {"id": "vtx", "name": "Vertex AI", "icon": "vertexai", "subtitle": "Training"},
-        {"id": "ep", "name": "Vertex AI", "icon": "vertexai", "subtitle": "Endpoints"}
-      ]
-    },
-    {
-      "id": "app", "name": "Serving", "category": "serving",
-      "components": [
-        {"id": "run", "name": "Cloud Run", "icon": "cloud_run", "subtitle": "API"},
-        {"id": "lb", "name": "Load Balancer", "icon": "cloud_load_balancing", "subtitle": "HTTPS"}
-      ]
-    },
-    {
-      "id": "ui", "name": "Frontends", "category": "channels",
-      "components": [
-        {"id": "dash", "name": "Looker", "icon": "looker", "subtitle": "Dashboard"},
-        {"id": "mob", "name": "App Engine", "icon": "app_engine", "subtitle": "Mobile"}
-      ]
-    }
+    {"id": "src", "name": "Data Sources", "category": "actors", "components": [
+      {"id": "ehr", "name": "Epic EHR", "icon": null, "subtitle": "FHIR R4"},
+      {"id": "labs", "name": "Lab Systems", "icon": null, "subtitle": "HL7"}
+    ]},
+    {"id": "ingest", "name": "Ingestion", "category": "ingestion", "components": [
+      {"id": "ps", "name": "Pub/Sub", "icon": "pubsub", "subtitle": "Events"},
+      {"id": "df", "name": "Dataflow", "icon": "dataflow", "subtitle": "ETL"}
+    ]},
+    {"id": "store", "name": "Data Lake", "category": "storage", "components": [
+      {"id": "bq", "name": "BigQuery", "icon": "bigquery", "subtitle": "Analytics"},
+      {"id": "gcs", "name": "Cloud Storage", "icon": "cloud_storage", "subtitle": "Raw"}
+    ]},
+    {"id": "ml", "name": "AI/ML", "category": "ai", "components": [
+      {"id": "vtx", "name": "Vertex AI", "icon": "vertexai", "subtitle": "Training"},
+      {"id": "ep", "name": "Vertex AI", "icon": "vertexai", "subtitle": "Endpoints"}
+    ]},
+    {"id": "app", "name": "Serving", "category": "serving", "components": [
+      {"id": "run", "name": "Cloud Run", "icon": "cloud_run", "subtitle": "API"},
+      {"id": "dash", "name": "Looker", "icon": "looker", "subtitle": "Dashboard"}
+    ]}
   ],
   "flows": [
     {"from": "ehr", "to": "ps", "label": "Patient Events", "step": 1},
     {"from": "ps", "to": "df", "label": "Raw Stream", "step": 2},
-    {"from": "df", "to": "bq", "label": "Structured Data", "step": 3},
+    {"from": "df", "to": "bq", "label": "Clean Records", "step": 3},
     {"from": "bq", "to": "vtx", "label": "Training Data", "step": 4},
-    {"from": "vtx", "to": "run", "label": "Model Serving", "step": 5},
-    {"from": "run", "to": "dash", "label": "Predictions", "step": 6}
+    {"from": "vtx", "to": "ep", "label": "Trained Model", "step": 5},
+    {"from": "ep", "to": "run", "label": "Predictions", "step": 6},
+    {"from": "run", "to": "dash", "label": "Risk Scores", "step": 7}
   ]
 }
 
-Note: 6 flows, numbered 1-6, every flow crosses groups, no within-group flows.
-Generate for the user's description. Output ONLY JSON.`;
+7 steps, numbered 1-7, no gaps, all cross-group, flows left to right.
+Output ONLY valid JSON.`;
 
 export async function registerRoutes(
   httpServer: Server,
@@ -141,26 +116,25 @@ export async function registerRoutes(
       const clean = text.replace(/```json\s*/g, "").replace(/```/g, "").trim();
       const diagramJson = JSON.parse(clean);
 
-      // POST-PROCESS: Force sequential numbering on cross-group flows
+      // POST-PROCESS: Remove within-group flows, renumber sequentially
       if (diagramJson.flows && diagramJson.groups) {
         const c2g: Record<string, string> = {};
-        (diagramJson.groups as any[]).forEach((g: any) =>
-          (g.components as any[]).forEach((c: any) => { c2g[c.id] = g.id; })
-        );
-        // Remove any within-group flows
-        diagramJson.flows = (diagramJson.flows as any[]).filter((f: any) => {
+        for (const g of diagramJson.groups) {
+          for (const c of g.components) { c2g[c.id] = g.id; }
+        }
+        // Filter: only cross-group flows
+        diagramJson.flows = diagramJson.flows.filter((f: any) => {
           const fg = c2g[f.from], tg = c2g[f.to];
           return fg && tg && fg !== tg;
         });
-        // Re-number sequentially 1, 2, 3...
-        // Sort by existing step first to preserve intended order
+        // Sort by original step, then renumber 1,2,3...
         diagramJson.flows.sort((a: any, b: any) => (a.step || 999) - (b.step || 999));
         diagramJson.flows.forEach((f: any, i: number) => { f.step = i + 1; });
       }
 
       const userId = req.user.claims.sub;
       const [saved] = await db.insert(diagrams).values({
-        title: diagramJson.title || "Untitled Diagram",
+        title: diagramJson.title || "Untitled",
         prompt,
         diagramJson: JSON.stringify(diagramJson),
         userId,
@@ -168,7 +142,7 @@ export async function registerRoutes(
 
       res.json({ diagram: diagramJson, saved });
     } catch (error: any) {
-      console.error("Error generating diagram:", error?.message || error);
+      console.error("Diagram generation error:", error?.message || error);
       res.status(500).json({ error: error?.message || "Failed to generate diagram" });
     }
   });
@@ -176,37 +150,26 @@ export async function registerRoutes(
   app.get("/api/diagrams", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const result = await db.select().from(diagrams)
-        .where(eq(diagrams.userId, userId))
-        .orderBy(desc(diagrams.createdAt));
+      const result = await db.select().from(diagrams).where(eq(diagrams.userId, userId)).orderBy(desc(diagrams.createdAt));
       res.json(result);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch diagrams" });
-    }
+    } catch (e) { res.status(500).json({ error: "Failed" }); }
   });
 
   app.get("/api/diagrams/:id", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const id = parseInt(req.params.id);
-      const [diagram] = await db.select().from(diagrams)
-        .where(and(eq(diagrams.id, id), eq(diagrams.userId, userId)));
-      if (!diagram) return res.status(404).json({ error: "Not found" });
-      res.json(diagram);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch diagram" });
-    }
+      const [d] = await db.select().from(diagrams).where(and(eq(diagrams.id, parseInt(req.params.id)), eq(diagrams.userId, userId)));
+      if (!d) return res.status(404).json({ error: "Not found" });
+      res.json(d);
+    } catch (e) { res.status(500).json({ error: "Failed" }); }
   });
 
   app.delete("/api/diagrams/:id", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const id = parseInt(req.params.id);
-      await db.delete(diagrams).where(and(eq(diagrams.id, id), eq(diagrams.userId, userId)));
+      await db.delete(diagrams).where(and(eq(diagrams.id, parseInt(req.params.id)), eq(diagrams.userId, userId)));
       res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete diagram" });
-    }
+    } catch (e) { res.status(500).json({ error: "Failed" }); }
   });
 
   return httpServer;
