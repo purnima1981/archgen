@@ -1,0 +1,668 @@
+{
+  "icons": [
+    {
+      "id": "compute_engine",
+      "name": "Compute Engine",
+      "path": "/icons/composed/compute_engine.svg",
+      "aliases": [
+        "gce",
+        "vm",
+        "virtual machine"
+      ]
+    },
+    {
+      "id": "cloud_run",
+      "name": "Cloud Run",
+      "path": "/icons/composed/cloud_run.svg",
+      "aliases": [
+        "cloudrun",
+        "container service",
+        "serverless container"
+      ]
+    },
+    {
+      "id": "cloud_functions",
+      "name": "Cloud Functions",
+      "path": "/icons/composed/cloud_functions.svg",
+      "aliases": [
+        "gcf",
+        "serverless",
+        "functions",
+        "lambda"
+      ]
+    },
+    {
+      "id": "app_engine",
+      "name": "App Engine",
+      "path": "/icons/composed/app_engine.svg",
+      "aliases": [
+        "gae",
+        "paas"
+      ]
+    },
+    {
+      "id": "google_kubernetes_engine",
+      "name": "GKE",
+      "path": "/icons/composed/google_kubernetes_engine.svg",
+      "aliases": [
+        "gke",
+        "kubernetes",
+        "k8s"
+      ]
+    },
+    {
+      "id": "cloud_gpu",
+      "name": "Cloud GPU",
+      "path": "/icons/composed/cloud_gpu.svg",
+      "aliases": [
+        "gpu"
+      ]
+    },
+    {
+      "id": "cloud_tpu",
+      "name": "Cloud TPU",
+      "path": "/icons/composed/cloud_tpu.svg",
+      "aliases": [
+        "tpu"
+      ]
+    },
+    {
+      "id": "batch",
+      "name": "Batch",
+      "path": "/icons/composed/batch.svg",
+      "aliases": [
+        "batch processing"
+      ]
+    },
+    {
+      "id": "cloud_storage",
+      "name": "Cloud Storage",
+      "path": "/icons/composed/cloud_storage.svg",
+      "aliases": [
+        "gcs",
+        "bucket",
+        "object storage",
+        "s3"
+      ]
+    },
+    {
+      "id": "bigquery",
+      "name": "BigQuery",
+      "path": "/icons/composed/bigquery.svg",
+      "aliases": [
+        "bq",
+        "data warehouse",
+        "olap"
+      ]
+    },
+    {
+      "id": "cloud_sql",
+      "name": "Cloud SQL",
+      "path": "/icons/composed/cloud_sql.svg",
+      "aliases": [
+        "sql",
+        "mysql",
+        "postgres",
+        "postgresql",
+        "rdbms"
+      ]
+    },
+    {
+      "id": "cloud_spanner",
+      "name": "Cloud Spanner",
+      "path": "/icons/composed/cloud_spanner.svg",
+      "aliases": [
+        "spanner",
+        "global database"
+      ]
+    },
+    {
+      "id": "firestore",
+      "name": "Firestore",
+      "path": "/icons/composed/firestore.svg",
+      "aliases": [
+        "document db",
+        "nosql"
+      ]
+    },
+    {
+      "id": "bigtable",
+      "name": "Bigtable",
+      "path": "/icons/composed/bigtable.svg",
+      "aliases": [
+        "wide column",
+        "hbase"
+      ]
+    },
+    {
+      "id": "datastore",
+      "name": "Datastore",
+      "path": "/icons/composed/datastore.svg",
+      "aliases": [
+        "nosql store"
+      ]
+    },
+    {
+      "id": "memorystore",
+      "name": "Memorystore",
+      "path": "/icons/composed/memorystore.svg",
+      "aliases": [
+        "redis",
+        "cache",
+        "memcached"
+      ]
+    },
+    {
+      "id": "filestore",
+      "name": "Filestore",
+      "path": "/icons/composed/filestore.svg",
+      "aliases": [
+        "nfs",
+        "file storage"
+      ]
+    },
+    {
+      "id": "persistent_disk",
+      "name": "Persistent Disk",
+      "path": "/icons/composed/persistent_disk.svg",
+      "aliases": [
+        "pd",
+        "block storage",
+        "disk"
+      ]
+    },
+    {
+      "id": "dataflow",
+      "name": "Dataflow",
+      "path": "/icons/composed/dataflow.svg",
+      "aliases": [
+        "beam",
+        "stream processing",
+        "etl"
+      ]
+    },
+    {
+      "id": "dataproc",
+      "name": "Dataproc",
+      "path": "/icons/composed/dataproc.svg",
+      "aliases": [
+        "spark",
+        "hadoop",
+        "batch analytics"
+      ]
+    },
+    {
+      "id": "pubsub",
+      "name": "Pub/Sub",
+      "path": "/icons/composed/pubsub.svg",
+      "aliases": [
+        "pub sub",
+        "messaging",
+        "event stream",
+        "message queue",
+        "kafka"
+      ]
+    },
+    {
+      "id": "data_catalog",
+      "name": "Data Catalog",
+      "path": "/icons/composed/data_catalog.svg",
+      "aliases": [
+        "metadata",
+        "data discovery"
+      ]
+    },
+    {
+      "id": "dataprep",
+      "name": "Dataprep",
+      "path": "/icons/composed/dataprep.svg",
+      "aliases": [
+        "data wrangling",
+        "data prep"
+      ]
+    },
+    {
+      "id": "dataplex",
+      "name": "Dataplex",
+      "path": "/icons/composed/dataplex.svg",
+      "aliases": [
+        "data lake",
+        "data mesh",
+        "data governance"
+      ]
+    },
+    {
+      "id": "datastream",
+      "name": "Datastream",
+      "path": "/icons/composed/datastream.svg",
+      "aliases": [
+        "cdc",
+        "change data capture",
+        "replication"
+      ]
+    },
+    {
+      "id": "analytics_hub",
+      "name": "Analytics Hub",
+      "path": "/icons/composed/analytics_hub.svg",
+      "aliases": [
+        "data exchange",
+        "data sharing"
+      ]
+    },
+    {
+      "id": "data_studio",
+      "name": "Looker Studio",
+      "path": "/icons/composed/data_studio.svg",
+      "aliases": [
+        "data studio",
+        "dashboard",
+        "bi",
+        "reporting"
+      ]
+    },
+    {
+      "id": "looker",
+      "name": "Looker",
+      "path": "/icons/composed/looker.svg",
+      "aliases": [
+        "bi platform",
+        "business intelligence"
+      ]
+    },
+    {
+      "id": "vertexai",
+      "name": "Vertex AI",
+      "path": "/icons/composed/vertexai.svg",
+      "aliases": [
+        "vertex",
+        "ml platform",
+        "ai platform",
+        "mlops"
+      ]
+    },
+    {
+      "id": "ai_platform",
+      "name": "AI Platform",
+      "path": "/icons/composed/ai_platform.svg",
+      "aliases": [
+        "ml engine"
+      ]
+    },
+    {
+      "id": "automl",
+      "name": "AutoML",
+      "path": "/icons/composed/automl.svg",
+      "aliases": [
+        "auto ml",
+        "automated ml"
+      ]
+    },
+    {
+      "id": "cloud_natural_language_api",
+      "name": "Natural Language",
+      "path": "/icons/composed/cloud_natural_language_api.svg",
+      "aliases": [
+        "nlp",
+        "text analysis",
+        "sentiment"
+      ]
+    },
+    {
+      "id": "cloud_vision_api",
+      "name": "Vision AI",
+      "path": "/icons/composed/cloud_vision_api.svg",
+      "aliases": [
+        "vision",
+        "image recognition",
+        "ocr"
+      ]
+    },
+    {
+      "id": "cloud_translation_api",
+      "name": "Translation",
+      "path": "/icons/composed/cloud_translation_api.svg",
+      "aliases": [
+        "translate"
+      ]
+    },
+    {
+      "id": "speech-to-text",
+      "name": "Speech-to-Text",
+      "path": "/icons/composed/speech-to-text.svg",
+      "aliases": [
+        "stt",
+        "speech recognition"
+      ]
+    },
+    {
+      "id": "text-to-speech",
+      "name": "Text-to-Speech",
+      "path": "/icons/composed/text-to-speech.svg",
+      "aliases": [
+        "tts",
+        "voice synthesis"
+      ]
+    },
+    {
+      "id": "dialogflow",
+      "name": "Dialogflow",
+      "path": "/icons/composed/dialogflow.svg",
+      "aliases": [
+        "chatbot",
+        "conversational ai"
+      ]
+    },
+    {
+      "id": "document_ai",
+      "name": "Document AI",
+      "path": "/icons/composed/document_ai.svg",
+      "aliases": [
+        "doc ai",
+        "document processing"
+      ]
+    },
+    {
+      "id": "recommendations_ai",
+      "name": "Recommendations AI",
+      "path": "/icons/composed/recommendations_ai.svg",
+      "aliases": [
+        "recommendation engine"
+      ]
+    },
+    {
+      "id": "tensorflow_enterprise",
+      "name": "TensorFlow",
+      "path": "/icons/composed/tensorflow_enterprise.svg",
+      "aliases": [
+        "tf",
+        "tensorflow"
+      ]
+    },
+    {
+      "id": "cloud_load_balancing",
+      "name": "Load Balancer",
+      "path": "/icons/composed/cloud_load_balancing.svg",
+      "aliases": [
+        "lb",
+        "load balancing",
+        "glb"
+      ]
+    },
+    {
+      "id": "cloud_cdn",
+      "name": "Cloud CDN",
+      "path": "/icons/composed/cloud_cdn.svg",
+      "aliases": [
+        "cdn",
+        "content delivery"
+      ]
+    },
+    {
+      "id": "cloud_dns",
+      "name": "Cloud DNS",
+      "path": "/icons/composed/cloud_dns.svg",
+      "aliases": [
+        "dns"
+      ]
+    },
+    {
+      "id": "cloud_vpn",
+      "name": "Cloud VPN",
+      "path": "/icons/composed/cloud_vpn.svg",
+      "aliases": [
+        "vpn"
+      ]
+    },
+    {
+      "id": "cloud_nat",
+      "name": "Cloud NAT",
+      "path": "/icons/composed/cloud_nat.svg",
+      "aliases": [
+        "nat"
+      ]
+    },
+    {
+      "id": "cloud_armor",
+      "name": "Cloud Armor",
+      "path": "/icons/composed/cloud_armor.svg",
+      "aliases": [
+        "waf",
+        "ddos protection",
+        "firewall"
+      ]
+    },
+    {
+      "id": "cloud_interconnect",
+      "name": "Interconnect",
+      "path": "/icons/composed/cloud_interconnect.svg",
+      "aliases": [
+        "dedicated interconnect",
+        "partner interconnect"
+      ]
+    },
+    {
+      "id": "virtual_private_cloud",
+      "name": "VPC",
+      "path": "/icons/composed/virtual_private_cloud.svg",
+      "aliases": [
+        "vpc",
+        "network"
+      ]
+    },
+    {
+      "id": "traffic_director",
+      "name": "Traffic Director",
+      "path": "/icons/composed/traffic_director.svg",
+      "aliases": [
+        "service mesh",
+        "envoy"
+      ]
+    },
+    {
+      "id": "identity_and_access_management",
+      "name": "Cloud IAM",
+      "path": "/icons/composed/identity_and_access_management.svg",
+      "aliases": [
+        "iam",
+        "access control",
+        "rbac"
+      ]
+    },
+    {
+      "id": "security_command_center",
+      "name": "Security Center",
+      "path": "/icons/composed/security_command_center.svg",
+      "aliases": [
+        "scc",
+        "security monitoring"
+      ]
+    },
+    {
+      "id": "secret_manager",
+      "name": "Secret Manager",
+      "path": "/icons/composed/secret_manager.svg",
+      "aliases": [
+        "secrets",
+        "vault"
+      ]
+    },
+    {
+      "id": "key_management_service",
+      "name": "Cloud KMS",
+      "path": "/icons/composed/key_management_service.svg",
+      "aliases": [
+        "kms",
+        "encryption keys"
+      ]
+    },
+    {
+      "id": "binary_authorization",
+      "name": "Binary Auth",
+      "path": "/icons/composed/binary_authorization.svg",
+      "aliases": [
+        "binary authorization"
+      ]
+    },
+    {
+      "id": "identity_platform",
+      "name": "Identity Platform",
+      "path": "/icons/composed/identity_platform.svg",
+      "aliases": [
+        "auth",
+        "authentication",
+        "firebase auth"
+      ]
+    },
+    {
+      "id": "cloud_audit_logs",
+      "name": "Audit Logs",
+      "path": "/icons/composed/cloud_audit_logs.svg",
+      "aliases": [
+        "audit",
+        "compliance logging"
+      ]
+    },
+    {
+      "id": "cloud_build",
+      "name": "Cloud Build",
+      "path": "/icons/composed/cloud_build.svg",
+      "aliases": [
+        "ci",
+        "build",
+        "ci/cd"
+      ]
+    },
+    {
+      "id": "artifact_registry",
+      "name": "Artifact Registry",
+      "path": "/icons/composed/artifact_registry.svg",
+      "aliases": [
+        "container registry",
+        "docker registry",
+        "artifacts"
+      ]
+    },
+    {
+      "id": "cloud_deploy",
+      "name": "Cloud Deploy",
+      "path": "/icons/composed/cloud_deploy.svg",
+      "aliases": [
+        "cd",
+        "deployment",
+        "continuous delivery"
+      ]
+    },
+    {
+      "id": "cloud_monitoring",
+      "name": "Cloud Monitoring",
+      "path": "/icons/composed/cloud_monitoring.svg",
+      "aliases": [
+        "monitoring",
+        "stackdriver",
+        "metrics"
+      ]
+    },
+    {
+      "id": "cloud_logging",
+      "name": "Cloud Logging",
+      "path": "/icons/composed/cloud_logging.svg",
+      "aliases": [
+        "logging",
+        "logs",
+        "log explorer"
+      ]
+    },
+    {
+      "id": "error_reporting",
+      "name": "Error Reporting",
+      "path": "/icons/composed/error_reporting.svg",
+      "aliases": [
+        "errors",
+        "crash reporting"
+      ]
+    },
+    {
+      "id": "trace",
+      "name": "Cloud Trace",
+      "path": "/icons/composed/trace.svg",
+      "aliases": [
+        "tracing",
+        "distributed tracing"
+      ]
+    },
+    {
+      "id": "cloud_scheduler",
+      "name": "Cloud Scheduler",
+      "path": "/icons/composed/cloud_scheduler.svg",
+      "aliases": [
+        "scheduler",
+        "cron",
+        "scheduled jobs"
+      ]
+    },
+    {
+      "id": "cloud_tasks",
+      "name": "Cloud Tasks",
+      "path": "/icons/composed/cloud_tasks.svg",
+      "aliases": [
+        "task queue",
+        "async tasks"
+      ]
+    },
+    {
+      "id": "apigee_api_platform",
+      "name": "Apigee",
+      "path": "/icons/composed/apigee_api_platform.svg",
+      "aliases": [
+        "apigee",
+        "api management",
+        "api gateway"
+      ]
+    },
+    {
+      "id": "cloud_api_gateway",
+      "name": "API Gateway",
+      "path": "/icons/composed/cloud_api_gateway.svg",
+      "aliases": [
+        "api gw",
+        "gateway"
+      ]
+    },
+    {
+      "id": "cloud_endpoints",
+      "name": "Cloud Endpoints",
+      "path": "/icons/composed/cloud_endpoints.svg",
+      "aliases": [
+        "endpoints",
+        "api endpoints"
+      ]
+    },
+    {
+      "id": "eventarc",
+      "name": "Eventarc",
+      "path": "/icons/composed/eventarc.svg",
+      "aliases": [
+        "event routing",
+        "event driven"
+      ]
+    },
+    {
+      "id": "workflows",
+      "name": "Workflows",
+      "path": "/icons/composed/workflows.svg",
+      "aliases": [
+        "orchestration",
+        "workflow engine"
+      ]
+    },
+    {
+      "id": "connectors",
+      "name": "Connectors",
+      "path": "/icons/composed/connectors.svg",
+      "aliases": [
+        "integration connectors"
+      ]
+    }
+  ]
+}
