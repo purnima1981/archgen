@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import type { User } from "@shared/models/auth";
 
@@ -41,7 +41,8 @@ const PALETTE: Record<string, { bg: string; border: string; headerBg: string; he
   monitoring: { bg: "#e1f5fe", border: "#81d4fa", headerBg: "#b3e5fc", header: "#01579b", accent: "#039be5" },
 };
 
-const FLOW_COLORS = ["#5c6bc0", "#5c6bc0", "#5c6bc0", "#5c6bc0", "#5c6bc0", "#5c6bc0", "#5c6bc0", "#5c6bc0", "#5c6bc0", "#5c6bc0"];
+const ARROW_COLOR = "#5c6bc0";
+const ARROW_ACTIVE = "#303f9f";
 
 const SAMPLES = [
   { label: "Healthcare AI Pipeline", prompt: "Healthcare AI system: Patient data from Epic EHR flows through FHIR API gateway to a data lake in BigQuery. Vertex AI trains clinical prediction models using feature store. Models are deployed via Cloud Run API serving predictions to a React clinician dashboard and a mobile app for nurses. Include monitoring and security layers." },
@@ -50,288 +51,452 @@ const SAMPLES = [
 ];
 
 // ─── TYPES ─────────────────────────────────────────────────
-interface DiagramData {
-  title: string;
-  groups: Array<{ id: string; name: string; category: string; components: Array<{ id: string; name: string; icon?: string; subtitle?: string }> }>;
-  flows: Array<{ from: string; to: string; label?: string; step?: number }>;
+interface Component { id: string; name: string; icon?: string; subtitle?: string; }
+interface Group { id: string; name: string; category: string; components: Component[]; }
+interface Flow { from: string; to: string; label?: string; step?: number; }
+interface DiagramData { title: string; groups: Group[]; flows: Flow[]; }
+
+// Layout positions (mutable for drag)
+interface GroupPos { x: number; y: number; w: number; h: number; }
+
+// Aggregated group-to-group arrow
+interface GroupArrow {
+  fromGroupId: string;
+  toGroupId: string;
+  steps: number[];
+  labels: string[];
+  details: string[]; // "CompA → CompB: label"
 }
-interface CompLayout { cx: number; cy: number; name: string; icon?: string; subtitle?: string; iconPath: string | null; groupIdx: number; }
-interface FlowLayout { from: string; to: string; label?: string; step?: number; path: string; color: string; labelX: number; labelY: number; }
-interface GroupLayout { x: number; y: number; w: number; h: number; name: string; category: string; }
-interface LayoutResult { groups: GroupLayout[]; comps: Record<string, CompLayout>; flows: FlowLayout[]; w: number; h: number; title: string; }
 
-// ─── HORIZONTAL PIPELINE LAYOUT ────────────────────────────
-// Groups are columns left → right. Components stack vertically in each column.
-// This creates a natural pipeline flow that reads left to right.
+// ─── TOPOLOGICAL SORT ──────────────────────────────────────
+function topoSortGroups(groups: Group[], flows: Flow[]): string[][] {
+  // Map comp → group
+  const comp2group: Record<string, string> = {};
+  groups.forEach(g => g.components.forEach(c => { comp2group[c.id] = g.id; }));
 
-const ISIZ = 48;       // icon size
-const CELL_W = 120;    // width per component cell
-const CELL_H = 90;     // height per component cell
-const COL_PAD = 24;    // padding inside group column
-const COL_HDR = 34;    // group header height
-const COL_GAP = 60;    // gap between group columns
-const MARGIN = 50;
-const TITLE_H = 50;
+  // Build group-level adjacency
+  const adj: Record<string, Set<string>> = {};
+  const inDeg: Record<string, number> = {};
+  groups.forEach(g => { adj[g.id] = new Set(); inDeg[g.id] = 0; });
 
-function computeLayout(diag: DiagramData): LayoutResult {
-  const groups = diag.groups || [];
-  const comps: Record<string, CompLayout> = {};
-
-  // Each group becomes a column
-  const colSizes = groups.map(g => {
-    const n = g.components?.length || 1;
-    return {
-      w: CELL_W + 2 * COL_PAD,
-      h: COL_HDR + n * CELL_H + COL_PAD,
-      n,
-    };
-  });
-
-  // Max column height
-  const maxH = Math.max(...colSizes.map(c => c.h));
-
-  // Position columns left to right
-  let curX = MARGIN;
-  const gLayouts: GroupLayout[] = [];
-
-  groups.forEach((g, gi) => {
-    const sz = colSizes[gi];
-    const gx = curX;
-    const gy = MARGIN + TITLE_H;
-    const gh = maxH; // all columns same height for alignment
-
-    gLayouts.push({
-      x: gx, y: gy, w: sz.w, h: gh,
-      name: g.name, category: g.category || "processing",
-    });
-
-    // Stack components vertically, centered in column
-    const startY = gy + COL_HDR + COL_PAD;
-    const totalCompH = sz.n * CELL_H;
-    const offsetY = (gh - COL_HDR - COL_PAD - totalCompH) / 2; // center vertically
-
-    (g.components || []).forEach((comp, ci) => {
-      const cx = gx + sz.w / 2;
-      const cy = startY + offsetY + ci * CELL_H + CELL_H / 2;
-      comps[comp.id] = {
-        cx, cy,
-        name: comp.name, icon: comp.icon, subtitle: comp.subtitle,
-        iconPath: findIconPath(comp.name, comp.icon),
-        groupIdx: gi,
-      };
-    });
-
-    curX += sz.w + COL_GAP;
-  });
-
-  const totW = curX - COL_GAP + MARGIN;
-  const totH = MARGIN + TITLE_H + maxH + MARGIN;
-
-  // ── Flow routing with clean curves ──
-  const flows: FlowLayout[] = [];
-
-  (diag.flows || []).forEach((f, fi) => {
-    const fr = comps[f.from];
-    const to = comps[f.to];
-    if (!fr || !to) return;
-
-    const color = "#5c6bc0"; // consistent indigo for all flow lines
-    const pad = ISIZ / 2 + 8;
-
-    const dx = to.cx - fr.cx;
-    const dy = to.cy - fr.cy;
-
-    let sx: number, sy: number, ex: number, ey: number;
-    let path: string;
-
-    if (Math.abs(dx) > 30) {
-      // Horizontal: exit right, enter left (or vice versa)
-      sx = dx > 0 ? fr.cx + pad : fr.cx - pad;
-      sy = fr.cy;
-      ex = dx > 0 ? to.cx - pad : to.cx + pad;
-      ey = to.cy;
-
-      // Smooth cubic bezier curve
-      const ctrl = Math.abs(dx) * 0.4;
-      path = `M${sx},${sy} C${sx + (dx > 0 ? ctrl : -ctrl)},${sy} ${ex - (dx > 0 ? ctrl : -ctrl)},${ey} ${ex},${ey}`;
-    } else {
-      // Vertical: exit bottom, enter top (or vice versa)
-      sx = fr.cx;
-      sy = dy > 0 ? fr.cy + pad : fr.cy - pad;
-      ex = to.cx;
-      ey = dy > 0 ? to.cy - pad : to.cy + pad;
-
-      const ctrl = Math.abs(dy) * 0.4;
-      path = `M${sx},${sy} C${sx},${sy + (dy > 0 ? ctrl : -ctrl)} ${ex},${ey - (dy > 0 ? ctrl : -ctrl)} ${ex},${ey}`;
+  flows.forEach(f => {
+    const fg = comp2group[f.from];
+    const tg = comp2group[f.to];
+    if (fg && tg && fg !== tg && !adj[fg].has(tg)) {
+      adj[fg].add(tg);
+      inDeg[tg]++;
     }
-
-    const labelX = (sx + ex) / 2;
-    const labelY = (sy + ey) / 2;
-
-    flows.push({ from: f.from, to: f.to, label: f.label, step: f.step, path, color, labelX, labelY });
   });
 
-  return { groups: gLayouts, comps, flows, w: totW, h: totH, title: diag.title };
+  // BFS - Kahn's algorithm
+  const columns: string[][] = [];
+  const visited = new Set<string>();
+  let queue = groups.map(g => g.id).filter(id => inDeg[id] === 0);
+
+  while (queue.length > 0) {
+    columns.push([...queue]);
+    queue.forEach(id => visited.add(id));
+    const next: string[] = [];
+    queue.forEach(id => {
+      adj[id].forEach(tgt => {
+        inDeg[tgt]--;
+        if (inDeg[tgt] === 0 && !visited.has(tgt)) next.push(tgt);
+      });
+    });
+    queue = next;
+  }
+
+  // Add any remaining (cycles or disconnected)
+  const remaining = groups.map(g => g.id).filter(id => !visited.has(id));
+  if (remaining.length) columns.push(remaining);
+
+  return columns;
 }
 
-// ─── EXPORT ────────────────────────────────────────────────
-function exportDrawio(layout: LayoutResult) {
+// ─── BUILD GROUP ARROWS ────────────────────────────────────
+function buildGroupArrows(groups: Group[], flows: Flow[]): GroupArrow[] {
+  const comp2group: Record<string, string> = {};
+  const comp2name: Record<string, string> = {};
+  groups.forEach(g => g.components.forEach(c => { comp2group[c.id] = g.id; comp2name[c.id] = c.name; }));
+
+  const arrowMap: Record<string, GroupArrow> = {};
+  flows.forEach(f => {
+    const fg = comp2group[f.from];
+    const tg = comp2group[f.to];
+    if (!fg || !tg || fg === tg) return;
+    const key = `${fg}→${tg}`;
+    if (!arrowMap[key]) {
+      arrowMap[key] = { fromGroupId: fg, toGroupId: tg, steps: [], labels: [], details: [] };
+    }
+    if (f.step != null) arrowMap[key].steps.push(f.step);
+    if (f.label) arrowMap[key].labels.push(f.label);
+    arrowMap[key].details.push(`${comp2name[f.from]} → ${comp2name[f.to]}${f.label ? ': ' + f.label : ''}`);
+  });
+
+  // Sort by minimum step number
+  return Object.values(arrowMap).sort((a, b) => {
+    const aMin = a.steps.length ? Math.min(...a.steps) : 999;
+    const bMin = b.steps.length ? Math.min(...b.steps) : 999;
+    return aMin - bMin;
+  });
+}
+
+// ─── LAYOUT CONSTANTS ──────────────────────────────────────
+const ISIZ = 44;
+const COMP_CELL_W = 100;
+const COMP_CELL_H = 80;
+const COMP_GAP = 8;
+const GROUP_PAD_X = 20;
+const GROUP_PAD_TOP = 40;
+const GROUP_PAD_BOT = 16;
+const COL_GAP = 80;
+const ROW_GAP = 40;
+const MARGIN = 50;
+const TITLE_H = 46;
+
+function computeGroupSize(g: Group): { w: number; h: number } {
+  const n = g.components.length || 1;
+  const cols = Math.min(n, 2);
+  const rows = Math.ceil(n / cols);
+  const w = cols * COMP_CELL_W + (cols - 1) * COMP_GAP + 2 * GROUP_PAD_X;
+  const h = GROUP_PAD_TOP + rows * COMP_CELL_H + GROUP_PAD_BOT;
+  return { w: Math.max(w, 180), h };
+}
+
+function computeInitialPositions(groups: Group[], flows: Flow[]): Record<string, GroupPos> {
+  const columns = topoSortGroups(groups, flows);
+  const groupMap = Object.fromEntries(groups.map(g => [g.id, g]));
+  const positions: Record<string, GroupPos> = {};
+
+  // Compute sizes
+  const sizes: Record<string, { w: number; h: number }> = {};
+  groups.forEach(g => { sizes[g.id] = computeGroupSize(g); });
+
+  // Column widths
+  const colWidths = columns.map(col => Math.max(...col.map(id => sizes[id].w)));
+
+  // Column X positions
+  const colX: number[] = [MARGIN];
+  for (let c = 1; c < columns.length; c++) {
+    colX.push(colX[c - 1] + colWidths[c - 1] + COL_GAP);
+  }
+
+  // Place groups
+  columns.forEach((col, ci) => {
+    // Vertical stack
+    let curY = MARGIN + TITLE_H;
+    col.forEach(gid => {
+      const sz = sizes[gid];
+      const x = colX[ci] + (colWidths[ci] - sz.w) / 2;
+      positions[gid] = { x, y: curY, w: sz.w, h: sz.h };
+      curY += sz.h + ROW_GAP;
+    });
+  });
+
+  return positions;
+}
+
+// ─── BEZIER ARROW PATH ─────────────────────────────────────
+function arrowPath(
+  fromPos: GroupPos, toPos: GroupPos,
+  index: number, total: number
+): { path: string; labelX: number; labelY: number; sx: number; sy: number; ex: number; ey: number } {
+  // Exit from right edge of source, enter left edge of target
+  // If multiple arrows between different groups in same columns, offset vertically
+  const vertOffset = total > 1 ? (index - (total - 1) / 2) * 16 : 0;
+
+  const sx = fromPos.x + fromPos.w;
+  const sy = fromPos.y + fromPos.h / 2 + vertOffset;
+  const ex = toPos.x;
+  const ey = toPos.y + toPos.h / 2 + vertOffset;
+
+  // Handle case where target is to the left (backward reference)
+  const isForward = ex > sx;
+
+  if (isForward) {
+    const gap = ex - sx;
+    const cpx = gap * 0.45;
+    const path = `M${sx},${sy} C${sx + cpx},${sy} ${ex - cpx},${ey} ${ex},${ey}`;
+    return { path, labelX: (sx + ex) / 2, labelY: (sy + ey) / 2, sx, sy, ex, ey };
+  } else {
+    // Backward: route around (go up/down then back)
+    const lift = 50;
+    const goUp = sy < ey;
+    const topY = goUp ? Math.min(fromPos.y, toPos.y) - lift : Math.max(fromPos.y + fromPos.h, toPos.y + toPos.h) + lift;
+    const path = `M${sx},${sy} C${sx + 40},${sy} ${sx + 40},${topY} ${(sx + ex) / 2},${topY} C${ex - 40},${topY} ${ex - 40},${ey} ${ex},${ey}`;
+    return { path, labelX: (sx + ex) / 2, labelY: topY, sx, sy, ex, ey };
+  }
+}
+
+// ─── EXPORT .drawio ────────────────────────────────────────
+function exportDrawio(
+  diag: DiagramData,
+  positions: Record<string, GroupPos>,
+) {
   let cid = 10;
   const cs: string[] = [];
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  const cMap: Record<string, string> = {};
+  const gCellMap: Record<string, string> = {};
 
-  layout.groups.forEach(g => {
+  diag.groups.forEach(g => {
     const col = PALETTE[g.category] || PALETTE.processing;
+    const pos = positions[g.id];
+    if (!pos) return;
     const id = `c${++cid}`;
-    cs.push(`<mxCell id="${id}" value="${esc(g.name)}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=${col.bg};strokeColor=${col.border};verticalAlign=top;fontStyle=1;fontSize=11;fontColor=${col.header};arcSize=4;spacingTop=4;" vertex="1" parent="1"><mxGeometry x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" as="geometry"/></mxCell>`);
+    gCellMap[g.id] = id;
+    cs.push(`<mxCell id="${id}" value="${esc(g.name)}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=${col.bg};strokeColor=${col.border};verticalAlign=top;fontStyle=1;fontSize=12;fontColor=${col.header};arcSize=4;spacingTop=6;" vertex="1" parent="1"><mxGeometry x="${pos.x}" y="${pos.y}" width="${pos.w}" height="${pos.h}" as="geometry"/></mxCell>`);
   });
-  Object.entries(layout.comps).forEach(([compId, c]) => {
-    const id = `c${++cid}`; cMap[compId] = id;
-    cs.push(`<mxCell id="${id}" value="${esc(c.name)}" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;fontSize=10;" vertex="1" parent="1"><mxGeometry x="${c.cx - 24}" y="${c.cy - 24}" width="48" height="48" as="geometry"/></mxCell>`);
-  });
-  layout.flows.forEach(f => {
-    const src = cMap[f.from], tgt = cMap[f.to];
+
+  const arrows = buildGroupArrows(diag.groups, diag.flows);
+  arrows.forEach(a => {
+    const src = gCellMap[a.fromGroupId], tgt = gCellMap[a.toGroupId];
     if (!src || !tgt) return;
     const id = `c${++cid}`;
-    cs.push(`<mxCell id="${id}" value="${f.step || ''}" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=${f.color};strokeWidth=2;endArrow=blockThin;endFill=1;fontSize=10;fontStyle=1;fontColor=${f.color};" edge="1" parent="1" source="${src}" target="${tgt}"><mxGeometry relative="1" as="geometry"/></mxCell>`);
+    const label = a.steps.length ? a.steps.sort((x, y) => x - y).join(",") : "";
+    cs.push(`<mxCell id="${id}" value="${label}" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=${ARROW_COLOR};strokeWidth=2;endArrow=blockThin;endFill=1;fontSize=11;fontStyle=1;fontColor=${ARROW_COLOR};" edge="1" parent="1" source="${src}" target="${tgt}"><mxGeometry relative="1" as="geometry"/></mxCell>`);
   });
+
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<mxfile><diagram name="Architecture"><mxGraphModel><root>\n<mxCell id="0"/><mxCell id="1" parent="0"/>\n${cs.join("\n")}\n</root></mxGraphModel></diagram></mxfile>`;
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([xml], { type: "application/xml" }));
-  a.download = `${layout.title?.replace(/\s+/g, "_") || "architecture"}.drawio`;
+  a.download = `${diag.title?.replace(/\s+/g, "_") || "architecture"}.drawio`;
   a.click();
 }
 
-// ─── SVG RENDERER ──────────────────────────────────────────
-function DiagramSVG({ layout }: { layout: LayoutResult }) {
-  const [hComp, setHComp] = useState<string | null>(null);
-  const [hFlow, setHFlow] = useState<number | null>(null);
+// ─── DIAGRAM CANVAS (SVG + DRAG) ───────────────────────────
+function DiagramCanvas({
+  diag, positions, setPositions,
+}: {
+  diag: DiagramData;
+  positions: Record<string, GroupPos>;
+  setPositions: (p: Record<string, GroupPos>) => void;
+}) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [drag, setDrag] = useState<{ gid: string; offX: number; offY: number } | null>(null);
+  const [hArrow, setHArrow] = useState<number | null>(null);
+  const [editingGroup, setEditingGroup] = useState<string | null>(null);
+  const [editingComp, setEditingComp] = useState<string | null>(null);
+
+  const arrows = buildGroupArrows(diag.groups, diag.flows);
+
+  // Canvas bounds
+  let maxX = 0, maxY = 0;
+  Object.values(positions).forEach(p => {
+    maxX = Math.max(maxX, p.x + p.w);
+    maxY = Math.max(maxY, p.y + p.h);
+  });
+  const canvasW = maxX + MARGIN;
+  const canvasH = maxY + MARGIN;
+
+  // Mouse handlers for drag
+  const handleMouseDown = (gid: string, e: React.MouseEvent) => {
+    if (editingGroup || editingComp) return;
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const pt = svgEl.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    const svgPt = pt.matrixTransform(svgEl.getScreenCTM()!.inverse());
+    const pos = positions[gid];
+    setDrag({ gid, offX: svgPt.x - pos.x, offY: svgPt.y - pos.y });
+  };
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!drag || !svgRef.current) return;
+    const pt = svgRef.current.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    const svgPt = pt.matrixTransform(svgRef.current.getScreenCTM()!.inverse());
+    setPositions({
+      ...positions,
+      [drag.gid]: {
+        ...positions[drag.gid],
+        x: Math.max(10, svgPt.x - drag.offX),
+        y: Math.max(10, svgPt.y - drag.offY),
+      },
+    });
+  }, [drag, positions, setPositions]);
+
+  const handleMouseUp = useCallback(() => setDrag(null), []);
+
+  // Compute component positions within group
+  function compPos(g: Group, pos: GroupPos) {
+    const n = g.components.length;
+    const cols = Math.min(n, 2);
+    const rows = Math.ceil(n / cols);
+    const totalW = cols * COMP_CELL_W + (cols - 1) * COMP_GAP;
+    const totalH = rows * COMP_CELL_H;
+    const startX = pos.x + (pos.w - totalW) / 2;
+    const startY = pos.y + GROUP_PAD_TOP + (pos.h - GROUP_PAD_TOP - GROUP_PAD_BOT - totalH) / 2;
+
+    return g.components.map((c, ci) => {
+      const row = Math.floor(ci / cols);
+      const col = ci % cols;
+      return {
+        cx: startX + col * (COMP_CELL_W + COMP_GAP) + COMP_CELL_W / 2,
+        cy: startY + row * COMP_CELL_H + COMP_CELL_H / 2 - 6,
+        comp: c,
+      };
+    });
+  }
 
   return (
-    <svg width={layout.w} height={layout.h} viewBox={`0 0 ${layout.w} ${layout.h}`}
-      style={{ display: "block", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <svg ref={svgRef} width={canvasW} height={canvasH}
+      viewBox={`0 0 ${canvasW} ${canvasH}`}
+      onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
+      style={{
+        display: "block", fontFamily: "'DM Sans', system-ui, sans-serif",
+        cursor: drag ? "grabbing" : "default",
+      }}>
       <defs>
-        <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-          <polygon points="0 0,10 3.5,0 7" fill="#5c6bc0" />
+        <marker id="arw" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0.5,9 3.5,0 6.5" fill={ARROW_COLOR} />
         </marker>
-        <marker id="arr-h" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-          <polygon points="0 0,10 3.5,0 7" fill="#3949ab" />
+        <marker id="arw-h" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+          <polygon points="0 0.5,9 3.5,0 6.5" fill={ARROW_ACTIVE} />
         </marker>
-        <marker id="arr-g" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-          <polygon points="0 0,10 3.5,0 7" fill="#bbb" />
-        </marker>
-        <filter id="ico-sh"><feDropShadow dx="0" dy="1" stdDeviation="2" floodOpacity="0.08" /></filter>
-        <filter id="ico-hi"><feDropShadow dx="0" dy="2" stdDeviation="4" floodOpacity="0.16" /></filter>
+        <filter id="grp-sh"><feDropShadow dx="0" dy="2" stdDeviation="4" floodOpacity="0.06" /></filter>
+        <filter id="grp-sh-d"><feDropShadow dx="0" dy="4" stdDeviation="8" floodOpacity="0.1" /></filter>
+        <filter id="ico-sh"><feDropShadow dx="0" dy="1" stdDeviation="1.5" floodOpacity="0.06" /></filter>
       </defs>
 
-      <rect width={layout.w} height={layout.h} fill="#ffffff" />
+      <rect width={canvasW} height={canvasH} fill="#fff" />
 
       {/* Title */}
-      <text x={layout.w / 2} y={38} textAnchor="middle"
+      <text x={canvasW / 2} y={36} textAnchor="middle"
         style={{ fontSize: 18, fontWeight: 700, fill: "#111" }}>
-        {layout.title}
+        {diag.title}
       </text>
 
-      {/* Groups as columns */}
-      {layout.groups.map((g, i) => {
-        const c = PALETTE[g.category] || PALETTE.processing;
-        return (
-          <g key={`g${i}`}>
-            <rect x={g.x} y={g.y} width={g.w} height={g.h}
-              rx={10} fill={c.bg} stroke={c.border} strokeWidth={1} opacity={0.6} />
-            {/* Header */}
-            <rect x={g.x} y={g.y} width={g.w} height={30} rx={10} fill={c.headerBg} opacity={0.7} />
-            <rect x={g.x} y={g.y + 20} width={g.w} height={10} fill={c.headerBg} opacity={0.7} />
-            {/* Top accent */}
-            <rect x={g.x} y={g.y} width={g.w} height={4} rx={2} fill={c.accent} />
-            <text x={g.x + g.w / 2} y={g.y + 22} textAnchor="middle"
-              style={{ fontSize: 11, fontWeight: 700, fill: c.header }}>
-              {g.name}
-            </text>
-          </g>
-        );
-      })}
+      {/* Arrows between groups */}
+      {arrows.map((a, ai) => {
+        const fpos = positions[a.fromGroupId];
+        const tpos = positions[a.toGroupId];
+        if (!fpos || !tpos) return null;
 
-      {/* Flows — smooth curves */}
-      {layout.flows.map((f, i) => {
-        const active = hFlow === i || (hComp !== null && (f.from === hComp || f.to === hComp));
+        // Count arrows leaving same source to space them
+        const sameSource = arrows.filter(x => x.fromGroupId === a.fromGroupId);
+        const idx = sameSource.indexOf(a);
+        const ap = arrowPath(fpos, tpos, idx, sameSource.length);
+        const active = hArrow === ai;
+        const stepLabel = a.steps.length ? a.steps.sort((x, y) => x - y).join("·") : "";
+
         return (
-          <g key={`f${i}`} onMouseEnter={() => setHFlow(i)} onMouseLeave={() => setHFlow(null)}
+          <g key={`a${ai}`} onMouseEnter={() => setHArrow(ai)} onMouseLeave={() => setHArrow(null)}
             style={{ cursor: "pointer" }}>
-            <path d={f.path} fill="none" stroke="transparent" strokeWidth={18} />
-            <path d={f.path} fill="none"
-              stroke={active ? "#3949ab" : "#c5cae9"}
-              strokeWidth={active ? 2.5 : 1.5}
-              markerEnd={active ? "url(#arr-h)" : "url(#arr-g)"}
-              style={{ transition: "all 0.2s" }}
+            {/* Hit area */}
+            <path d={ap.path} fill="none" stroke="transparent" strokeWidth={20} />
+            {/* Line */}
+            <path d={ap.path} fill="none"
+              stroke={active ? ARROW_ACTIVE : "#c5cae9"}
+              strokeWidth={active ? 2.5 : 2}
+              markerEnd={active ? "url(#arw-h)" : "url(#arw)"}
+              style={{ transition: "all 0.15s" }}
             />
             {/* Step badge */}
-            {f.step != null && (
+            {stepLabel && (
               <g>
-                <circle cx={f.labelX} cy={f.labelY} r={12}
-                  fill={active ? "#3949ab" : "#5c6bc0"} />
-                <text x={f.labelX} y={f.labelY + 4} textAnchor="middle"
+                <circle cx={ap.labelX} cy={ap.labelY} r={14}
+                  fill={active ? ARROW_ACTIVE : ARROW_COLOR}
+                  style={{ transition: "fill 0.15s" }} />
+                <text x={ap.labelX} y={ap.labelY + 4.5} textAnchor="middle"
                   style={{ fontSize: 10, fontWeight: 800, fill: "#fff" }}>
-                  {f.step}
+                  {stepLabel}
                 </text>
               </g>
             )}
-            {/* Hover label */}
-            {active && f.label && (
+            {/* Hover tooltip */}
+            {active && a.details.length > 0 && (
               <g>
-                <rect x={f.labelX - 55} y={f.labelY - 28} width={110} height={18} rx={4}
-                  fill="#1a237e" opacity={0.92} />
-                <text x={f.labelX} y={f.labelY - 16} textAnchor="middle"
-                  style={{ fontSize: 9, fill: "#fff" }}>
-                  {f.label}
-                </text>
+                {a.details.map((d, di) => (
+                  <g key={di}>
+                    <rect x={ap.labelX + 22} y={ap.labelY - 10 + di * 18} width={Math.min(d.length * 6 + 16, 220)} height={16} rx={3}
+                      fill="#1a237e" opacity={0.92} />
+                    <text x={ap.labelX + 30} y={ap.labelY + 1 + di * 18}
+                      style={{ fontSize: 9, fill: "#fff" }}>
+                      {d.length > 36 ? d.slice(0, 35) + "…" : d}
+                    </text>
+                  </g>
+                ))}
               </g>
             )}
           </g>
         );
       })}
 
-      {/* Components */}
-      {Object.entries(layout.comps).map(([id, c]) => {
-        const active = hComp === id ||
-          (hFlow !== null && layout.flows[hFlow] &&
-            (layout.flows[hFlow].from === id || layout.flows[hFlow].to === id));
+      {/* Groups */}
+      {diag.groups.map((g, gi) => {
+        const pos = positions[g.id];
+        if (!pos) return null;
+        const c = PALETTE[g.category] || PALETTE.processing;
+        const isDragging = drag?.gid === g.id;
+        const cps = compPos(g, pos);
+
         return (
-          <g key={id} onMouseEnter={() => setHComp(id)} onMouseLeave={() => setHComp(null)}
-            style={{ cursor: "pointer" }}>
-            {c.iconPath ? (
-              <image href={c.iconPath}
-                x={c.cx - ISIZ / 2} y={c.cy - ISIZ / 2}
-                width={ISIZ} height={ISIZ}
-                filter={active ? "url(#ico-hi)" : "url(#ico-sh)"}
-                style={{ transition: "filter 0.15s" }}
+          <g key={g.id}>
+            {/* Group box */}
+            <g onMouseDown={e => handleMouseDown(g.id, e)}
+              style={{ cursor: isDragging ? "grabbing" : "grab" }}>
+              <rect x={pos.x} y={pos.y} width={pos.w} height={pos.h}
+                rx={10} fill={c.bg} stroke={c.border} strokeWidth={1.2}
+                filter={isDragging ? "url(#grp-sh-d)" : "url(#grp-sh)"}
+                style={{ transition: isDragging ? "none" : "filter 0.2s" }}
               />
-            ) : (
-              <g>
-                <rect x={c.cx - 22} y={c.cy - 22} width={44} height={44} rx={10}
-                  fill="#f0f0f0" stroke="#ddd" strokeWidth={1}
-                  filter={active ? "url(#ico-hi)" : "url(#ico-sh)"} />
-                <text x={c.cx} y={c.cy + 5} textAnchor="middle"
-                  style={{ fontSize: 16, fill: "#aaa" }}>?</text>
-              </g>
-            )}
-            <text x={c.cx} y={c.cy + ISIZ / 2 + 14} textAnchor="middle"
-              style={{
-                fontSize: 10, fontWeight: active ? 600 : 500,
-                fill: active ? "#111" : "#444",
-              }}>
-              {c.name.length > 16 ? c.name.slice(0, 15) + "…" : c.name}
-            </text>
-            {active && c.subtitle && (
-              <text x={c.cx} y={c.cy + ISIZ / 2 + 26} textAnchor="middle"
-                style={{ fontSize: 8, fill: "#999" }}>
-                {c.subtitle}
+              {/* Header bar */}
+              <rect x={pos.x} y={pos.y} width={pos.w} height={32}
+                rx={10} fill={c.headerBg} />
+              <rect x={pos.x} y={pos.y + 22} width={pos.w} height={10} fill={c.headerBg} />
+              {/* Top accent line */}
+              <rect x={pos.x + 10} y={pos.y} width={pos.w - 20} height={3} rx={1.5} fill={c.accent} />
+              {/* Group name */}
+              <text x={pos.x + pos.w / 2} y={pos.y + 22} textAnchor="middle"
+                style={{ fontSize: 12, fontWeight: 700, fill: c.header, pointerEvents: "none" }}>
+                {g.name}
               </text>
-            )}
+            </g>
+
+            {/* Components */}
+            {cps.map(({ cx, cy, comp }) => {
+              const iconPath = findIconPath(comp.name, comp.icon);
+              return (
+                <g key={comp.id}>
+                  {iconPath ? (
+                    <image href={iconPath}
+                      x={cx - ISIZ / 2} y={cy - ISIZ / 2}
+                      width={ISIZ} height={ISIZ}
+                      filter="url(#ico-sh)"
+                    />
+                  ) : (
+                    <g>
+                      <rect x={cx - 20} y={cy - 20} width={40} height={40} rx={8}
+                        fill="#f0f0f0" stroke="#ddd" strokeWidth={1}
+                        filter="url(#ico-sh)" />
+                      <text x={cx} y={cy + 5} textAnchor="middle"
+                        style={{ fontSize: 14, fill: "#aaa" }}>?</text>
+                    </g>
+                  )}
+                  <text x={cx} y={cy + ISIZ / 2 + 12} textAnchor="middle"
+                    style={{ fontSize: 10, fontWeight: 500, fill: "#444" }}>
+                    {comp.name.length > 14 ? comp.name.slice(0, 13) + "…" : comp.name}
+                  </text>
+                  {comp.subtitle && (
+                    <text x={cx} y={cy + ISIZ / 2 + 23} textAnchor="middle"
+                      style={{ fontSize: 8, fill: "#999" }}>
+                      {comp.subtitle}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
           </g>
         );
       })}
+
+      {/* Drag hint */}
+      {!drag && (
+        <text x={canvasW - 10} y={canvasH - 10} textAnchor="end"
+          style={{ fontSize: 9, fill: "#ccc" }}>
+          Drag groups to reposition
+        </text>
+      )}
     </svg>
   );
 }
@@ -342,13 +507,14 @@ export default function Dashboard({ user }: { user: User }) {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [layout, setLayout] = useState<LayoutResult | null>(null);
+  const [diag, setDiag] = useState<DiagramData | null>(null);
+  const [positions, setPositions] = useState<Record<string, GroupPos>>({});
 
   useEffect(() => { loadRegistry(); }, []);
 
   const generate = useCallback(async () => {
     if (!prompt.trim()) return;
-    setLoading(true); setError(""); setLayout(null);
+    setLoading(true); setError(""); setDiag(null);
     try {
       const res = await fetch("/api/diagrams/generate", {
         method: "POST",
@@ -358,10 +524,16 @@ export default function Dashboard({ user }: { user: User }) {
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Generation failed"); }
       const data = await res.json();
-      setLayout(computeLayout(data.diagram as DiagramData));
+      const diagram = data.diagram as DiagramData;
+      setDiag(diagram);
+      setPositions(computeInitialPositions(diagram.groups, diagram.flows));
     } catch (e: any) { setError(e.message); }
     setLoading(false);
   }, [prompt]);
+
+  const resetLayout = () => {
+    if (diag) setPositions(computeInitialPositions(diag.groups, diag.flows));
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
@@ -385,13 +557,20 @@ export default function Dashboard({ user }: { user: User }) {
           <span style={{ fontSize: 9, background: "#f5f5f5", color: "#999",
             padding: "2px 6px", borderRadius: 3, fontWeight: 600 }}>BETA</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {layout && (
-            <button onClick={() => exportDrawio(layout)} style={{
-              background: "#212529", color: "#fff", border: "none",
-              padding: "6px 14px", borderRadius: 6, fontSize: 12,
-              fontWeight: 600, cursor: "pointer",
-            }}>↓ Export .drawio</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {diag && (
+            <>
+              <button onClick={resetLayout} style={{
+                background: "none", border: "1px solid #eee",
+                padding: "5px 12px", borderRadius: 6, fontSize: 11,
+                color: "#999", cursor: "pointer",
+              }}>⟲ Reset Layout</button>
+              <button onClick={() => exportDrawio(diag, positions)} style={{
+                background: "#212529", color: "#fff", border: "none",
+                padding: "6px 14px", borderRadius: 6, fontSize: 12,
+                fontWeight: 600, cursor: "pointer",
+              }}>↓ Export .drawio</button>
+            </>
           )}
           <span style={{ fontSize: 12, color: "#aaa" }}>{user.firstName || user.email}</span>
           <button onClick={() => logout()} disabled={isLoggingOut} style={{
@@ -453,13 +632,13 @@ export default function Dashboard({ user }: { user: User }) {
             </button>
           ))}
 
-          {layout && (
+          {diag && (
             <div style={{ padding: 12, background: "#f8f9fa", borderRadius: 6, border: "1px solid #f0f0f0" }}>
               <div style={{ display: "flex", gap: 24 }}>
                 {[
-                  { n: layout.groups.length, l: "Groups" },
-                  { n: Object.keys(layout.comps).length, l: "Components" },
-                  { n: layout.flows.length, l: "Flows" },
+                  { n: diag.groups.length, l: "Groups" },
+                  { n: diag.groups.reduce((s, g) => s + g.components.length, 0), l: "Services" },
+                  { n: buildGroupArrows(diag.groups, diag.flows).length, l: "Connections" },
                 ].map((s, i) => (
                   <div key={i}>
                     <div style={{ fontSize: 18, fontWeight: 700, color: "#212529" }}>{s.n}</div>
@@ -471,9 +650,9 @@ export default function Dashboard({ user }: { user: User }) {
           )}
         </div>
 
-        {/* Canvas - horizontal scroll */}
+        {/* Canvas */}
         <div style={{ flex: 1, overflow: "auto", padding: 24, background: "#f5f5f5" }}>
-          {!layout && !loading && (
+          {!diag && !loading && (
             <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
               <div style={{ fontSize: 40, color: "#ddd" }}>◇</div>
               <div style={{ color: "#bbb", fontSize: 13 }}>Describe a system to generate its architecture diagram</div>
@@ -486,13 +665,13 @@ export default function Dashboard({ user }: { user: User }) {
               <div style={{ color: "#999", fontSize: 13 }}>Generating architecture diagram...</div>
             </div>
           )}
-          {layout && (
+          {diag && Object.keys(positions).length > 0 && (
             <div className="fade-up" style={{
               background: "#fff", borderRadius: 10, border: "1px solid #e5e5e5",
               display: "inline-block",
               boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
             }}>
-              <DiagramSVG layout={layout} />
+              <DiagramCanvas diag={diag} positions={positions} setPositions={setPositions} />
             </div>
           )}
         </div>
