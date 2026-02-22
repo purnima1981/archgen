@@ -35,46 +35,46 @@ const STREAMING: Diagram = {
 
   nodes: [
     // ── SOURCES (x=100) ──
-    { id: "src_app", name: "Application", icon: null, subtitle: "Event Producer", zone: "sources", x: 100, y: 220, details: { notes: "Primary application producing business events via REST API" } },
-    { id: "src_mobile", name: "Mobile App", icon: null, subtitle: "User Events", zone: "sources", x: 100, y: 390, details: { notes: "iOS/Android clickstream and user actions" } },
-    { id: "src_iot", name: "IoT Devices", icon: null, subtitle: "Sensor Data", zone: "sources", x: 100, y: 550, details: { notes: "Telemetry from edge devices via MQTT" } },
+    { id: "src_app", name: "Application", icon: null, subtitle: "Event Producer", zone: "sources", x: 100, y: 150, details: { notes: "Primary application producing business events via REST API" } },
+    { id: "src_mobile", name: "Mobile App", icon: null, subtitle: "User Events", zone: "sources", x: 100, y: 350, details: { notes: "iOS/Android clickstream and user actions" } },
+    { id: "src_iot", name: "IoT Devices", icon: null, subtitle: "Sensor Data", zone: "sources", x: 100, y: 530, details: { notes: "Telemetry from edge devices via MQTT" } },
 
-    // ── PHASE 1: INGEST (x=360) ──
-    { id: "apigee", name: "Apigee", icon: "apigee_api_platform", subtitle: "API Gateway", zone: "cloud", x: 360, y: 220,
+    // ── PHASE 1: INGEST (x=370) ──
+    { id: "apigee", name: "Apigee", icon: "apigee_api_platform", subtitle: "API Gateway", zone: "cloud", x: 370, y: 150,
       details: { project: "", region: "us-central1", serviceAccount: "sa-apigee@PROJECT.iam", iamRoles: "roles/apigee.apiAdminV2", encryption: "TLS 1.3 termination", monitoring: "API latency P99 < 200ms, error rate, request volume", retry: "Client retry with backoff. 429 rate limiting at 1000 req/s.", alerting: "Error rate > 5% → PagerDuty P2\nLatency P99 > 500ms → Slack", cost: "~$3/M API calls", troubleshoot: "Check Apigee Analytics → error breakdown by proxy.\nDebug trace for failing requests.\nCheck backend health if 502/503.", guardrails: "OAuth 2.0 required, rate limit per client ID, body max 10MB", compliance: "SOC2" } },
-    { id: "pubsub", name: "Pub/Sub", icon: "pubsub", subtitle: "Event Bus", zone: "cloud", x: 360, y: 420,
+    { id: "pubsub", name: "Pub/Sub", icon: "pubsub", subtitle: "Event Bus", zone: "cloud", x: 370, y: 400,
       details: { project: "", region: "us-central1", serviceAccount: "sa-pubsub@PROJECT.iam", iamRoles: "roles/pubsub.publisher, roles/pubsub.subscriber", encryption: "Google-managed at rest + in transit", monitoring: "Oldest unacked msg age, publish rate, backlog, dead letter depth", retry: "Exponential backoff 10s→600s. Dead letter after 5 attempts. 7-day retention.", alerting: "Backlog > 5min → Slack P2\nDead letter > 0 → PagerDuty P1", cost: "$40/TB ingested", troubleshoot: "Backlog growing → check Dataflow health.\nDead letters → check message format.\nHigh latency → check push endpoint.", guardrails: "Schema Registry, ordering key on entity_id, dedup by ID", compliance: "SOC2" } },
 
-    // ── PHASE 2: PROCESS (x=580) ──
-    { id: "dataflow", name: "Dataflow", icon: "dataflow", subtitle: "Stream Processor", zone: "cloud", x: 590, y: 310,
+    // ── PHASE 2: PROCESS (x=620) ──
+    { id: "dataflow", name: "Dataflow", icon: "dataflow", subtitle: "Stream Processor", zone: "cloud", x: 620, y: 260,
       details: { project: "", region: "us-central1", serviceAccount: "sa-dataflow@PROJECT.iam", iamRoles: "roles/dataflow.worker, roles/bigquery.dataEditor", encryption: "CMEK via Cloud KMS", monitoring: "System lag, data freshness, elements/sec, CPU/mem, autoscaler", retry: "At-least-once, checkpoint every 30s. Autoscale 1-20. Failed → error topic.", alerting: "Lag > 60s → PagerDuty P1\nErrors > 10/min → Slack P2\nMax autoscale → PagerDuty P2", cost: "$0.069/vCPU-hr streaming. FlexRS 60% off batch.", troubleshoot: "High lag → increase workers or fix hot keys.\nOOM → increase memory.\nStuck → check UI for bottleneck stage.", guardrails: "Private IPs only, VPC-SC, Workload Identity", compliance: "SOC2" } },
-    { id: "dlp", name: "Cloud DLP", icon: "cloud_natural_language_api", subtitle: "PII Scanner", zone: "cloud", x: 590, y: 500,
+    { id: "dlp", name: "Cloud DLP", icon: "cloud_natural_language_api", subtitle: "PII Scanner", zone: "cloud", x: 620, y: 490,
       details: { serviceAccount: "sa-dlp@PROJECT.iam", monitoring: "Findings per scan, PII types, latency", retry: "Retry 429/503. Async for large datasets.", alerting: "High-risk PII (SSN, CC) → PagerDuty P1", cost: "$1-3/GB. Sample 10% to reduce.", troubleshoot: "False positives → tune threshold.\nMissing PII → add custom infoTypes.", guardrails: "Inspect ALL data BEFORE storing. De-identify for ML. Column masking.", compliance: "HIPAA, GDPR, SOC2" } },
 
-    // ── PHASE 3: STORE & SERVE (x=820-1050) ──
-    { id: "gcs", name: "Cloud Storage", icon: "cloud_storage", subtitle: "Data Lake (Bronze)", zone: "cloud", x: 820, y: 220,
+    // ── PHASE 3: STORE & SERVE (x=870, x=1080) ──
+    { id: "gcs", name: "Cloud Storage", icon: "cloud_storage", subtitle: "Data Lake (Bronze)", zone: "cloud", x: 870, y: 150,
       details: { project: "", region: "us-central1", encryption: "CMEK, 90-day rotation", monitoring: "Object count, size, request count", retry: "Client retry on 5xx. Resumable uploads.", alerting: "Storage > 10TB → budget P3\nUnexpected access → security P1", cost: "$0.020/GB/mo. Lifecycle: Nearline 30d → Coldline 90d → Archive 365d.", guardrails: "Bucket Lock, Versioning, VPC-SC, no public access", compliance: "SOC2" } },
-    { id: "bigquery", name: "BigQuery", icon: "bigquery", subtitle: "Warehouse (Silver/Gold)", zone: "cloud", x: 820, y: 420,
+    { id: "bigquery", name: "BigQuery", icon: "bigquery", subtitle: "Warehouse (Silver/Gold)", zone: "cloud", x: 870, y: 380,
       details: { project: "", region: "us-central1", encryption: "CMEK. Column-level security via policy tags.", monitoring: "Slot utilization, bytes processed, streaming buffer, freshness", retry: "Streaming: retry 503. Batch: Composer 3x retry.", alerting: "Slots > 80% → Slack P3\nQuery > $100 → PagerDuty P2\nStreaming errors > 1% → PagerDuty P1", cost: "On-demand $6.25/TB. Flat-rate $0.04/slot-hr. BI Engine $25.50/GB/mo.", troubleshoot: "Slow → check INFORMATION_SCHEMA, add partitioning.\nHigh cost → audit top queries.\nStreaming lag → check Dataflow.", guardrails: "Authorized views, column ACL, audit all access", compliance: "SOC2, HIPAA" } },
-    { id: "looker", name: "Looker", icon: "looker", subtitle: "Dashboards", zone: "cloud", x: 1050, y: 250,
+    { id: "looker", name: "Looker", icon: "looker", subtitle: "Dashboards", zone: "cloud", x: 1080, y: 150,
       details: { encryption: "TLS in transit", monitoring: "Dashboard load time, cache hit rate", alerting: "Errors > 5% → Slack P2", cost: "Platform license + per-user. BI Engine for sub-second.", guardrails: "SSO via SAML/OIDC, row-level permissions", compliance: "SOC2" } },
-    { id: "cloudrun", name: "Cloud Run", icon: "cloud_run", subtitle: "Data API", zone: "cloud", x: 1050, y: 440,
+    { id: "cloudrun", name: "Cloud Run", icon: "cloud_run", subtitle: "Data API", zone: "cloud", x: 1080, y: 380,
       details: { project: "", region: "us-central1", monitoring: "Request count, latency P99, cold starts", retry: "Auto-retry 503. Circuit breaker.", alerting: "P99 > 2s → Slack P2\n5xx > 1% → PagerDuty P1", cost: "Per request. Min instances=1 ~$15/mo.", guardrails: "Binary Auth, VPC connector, IAM invoker", compliance: "SOC2" } },
 
-    // ── OPS GROUP (x=420-800, y=680) ──
-    { id: "composer", name: "Composer", icon: "cloud_scheduler", subtitle: "Orchestrator", zone: "cloud", x: 420, y: 680,
+    // ── OPS GROUP (y=680, all same row) ──
+    { id: "composer", name: "Composer", icon: "cloud_scheduler", subtitle: "Orchestrator", zone: "cloud", x: 480, y: 680,
       details: { monitoring: "DAG success rate, task duration, heartbeat", retry: "Task: 3 retries, 5min delay. SLA miss detection.", alerting: "DAG failure → PagerDuty P1\nSLA miss → Slack P2", cost: "Small: ~$400/mo", guardrails: "Private IP, Secret Manager, RBAC", compliance: "SOC2" } },
-    { id: "monitoring", name: "Cloud Monitoring", icon: "cloud_monitoring", subtitle: "Metrics & Alerts", zone: "cloud", x: 650, y: 680,
+    { id: "monitoring", name: "Cloud Monitoring", icon: "cloud_monitoring", subtitle: "Metrics & Alerts", zone: "cloud", x: 730, y: 680,
       details: { monitoring: "Pipeline lag, throughput, errors, freshness, cost burn, SLO burn rate", alerting: "P1 → PagerDuty\nP2 → Slack\nP3 → Email", cost: "Free for GCP metrics. Custom: $0.258/metric/mo.", guardrails: "Alert on silence (meta-monitoring). Runbooks on every P1.", compliance: "SOC2" } },
-    { id: "logging", name: "Cloud Logging", icon: "cloud_logging", subtitle: "Audit & Archive", zone: "cloud", x: 880, y: 680,
+    { id: "logging", name: "Cloud Logging", icon: "cloud_logging", subtitle: "Audit & Archive", zone: "cloud", x: 970, y: 680,
       details: { monitoring: "Log volume/day, error rate, audit patterns", alerting: "Unexpected admin action → Security P1\nLog volume > 2x → Slack P3", cost: "$0.50/GiB after 50GiB free. Route to GCS for cheap archive.", guardrails: "Sinks to BQ for analysis. Locked buckets. Org-level collection.", compliance: "SOC2, HIPAA" } },
 
-    // ── ALERT DESTINATIONS (consumers, x=1250) ──
-    { id: "con_analysts", name: "Analysts", icon: null, subtitle: "BI Consumers", zone: "consumers", x: 1250, y: 250, details: { notes: "Business analysts via SSO" } },
-    { id: "con_apps", name: "Applications", icon: null, subtitle: "API Consumers", zone: "consumers", x: 1250, y: 440, details: { notes: "Downstream apps via OAuth 2.0" } },
-    { id: "pagerduty", name: "PagerDuty", icon: null, subtitle: "P1 Incidents", zone: "consumers", x: 1250, y: 610, details: { notes: "Critical alerts: pipeline down, data loss risk" } },
-    { id: "slack", name: "Slack", icon: null, subtitle: "P2 Alerts", zone: "consumers", x: 1250, y: 720, details: { notes: "Degraded performance, high latency warnings" } },
-    { id: "email_notif", name: "Email", icon: null, subtitle: "P3 Notifications", zone: "consumers", x: 1250, y: 830, details: { notes: "Budget alerts, capacity planning, weekly reports" } },
+    // ── CONSUMERS + ALERT DESTINATIONS (x=1300) ──
+    { id: "con_analysts", name: "Analysts", icon: null, subtitle: "BI Consumers", zone: "consumers", x: 1300, y: 150, details: { notes: "Business analysts via SSO" } },
+    { id: "con_apps", name: "Applications", icon: null, subtitle: "API Consumers", zone: "consumers", x: 1300, y: 380, details: { notes: "Downstream apps via OAuth 2.0" } },
+    { id: "pagerduty", name: "PagerDuty", icon: null, subtitle: "P1 Incidents", zone: "consumers", x: 1300, y: 600, details: { notes: "Critical alerts: pipeline down, data loss risk" } },
+    { id: "slack", name: "Slack", icon: null, subtitle: "P2 Alerts", zone: "consumers", x: 1300, y: 730, details: { notes: "Degraded performance, high latency warnings" } },
+    { id: "email_notif", name: "Email", icon: null, subtitle: "P3 Notifications", zone: "consumers", x: 1300, y: 860, details: { notes: "Budget alerts, capacity planning, weekly reports" } },
   ],
 
   edges: [

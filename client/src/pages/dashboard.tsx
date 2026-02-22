@@ -29,7 +29,7 @@ const CAT: Record<string, { bg: string; border: string }> = {
 const DEF_CAT = { bg: "#f5f5f5", border: "#bdbdbd" };
 function getCat(ic?: string | null) { return (ic && CAT[ic]) || DEF_CAT; }
 
-/* ── Types ─────────────────────────────────────────── */
+/* ── Types ────────────────────────────────────────── */
 interface NodeDetails { project?: string; region?: string; serviceAccount?: string; iamRoles?: string; encryption?: string; monitoring?: string; retry?: string; alerting?: string; cost?: string; troubleshoot?: string; guardrails?: string; compliance?: string; notes?: string }
 interface DiagNode { id: string; name: string; icon?: string | null; subtitle?: string; zone: "sources" | "cloud" | "consumers"; x: number; y: number; details?: NodeDetails }
 interface EdgeSecurity { transport: string; auth: string; classification: string; private: boolean }
@@ -38,60 +38,45 @@ interface Threat { id: string; target: string; stride: string; severity: string;
 interface Phase { id: string; name: string; nodeIds: string[] }
 interface OpsGroup { name: string; nodeIds: string[] }
 interface Diagram { title: string; subtitle?: string; nodes: DiagNode[]; edges: DiagEdge[]; threats?: Threat[]; phases?: Phase[]; opsGroup?: OpsGroup }
-const SEV: Record<string, string> = { critical: "#d32f2f", high: "#e65100", medium: "#f9a825", low: "#66bb6a" };
 
-/* ── Themes ────────────────────────────────────────── */
-const THEMES: Record<string, { bg: string; grid: boolean; gridColor: string; label: string }> = {
-  light:     { bg: "#f8f9fa", grid: false, gridColor: "", label: "Light" },
-  dotgrid:   { bg: "#ffffff", grid: true, gridColor: "#e0e0e0", label: "Dot Grid" },
-  blueprint: { bg: "#0d1b2a", grid: true, gridColor: "#1b3a5c", label: "Blueprint" },
-  dark:      { bg: "#1e1e1e", grid: false, gridColor: "", label: "Dark" },
+const SEV: Record<string, string> = { critical: "#b71c1c", high: "#e53935", medium: "#fb8c00", low: "#fdd835" };
+const THEMES: Record<string, { label: string; bg: string; grid?: boolean; gridColor?: string }> = {
+  light: { label: "Light", bg: "#f8f9fa" },
+  dotgrid: { label: "Dot Grid", bg: "#ffffff", grid: true, gridColor: "#e0e0e0" },
+  blueprint: { label: "Blueprint", bg: "#0a1929", grid: true, gridColor: "#1a3a5c" },
+  dark: { label: "Dark", bg: "#1e1e1e", grid: true, gridColor: "#333" },
 };
 
-/* ── Security Indicators ───────────────────────────── */
-interface Indicator { type: "encrypt" | "authn" | "authz" | "network"; color: string; tip: string }
-function getIndicators(sec?: EdgeSecurity): Indicator[] {
-  if (!sec) return [];
-  const ind: Indicator[] = [];
-  const t = sec.transport.toLowerCase(), a = sec.auth.toLowerCase();
-  if (t.includes("tls") || t.includes("ssl") || t.includes("ipsec") || t.includes("internal") || t.includes("grpc") || t.includes("private") || t.includes("dedicated"))
-    ind.push({ type: "encrypt", color: "#1a73e8", tip: sec.transport });
-  if (a.includes("oauth") || a.includes("jwt") || a.includes("api key") || a.includes("firebase") || a.includes("cert") || a.includes("token") || a.includes("saml") || a.includes("credential") || a.includes("secret"))
-    ind.push({ type: "authn", color: "#f9a825", tip: sec.auth });
-  if (a.includes("workload identity") || a.includes("iam") || a.includes("rbac") || a.includes("sso") || a.includes("mfa") || a.includes("db auth"))
-    ind.push({ type: "authz", color: "#34a853", tip: "IAM/RBAC" });
-  ind.push({ type: "network", color: sec.private ? "#34a853" : "#ea4335", tip: sec.private ? "Private VPC" : "Internet" });
-  return ind;
-}
+/* ── Gate: boundary crossing point ────────────────── */
+interface Gate { id: string; edgeId: string; x: number; y: number; direction: "in" | "out"; security: EdgeSecurity; fromName: string; toName: string; label: string }
 
-/* ── SVG Indicator Icons ───────────────────────────── */
-function IndicatorIcons({ indicators, x, y }: { indicators: Indicator[]; x: number; y: number }) {
-  if (!indicators.length) return null;
-  const GAP = 19, startX = x - ((indicators.length - 1) * GAP) / 2;
-  return (<g>{indicators.map((ind, i) => {
-    const cx = startX + i * GAP;
-    return (<g key={i} transform={`translate(${cx},${y})`}>
-      <circle r={8} fill="#fff" stroke={ind.color} strokeWidth={1.5} />
-      {ind.type === "encrypt" && <g transform="scale(0.55)"><rect x={-3.5} y={0} width={7} height={5.5} rx={1.2} fill={ind.color} /><path d="M-2,0 L-2,-2.8 A2,2 0 0,1 2,-2.8 L2,0" fill="none" stroke={ind.color} strokeWidth={1.8} /></g>}
-      {ind.type === "authn" && <g transform="scale(0.55)"><circle cx={0} cy={-2} r={2.2} fill="none" stroke={ind.color} strokeWidth={1.8} /><line x1={0} y1={0} x2={0} y2={4} stroke={ind.color} strokeWidth={1.8} /><line x1={0} y1={3} x2={2} y2={2} stroke={ind.color} strokeWidth={1.5} /></g>}
-      {ind.type === "authz" && <g transform="scale(0.55)"><path d="M0,-4.5 L4,0 L2.5,5 L-2.5,5 L-4,0 Z" fill="none" stroke={ind.color} strokeWidth={1.8} strokeLinejoin="round" /><path d="M-1.2,0.5 L0,1.8 L2.5,-1.5" fill="none" stroke={ind.color} strokeWidth={1.5} strokeLinecap="round" /></g>}
-      {ind.type === "network" && (ind.color === "#34a853"
-        ? <g transform="scale(0.55)"><path d="M-3.5,1.5 Q-3.5,-1 -1,-2 Q0,-3.5 1.5,-2.5 Q3.5,-3 3.5,0 Q4.5,1.5 3,1.5 Z" fill={ind.color} /></g>
-        : <g transform="scale(0.55)"><circle cx={0} cy={0} r={3.8} fill="none" stroke={ind.color} strokeWidth={1.5} /><line x1={-3.8} y1={0} x2={3.8} y2={0} stroke={ind.color} strokeWidth={1} /><ellipse cx={0} cy={0} rx={1.8} ry={3.8} fill="none" stroke={ind.color} strokeWidth={1} /></g>)}
-    </g>);
-  })}</g>);
-}
-
-/* ── Node Popover ──────────────────────────────────── */
-function NodePop({ node, threats, onClose }: { node: DiagNode; threats: Threat[]; onClose: () => void }) {
+/* ═══ NODE POPOVER (EDITABLE) ═════════════════════ */
+function NodePop({ node, threats, onClose, onUpdate }: { node: DiagNode; threats: Threat[]; onClose: () => void; onUpdate: (id: string, patch: Partial<DiagNode>) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(node.name);
+  const [subtitle, setSub] = useState(node.subtitle || "");
   const d = node.details || {}, ip = iconUrl(node.name, node.icon || undefined);
   const fields = [{ k: "project", l: "GCP Project" },{ k: "region", l: "Region" },{ k: "serviceAccount", l: "Service Account" },{ k: "iamRoles", l: "IAM Roles" },{ k: "encryption", l: "Encryption" },{ k: "monitoring", l: "Monitoring" },{ k: "retry", l: "Retry / Resilience" },{ k: "alerting", l: "Alerting" },{ k: "cost", l: "Cost" },{ k: "troubleshoot", l: "Troubleshooting" },{ k: "guardrails", l: "Guardrails" },{ k: "compliance", l: "Compliance" },{ k: "notes", l: "Notes" }];
   const pop = fields.filter(f => (d as any)[f.k]);
-  return (<div style={{ width: 370, maxHeight: 480, background: "#fff", borderRadius: 14, boxShadow: "0 12px 40px rgba(0,0,0,.2)", border: "1px solid #e8e8e8", overflow: "hidden", fontFamily: "'Inter',system-ui,sans-serif" }} onClick={e => e.stopPropagation()}>
+  const save = () => { onUpdate(node.id, { name, subtitle: subtitle || undefined }); setEditing(false); };
+  return (<div style={{ width: 370, maxHeight: 500, background: "#fff", borderRadius: 14, boxShadow: "0 12px 40px rgba(0,0,0,.2)", border: "1px solid #e8e8e8", overflow: "hidden", fontFamily: "'Inter',system-ui,sans-serif" }} onClick={e => e.stopPropagation()}>
     <div style={{ padding: "14px 16px 10px", background: "linear-gradient(135deg,#fafbfc,#f0f2f5)", borderBottom: "1px solid #eee", display: "flex", alignItems: "center", gap: 10 }}>
       {ip ? <img src={ip} width={32} height={32} alt="" /> : <div style={{ width: 32, height: 32, borderRadius: 10, background: "#e8eaf6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>☁</div>}
-      <div style={{ flex: 1 }}><div style={{ fontSize: 15, fontWeight: 700 }}>{node.name}</div>{node.subtitle && <div style={{ fontSize: 10, color: "#888" }}>{node.subtitle}</div>}</div>
-      <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, color: "#ccc", cursor: "pointer", lineHeight: 1 }}>×</button></div>
+      <div style={{ flex: 1 }}>
+        {editing ? (<>
+          <input value={name} onChange={e => setName(e.target.value)} style={{ fontSize: 14, fontWeight: 700, border: "1px solid #ccc", borderRadius: 4, padding: "2px 6px", width: "100%", outline: "none" }} />
+          <input value={subtitle} onChange={e => setSub(e.target.value)} placeholder="Subtitle" style={{ fontSize: 10, border: "1px solid #ddd", borderRadius: 4, padding: "2px 6px", width: "100%", marginTop: 3, outline: "none" }} />
+        </>) : (<>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{node.name}</div>
+          {node.subtitle && <div style={{ fontSize: 10, color: "#888" }}>{node.subtitle}</div>}
+        </>)}
+      </div>
+      <div style={{ display: "flex", gap: 4 }}>
+        {editing ? (<button onClick={save} style={{ background: "#1a73e8", color: "#fff", border: "none", borderRadius: 4, padding: "3px 8px", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Save</button>)
+          : (<button onClick={() => setEditing(true)} style={{ background: "none", border: "1px solid #ddd", borderRadius: 4, padding: "3px 8px", fontSize: 10, cursor: "pointer", color: "#666" }}>✏️ Edit</button>)}
+        <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, color: "#ccc", cursor: "pointer", lineHeight: 1 }}>×</button>
+      </div>
+    </div>
     <div style={{ padding: "10px 14px", overflowY: "auto", maxHeight: 380 }}>
       {pop.length === 0 && <div style={{ fontSize: 11, color: "#ccc", textAlign: "center", padding: 20 }}>No operational details</div>}
       {pop.map(f => (<div key={f.k} style={{ padding: "8px 10px", background: "#f8f9fa", borderRadius: 8, marginBottom: 5, borderLeft: "3px solid #e0e0e0" }}>
@@ -107,30 +92,70 @@ function NodePop({ node, threats, onClose }: { node: DiagNode; threats: Threat[]
 
 /* ── Edge Popover ──────────────────────────────────── */
 function EdgePop({ edge, fn, tn, threats, onClose }: { edge: DiagEdge; fn?: DiagNode; tn?: DiagNode; threats: Threat[]; onClose: () => void }) {
-  const s = edge.security, ind = getIndicators(s);
+  const s = edge.security;
   return (<div style={{ width: 350, background: "#fff", borderRadius: 14, boxShadow: "0 12px 40px rgba(0,0,0,.2)", border: "1px solid #e8e8e8", overflow: "hidden", fontFamily: "'Inter',system-ui,sans-serif" }} onClick={e => e.stopPropagation()}>
     <div style={{ padding: "14px 16px 10px", background: "linear-gradient(135deg,#f5f5ff,#eee8ff)", borderBottom: "1px solid #e8e8ff", display: "flex", alignItems: "center", gap: 8 }}>
       {edge.step > 0 && <div style={{ width: 30, height: 30, borderRadius: 8, background: "#5c6bc0", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 15, fontWeight: 900 }}>{edge.step}</div>}
       <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 700 }}>{edge.label || "Connection"}</div><div style={{ fontSize: 10, color: "#888" }}>{fn?.name} → {tn?.name}</div></div>
       <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, color: "#ccc", cursor: "pointer" }}>×</button></div>
-    <div style={{ padding: 12 }}>
-      {edge.subtitle && <div style={{ fontSize: 11, color: "#7c4dff", fontStyle: "italic", marginBottom: 8 }}>{edge.subtitle}</div>}
-      {ind.length > 0 && <div style={{ display: "flex", gap: 5, marginBottom: 10, flexWrap: "wrap" }}>
-        {ind.map((i, idx) => (<div key={idx} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 14, background: i.color + "14", border: `1px solid ${i.color}33` }}>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", background: i.color }} /><span style={{ fontSize: 9, fontWeight: 600, color: i.color }}>{i.tip}</span></div>))}
-      </div>}
-      {s && <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginBottom: 8 }}>
-        {[{ l: "TRANSPORT", v: s.transport },{ l: "AUTH", v: s.auth },{ l: "CLASSIFICATION", v: s.classification },{ l: "NETWORK", v: s.private ? "🔒 Private" : "🌐 Internet" }].map((it,i) => (
-          <div key={i} style={{ padding: 8, background: i===3?(s.private?"#e8f5e9":"#fff5f5"):"#f8f9fa", borderRadius: 6 }}>
-            <div style={{ fontSize: 7, color: "#aaa", fontWeight: 800, letterSpacing: .5 }}>{it.l}</div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: i===3?(s.private?"#2e7d32":"#c62828"):"#333", marginTop: 2 }}>{it.v}</div></div>))}</div>}
-      {edge.crossesBoundary && <div style={{ padding: 6, background: "#fff3e0", borderRadius: 6, fontSize: 10, color: "#e65100", marginBottom: 6 }}>⚡ Crosses trust boundary</div>}
-      {threats.map(t => (<div key={t.id} style={{ padding: 8, background: "#fff5f5", borderRadius: 6, borderLeft: `3px solid ${SEV[t.severity]}`, marginBottom: 4 }}>
+    <div style={{ padding: "10px 14px" }}>
+      {s && [{ l: "Transport", v: s.transport, c: "#1565c0" }, { l: "Authentication", v: s.auth, c: "#f57f17" }, { l: "Classification", v: s.classification, c: "#6a1b9a" }, { l: "Network", v: s.private ? "Private VPC" : "Internet / Public", c: s.private ? "#2e7d32" : "#c62828" }].map(f => (
+        <div key={f.l} style={{ padding: "6px 10px", background: "#f8f9fa", borderRadius: 6, marginBottom: 4, borderLeft: `3px solid ${f.c}` }}>
+          <div style={{ fontSize: 8, fontWeight: 800, color: "#aaa", letterSpacing: .8 }}>{f.l.toUpperCase()}</div>
+          <div style={{ fontSize: 11, color: "#333" }}>{f.v}</div></div>))}
+      {edge.subtitle && <div style={{ padding: "6px 10px", background: "#f8f9fa", borderRadius: 6, marginTop: 4 }}><div style={{ fontSize: 8, fontWeight: 800, color: "#aaa", letterSpacing: .8 }}>DETAIL</div><div style={{ fontSize: 10, color: "#555" }}>{edge.subtitle}</div></div>}
+      {threats.length > 0 && <div style={{ marginTop: 8 }}>{threats.map(t => (<div key={t.id} style={{ padding: 8, background: "#fff5f5", borderRadius: 6, marginBottom: 4, borderLeft: `3px solid ${SEV[t.severity]}` }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: SEV[t.severity] }}>{t.title}</div>
-        <div style={{ fontSize: 9, color: "#666", marginTop: 2 }}>{t.description}</div></div>))}</div></div>);
+        <div style={{ fontSize: 9, color: "#666", marginTop: 2 }}>{t.description}</div>
+        <div style={{ fontSize: 9, color: "#2e7d32", marginTop: 3 }}>✓ {t.mitigation}</div></div>))}</div>}
+    </div></div>);
 }
 
-/* ═══ HIGHLIGHTS TAB ═══════════════════════════════ */
+/* ── Gate Popover (Boundary Security) ─────────────── */
+function GatePop({ gate, threats, onClose }: { gate: Gate; threats: Threat[]; onClose: () => void }) {
+  const s = gate.security;
+  const isPrivate = s.private;
+  return (<div style={{ width: 370, background: "#fff", borderRadius: 14, boxShadow: "0 12px 40px rgba(0,0,0,.25)", border: "1px solid #e8e8e8", overflow: "hidden", fontFamily: "'Inter',system-ui,sans-serif" }} onClick={e => e.stopPropagation()}>
+    <div style={{ padding: "14px 16px 10px", background: gate.direction === "in" ? "linear-gradient(135deg,#e8f5e9,#c8e6c9)" : "linear-gradient(135deg,#fff3e0,#ffe0b2)", borderBottom: "1px solid #eee", display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ width: 36, height: 36, borderRadius: 10, background: isPrivate ? "#2e7d32" : "#e65100", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{isPrivate ? "🔒" : "🌐"}</div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 14, fontWeight: 700 }}>Trust Boundary {gate.direction === "in" ? "Entry" : "Exit"}</div>
+        <div style={{ fontSize: 10, color: "#666" }}>{gate.fromName} → {gate.toName}</div>
+      </div>
+      <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, color: "#999", cursor: "pointer", lineHeight: 1 }}>×</button>
+    </div>
+    <div style={{ padding: "10px 14px", maxHeight: 380, overflowY: "auto" }}>
+      {[{ l: "Transport / Encryption", v: s.transport, icon: "🔐", c: "#1565c0" },
+        { l: "Authentication", v: s.auth, icon: "🔑", c: "#f57f17" },
+        { l: "Data Classification", v: s.classification, icon: "🏷️", c: "#6a1b9a" },
+        { l: "Network Boundary", v: isPrivate ? "Private VPC — no internet exposure" : "Internet — public endpoint", icon: isPrivate ? "☁️" : "🌍", c: isPrivate ? "#2e7d32" : "#c62828" },
+      ].map(f => (
+        <div key={f.l} style={{ padding: "8px 10px", background: "#f8f9fa", borderRadius: 8, marginBottom: 5, borderLeft: `3px solid ${f.c}` }}>
+          <div style={{ fontSize: 8, fontWeight: 800, color: "#aaa", letterSpacing: .8, marginBottom: 2 }}>{f.icon} {f.l.toUpperCase()}</div>
+          <div style={{ fontSize: 11, color: "#333", lineHeight: 1.5 }}>{f.v}</div></div>))}
+      {/* Exfiltration risk */}
+      <div style={{ padding: "8px 10px", background: "#fff5f5", borderRadius: 8, marginBottom: 5, borderLeft: "3px solid #e53935" }}>
+        <div style={{ fontSize: 8, fontWeight: 800, color: "#e53935", letterSpacing: .8, marginBottom: 2 }}>⚠️ EXFILTRATION RISK</div>
+        <div style={{ fontSize: 10, color: "#555", lineHeight: 1.5 }}>{!isPrivate ? "Public endpoint — stolen credentials allow data extraction. Monitor for anomalous egress volume." : "VPC-internal — lateral movement required. Lower risk but monitor for insider threats."}</div>
+      </div>
+      {/* Guardrails */}
+      <div style={{ padding: "8px 10px", background: "#e8f5e9", borderRadius: 8, marginBottom: 5, borderLeft: "3px solid #43a047" }}>
+        <div style={{ fontSize: 8, fontWeight: 800, color: "#2e7d32", letterSpacing: .8, marginBottom: 2 }}>🛡️ GUARDRAILS</div>
+        <div style={{ fontSize: 10, color: "#555", lineHeight: 1.5 }}>{isPrivate ? "VPC Service Controls, Private Google Access, no external IPs, DLP inline scan" : `Rate limiting, API quota, OAuth scope restriction, ${s.auth.includes("MFA") || s.auth.includes("SAML") ? "MFA enforced" : "recommend MFA"}`}</div>
+      </div>
+      {/* Compromise scenario */}
+      <div style={{ padding: "8px 10px", background: "#fff8e1", borderRadius: 8, marginBottom: 5, borderLeft: "3px solid #f9a825" }}>
+        <div style={{ fontSize: 8, fontWeight: 800, color: "#f57f17", letterSpacing: .8, marginBottom: 2 }}>💥 COMPROMISE SCENARIO</div>
+        <div style={{ fontSize: 10, color: "#555", lineHeight: 1.5 }}>{!isPrivate ? `Attacker with stolen ${s.auth.split(" ")[0]} token can access data until token expires. Mitigation: short-lived tokens, IP binding, anomaly detection.` : "Requires compromised workload inside VPC. Blast radius limited by IAM least-privilege and VPC-SC perimeter."}</div>
+      </div>
+      {threats.length > 0 && threats.map(t => (<div key={t.id} style={{ padding: 8, background: "#fff5f5", borderRadius: 6, marginBottom: 4, borderLeft: `3px solid ${SEV[t.severity]}` }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: SEV[t.severity] }}>{t.title}</div>
+        <div style={{ fontSize: 9, color: "#666", marginTop: 2 }}>{t.description}</div>
+        <div style={{ fontSize: 9, color: "#2e7d32", marginTop: 3 }}>✓ {t.mitigation}</div></div>))}
+    </div></div>);
+}
+
+/* ═══ HIGHLIGHTS TAB ══════════════════════════════ */
 function HighlightsTab({ diag }: { diag: Diagram }) {
   const dataEdges = diag.edges.filter(e => e.edgeType === "data" || !e.edgeType);
   const threats = diag.threats || [];
@@ -144,66 +169,26 @@ function HighlightsTab({ diag }: { diag: Diagram }) {
   return (<div style={{ padding: "24px 28px", overflowY: "auto", height: "100%", fontFamily: "'Inter',system-ui,sans-serif" }}>
     <h2 style={{ fontSize: 22, fontWeight: 800, color: "#111", margin: "0 0 4px" }}>{diag.title}</h2>
     {diag.subtitle && <p style={{ fontSize: 12, color: "#999", margin: "0 0 24px", fontStyle: "italic" }}>{diag.subtitle}</p>}
-
-    {/* Stats Grid */}
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 28 }}>
-      {[
-        { v: cloudNodes.length, l: "Cloud Services", icon: "☁️", color: "#1a73e8", bg: "#e8f0fe" },
-        { v: dataEdges.length, l: "Data Flows", icon: "🔗", color: "#34a853", bg: "#e6f4ea" },
-        { v: threats.length, l: "Threats", icon: "⚠️", color: "#ea4335", bg: "#fce8e6" },
-        { v: srcNodes.length + conNodes.length, l: "Endpoints", icon: "🔌", color: "#f9ab00", bg: "#fef7e0" },
-      ].map((s, i) => (<div key={i} style={{ padding: 16, background: s.bg, borderRadius: 12, textAlign: "center" }}>
-        <div style={{ fontSize: 24 }}>{s.icon}</div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: s.color, marginTop: 4 }}>{s.v}</div>
-        <div style={{ fontSize: 10, fontWeight: 600, color: "#888", marginTop: 2 }}>{s.l}</div></div>))}
+      {[{ v: cloudNodes.length, l: "Cloud Services", icon: "☁️", color: "#1a73e8", bg: "#e8f0fe" }, { v: dataEdges.length, l: "Data Flows", icon: "🔗", color: "#34a853", bg: "#e6f4ea" }, { v: threats.length, l: "Threats", icon: "⚠️", color: "#ea4335", bg: "#fce8e6" }, { v: srcNodes.length + conNodes.length, l: "Endpoints", icon: "🔌", color: "#f9ab00", bg: "#fef7e0" }].map((s, i) => (
+        <div key={i} style={{ padding: 16, background: s.bg, borderRadius: 12, textAlign: "center" }}><div style={{ fontSize: 24 }}>{s.icon}</div><div style={{ fontSize: 28, fontWeight: 800, color: s.color, marginTop: 4 }}>{s.v}</div><div style={{ fontSize: 10, fontWeight: 600, color: "#888", marginTop: 2 }}>{s.l}</div></div>))}
     </div>
-
-    {/* Phases */}
-    {diag.phases && <div style={{ marginBottom: 28 }}>
-      <h3 style={{ fontSize: 13, fontWeight: 800, color: "#555", letterSpacing: .5, marginBottom: 12 }}>ARCHITECTURE PHASES</h3>
-      <div style={{ display: "flex", gap: 8 }}>
-        {diag.phases.map((p, i) => (<div key={p.id} style={{ flex: 1, padding: 14, background: "#f8f9fa", borderRadius: 10, border: "1px solid #eee" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-            <div style={{ width: 24, height: 24, borderRadius: 6, background: "#5c6bc0", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800 }}>{i + 1}</div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{p.name}</span></div>
-          {p.nodeIds.map(nid => { const n = diag.nodes.find(x => x.id === nid); return n ? <div key={nid} style={{ fontSize: 10, color: "#666", padding: "2px 0", display: "flex", alignItems: "center", gap: 4 }}>
-            <div style={{ width: 5, height: 5, borderRadius: "50%", background: getCat(n.icon).border }} />{n.name}</div> : null; })}
-        </div>))}
-      </div>
-    </div>}
-
-    {/* Cost Summary */}
-    {costNodes.length > 0 && <div style={{ marginBottom: 28 }}>
-      <h3 style={{ fontSize: 13, fontWeight: 800, color: "#555", letterSpacing: .5, marginBottom: 12 }}>COST BREAKDOWN</h3>
-      <div style={{ background: "#f8f9fa", borderRadius: 10, overflow: "hidden", border: "1px solid #eee" }}>
-        {costNodes.map(n => (<div key={n.id} style={{ padding: "10px 14px", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: "#333" }}>{n.name}</span>
-          <span style={{ fontSize: 11, color: "#1a73e8", fontWeight: 600 }}>{n.details?.cost}</span></div>))}
-      </div>
-    </div>}
-
-    {/* Compliance */}
-    {complianceSet.size > 0 && <div style={{ marginBottom: 28 }}>
-      <h3 style={{ fontSize: 13, fontWeight: 800, color: "#555", letterSpacing: .5, marginBottom: 12 }}>COMPLIANCE</h3>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        {Array.from(complianceSet).map(c => (<div key={c} style={{ padding: "5px 12px", borderRadius: 20, background: "#e8f5e9", border: "1px solid #a5d6a7", fontSize: 11, fontWeight: 700, color: "#2e7d32" }}>{c}</div>))}
-      </div>
-    </div>}
-
-    {/* Threats */}
-    {threats.length > 0 && <div>
-      <h3 style={{ fontSize: 13, fontWeight: 800, color: "#555", letterSpacing: .5, marginBottom: 12 }}>THREAT MODEL</h3>
+    {diag.phases && <div style={{ marginBottom: 28 }}><h3 style={{ fontSize: 13, fontWeight: 800, color: "#555", letterSpacing: .5, marginBottom: 12 }}>ARCHITECTURE PHASES</h3>
+      <div style={{ display: "flex", gap: 8 }}>{diag.phases.map((p, i) => (<div key={p.id} style={{ flex: 1, padding: 14, background: "#f8f9fa", borderRadius: 10, border: "1px solid #eee" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}><div style={{ width: 24, height: 24, borderRadius: 6, background: "#5c6bc0", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800 }}>{i + 1}</div><span style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{p.name}</span></div>
+        {p.nodeIds.map(nid => { const n = diag.nodes.find(x => x.id === nid); return n ? <div key={nid} style={{ fontSize: 10, color: "#666", padding: "2px 0", display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 5, height: 5, borderRadius: "50%", background: getCat(n.icon).border }} />{n.name}</div> : null; })}
+      </div>))}</div></div>}
+    {costNodes.length > 0 && <div style={{ marginBottom: 28 }}><h3 style={{ fontSize: 13, fontWeight: 800, color: "#555", letterSpacing: .5, marginBottom: 12 }}>COST BREAKDOWN</h3>
+      <div style={{ background: "#f8f9fa", borderRadius: 10, overflow: "hidden", border: "1px solid #eee" }}>{costNodes.map(n => (<div key={n.id} style={{ padding: "10px 14px", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ fontSize: 11, fontWeight: 600, color: "#333" }}>{n.name}</span><span style={{ fontSize: 11, color: "#1a73e8", fontWeight: 600 }}>{n.details?.cost}</span></div>))}</div></div>}
+    {complianceSet.size > 0 && <div style={{ marginBottom: 28 }}><h3 style={{ fontSize: 13, fontWeight: 800, color: "#555", letterSpacing: .5, marginBottom: 12 }}>COMPLIANCE</h3><div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{Array.from(complianceSet).map(c => (<div key={c} style={{ padding: "5px 12px", borderRadius: 20, background: "#e8f5e9", border: "1px solid #a5d6a7", fontSize: 11, fontWeight: 700, color: "#2e7d32" }}>{c}</div>))}</div></div>}
+    {threats.length > 0 && <div><h3 style={{ fontSize: 13, fontWeight: 800, color: "#555", letterSpacing: .5, marginBottom: 12 }}>THREAT MODEL</h3>
       {threats.map(t => (<div key={t.id} style={{ padding: 12, background: "#fff", borderRadius: 10, border: "1px solid #eee", marginBottom: 8, borderLeft: `4px solid ${SEV[t.severity]}` }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{t.title}</span>
-          <span style={{ fontSize: 9, fontWeight: 700, color: SEV[t.severity], padding: "2px 8px", borderRadius: 10, background: SEV[t.severity] + "18" }}>{t.severity.toUpperCase()}</span></div>
-        <div style={{ fontSize: 10, color: "#666", marginBottom: 4 }}>{t.description}</div>
-        <div style={{ fontSize: 10, color: "#2e7d32" }}>✓ {t.mitigation}</div></div>))}
-    </div>}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}><span style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{t.title}</span><span style={{ fontSize: 9, fontWeight: 700, color: SEV[t.severity], padding: "2px 8px", borderRadius: 10, background: SEV[t.severity] + "18" }}>{t.severity.toUpperCase()}</span></div>
+        <div style={{ fontSize: 10, color: "#666", marginBottom: 4 }}>{t.description}</div><div style={{ fontSize: 10, color: "#2e7d32" }}>✓ {t.mitigation}</div></div>))}</div>}
   </div>);
 }
 
-/* ═══ FLOW TAB ═════════════════════════════════════ */
+/* ═══ FLOW TAB ════════════════════════════════════ */
 function FlowTab({ diag }: { diag: Diagram }) {
   const dataEdges = diag.edges.filter(e => (e.edgeType === "data" || !e.edgeType) && e.step > 0).sort((a, b) => a.step - b.step);
   const sourceEdges = diag.edges.filter(e => (e.edgeType === "data" || !e.edgeType) && e.step === 0 && e.crossesBoundary);
@@ -211,44 +196,25 @@ function FlowTab({ diag }: { diag: Diagram }) {
   return (<div style={{ padding: "24px 28px", overflowY: "auto", height: "100%", fontFamily: "'Inter',system-ui,sans-serif" }}>
     <h2 style={{ fontSize: 22, fontWeight: 800, color: "#111", margin: "0 0 4px" }}>Data Flow</h2>
     <p style={{ fontSize: 12, color: "#999", margin: "0 0 24px", fontStyle: "italic" }}>End-to-end data journey through the architecture</p>
-
-    {/* Source entries */}
     {sourceEdges.length > 0 && <div style={{ marginBottom: 28 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#e8eaf6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>📡</div>
-        <div><div style={{ fontSize: 13, fontWeight: 700, color: "#333" }}>Entry Points</div><div style={{ fontSize: 10, color: "#999" }}>Parallel data sources — no sequence order</div></div></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}><div style={{ width: 32, height: 32, borderRadius: 8, background: "#e8eaf6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>📡</div><div><div style={{ fontSize: 13, fontWeight: 700, color: "#333" }}>Entry Points</div><div style={{ fontSize: 10, color: "#999" }}>Parallel data sources — no sequence order</div></div></div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginLeft: 14, borderLeft: "2px solid #e0e0e0", paddingLeft: 16 }}>
-        {sourceEdges.map(e => {
-          const fn = diag.nodes.find(n => n.id === e.from), tn = diag.nodes.find(n => n.id === e.to);
-          const sec = e.security;
+        {sourceEdges.map(e => { const fn = diag.nodes.find(n => n.id === e.from), tn = diag.nodes.find(n => n.id === e.to), sec = e.security;
           return (<div key={e.id} style={{ padding: "10px 14px", background: "#fafafa", borderRadius: 8, border: "1px solid #f0f0f0" }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#333" }}>{fn?.name} → {tn?.name}</div>
             <div style={{ fontSize: 10, color: "#5c6bc0", marginTop: 2 }}>{e.label}</div>
             {sec && <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
               <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 8, background: "#e3f2fd", color: "#1565c0", fontWeight: 600 }}>{sec.transport}</span>
               <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 8, background: "#fff8e1", color: "#f57f17", fontWeight: 600 }}>{sec.auth}</span>
-              <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 8, background: sec.private ? "#e8f5e9" : "#fce4ec", color: sec.private ? "#2e7d32" : "#c62828", fontWeight: 600 }}>{sec.private ? "Private" : "Internet"}</span>
-            </div>}
-          </div>);
-        })}
-      </div>
-    </div>}
-
-    {/* Step-by-step flow */}
+              <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 8, background: sec.private ? "#e8f5e9" : "#fce4ec", color: sec.private ? "#2e7d32" : "#c62828", fontWeight: 600 }}>{sec.private ? "Private" : "Internet"}</span></div>}
+          </div>); })}
+      </div></div>}
     <div style={{ marginBottom: 28 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#e3f2fd", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🔄</div>
-        <div><div style={{ fontSize: 13, fontWeight: 700, color: "#333" }}>Processing Pipeline</div><div style={{ fontSize: 10, color: "#999" }}>Sequential data flow through cloud services</div></div></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}><div style={{ width: 32, height: 32, borderRadius: 8, background: "#e3f2fd", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🔄</div><div><div style={{ fontSize: 13, fontWeight: 700, color: "#333" }}>Processing Pipeline</div><div style={{ fontSize: 10, color: "#999" }}>Sequential data flow through cloud services</div></div></div>
       <div style={{ display: "flex", flexDirection: "column", gap: 0, marginLeft: 14 }}>
-        {dataEdges.map((e, i) => {
-          const fn = diag.nodes.find(n => n.id === e.from), tn = diag.nodes.find(n => n.id === e.to);
-          const sec = e.security;
-          const isLast = i === dataEdges.length - 1;
+        {dataEdges.map((e, i) => { const fn = diag.nodes.find(n => n.id === e.from), tn = diag.nodes.find(n => n.id === e.to), sec = e.security, isLast = i === dataEdges.length - 1;
           return (<div key={e.id} style={{ display: "flex", gap: 12 }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: e.crossesBoundary ? "#e65100" : "#5c6bc0", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 900, flexShrink: 0 }}>{e.step}</div>
-              {!isLast && <div style={{ width: 2, flex: 1, background: "#e0e0e0", minHeight: 16 }} />}
-            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}><div style={{ width: 32, height: 32, borderRadius: 8, background: e.crossesBoundary ? "#e65100" : "#5c6bc0", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 900, flexShrink: 0 }}>{e.step}</div>{!isLast && <div style={{ width: 2, flex: 1, background: "#e0e0e0", minHeight: 16 }} />}</div>
             <div style={{ flex: 1, paddingBottom: isLast ? 0 : 12 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{fn?.name} → {tn?.name}</div>
               <div style={{ fontSize: 11, color: "#5c6bc0", marginTop: 2 }}>{e.label}</div>
@@ -256,30 +222,13 @@ function FlowTab({ diag }: { diag: Diagram }) {
               {sec && <div style={{ display: "flex", gap: 5, marginTop: 6, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 8, background: "#e3f2fd", color: "#1565c0", fontWeight: 600 }}>{sec.transport}</span>
                 <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 8, background: "#fff8e1", color: "#f57f17", fontWeight: 600 }}>{sec.auth}</span>
-                <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 8, background: sec.private ? "#e8f5e9" : "#fce4ec", color: sec.private ? "#2e7d32" : "#c62828", fontWeight: 600 }}>{sec.private ? "Private" : "Internet"}</span>
-              </div>}
+                <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 8, background: sec.private ? "#e8f5e9" : "#fce4ec", color: sec.private ? "#2e7d32" : "#c62828", fontWeight: 600 }}>{sec.private ? "Private" : "Internet"}</span></div>}
               {e.crossesBoundary && <div style={{ fontSize: 9, color: "#e65100", marginTop: 4, fontWeight: 600 }}>⚡ Crosses trust boundary</div>}
-            </div>
-          </div>);
-        })}
-      </div>
-    </div>
-
-    {/* Ops / Cross-cutting */}
+            </div></div>); })}
+      </div></div>
     {diag.opsGroup && <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 8, background: "#eceff1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>⚙️</div>
-        <div><div style={{ fontSize: 13, fontWeight: 700, color: "#333" }}>{diag.opsGroup.name}</div><div style={{ fontSize: 10, color: "#999" }}>Spans entire pipeline</div></div></div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginLeft: 14 }}>
-        {diag.opsGroup.nodeIds.map(nid => {
-          const n = diag.nodes.find(x => x.id === nid);
-          return n ? (<div key={nid} style={{ padding: "8px 14px", background: "#f8f9fa", borderRadius: 8, border: "1px solid #eee" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "#333" }}>{n.name}</div>
-            <div style={{ fontSize: 9, color: "#888" }}>{n.subtitle}</div>
-            {n.details?.alerting && <div style={{ fontSize: 9, color: "#e65100", marginTop: 4 }}>{n.details.alerting.split("\n")[0]}</div>}
-          </div>) : null;
-        })}
-      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}><div style={{ width: 32, height: 32, borderRadius: 8, background: "#eceff1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>⚙️</div><div><div style={{ fontSize: 13, fontWeight: 700, color: "#333" }}>{diag.opsGroup.name}</div><div style={{ fontSize: 10, color: "#999" }}>Spans entire pipeline</div></div></div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginLeft: 14 }}>{diag.opsGroup.nodeIds.map(nid => { const n = diag.nodes.find(x => x.id === nid); return n ? (<div key={nid} style={{ padding: "8px 14px", background: "#f8f9fa", borderRadius: 8, border: "1px solid #eee" }}><div style={{ fontSize: 11, fontWeight: 700, color: "#333" }}>{n.name}</div><div style={{ fontSize: 9, color: "#888" }}>{n.subtitle}</div>{n.details?.alerting && <div style={{ fontSize: 9, color: "#e65100", marginTop: 4 }}>{n.details.alerting.split("\n")[0]}</div>}</div>) : null; })}</div>
     </div>}
   </div>);
 }
@@ -290,7 +239,9 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [drag, setDrag] = useState<string | null>(null);
+  const [groupDrag, setGroupDrag] = useState<{ ids: string[]; sx: number; sy: number; starts: Record<string, { x: number; y: number }> } | null>(null);
   const isPan = useRef(false), panS = useRef({ x: 0, y: 0, px: 0, py: 0 }), dragS = useRef({ x: 0, y: 0, nx: 0, ny: 0 }), wasDrag = useRef(false);
+  const diagRef = useRef(diag); diagRef.current = diag;
   const th = THEMES[theme] || THEMES.light;
   const isDark = theme === "blueprint" || theme === "dark";
 
@@ -306,10 +257,50 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
 
   const onWheel = useCallback((e: React.WheelEvent) => { e.preventDefault(); const rc = ref.current?.getBoundingClientRect(); if (!rc) return; const mx = e.clientX - rc.left, my = e.clientY - rc.top, f = e.deltaY < 0 ? 1.1 : 0.9, nz = Math.max(0.08, Math.min(3, zoom * f)); setPan({ x: mx - (mx - pan.x) * (nz / zoom), y: my - (my - pan.y) * (nz / zoom) }); setZoom(nz); }, [zoom, pan]);
   const onDown = useCallback((e: React.MouseEvent) => { if (e.button === 0) { isPan.current = true; panS.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y }; } }, [pan]);
-  const onMove = useCallback((e: React.MouseEvent) => { if (drag) { const dx = (e.clientX - dragS.current.x) / zoom, dy = (e.clientY - dragS.current.y) / zoom; if (Math.abs(dx) > 3 || Math.abs(dy) > 3) wasDrag.current = true; setDiag({ ...diag, nodes: diag.nodes.map(n => n.id === drag ? { ...n, x: dragS.current.nx + dx, y: dragS.current.ny + dy } : n) }); return; } if (isPan.current) setPan({ x: panS.current.px + (e.clientX - panS.current.x), y: panS.current.py + (e.clientY - panS.current.y) }); }, [drag, diag, zoom, setDiag]);
-  const onUp = useCallback(() => { isPan.current = false; if (drag) { setDrag(null); setTimeout(() => { wasDrag.current = false; }, 50); } }, [drag]);
+
+  const onMove = useCallback((e: React.MouseEvent) => {
+    // Node drag
+    if (drag) {
+      const dx = (e.clientX - dragS.current.x) / zoom, dy = (e.clientY - dragS.current.y) / zoom;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) wasDrag.current = true;
+      const cur = diagRef.current;
+      setDiag({ ...cur, nodes: cur.nodes.map(n => n.id === drag ? { ...n, x: dragS.current.nx + dx, y: dragS.current.ny + dy } : n) });
+      return;
+    }
+    // Group drag
+    if (groupDrag) {
+      const dx = (e.clientX - groupDrag.sx) / zoom, dy = (e.clientY - groupDrag.sy) / zoom;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) wasDrag.current = true;
+      const cur = diagRef.current;
+      setDiag({ ...cur, nodes: cur.nodes.map(n => {
+        const s = groupDrag.starts[n.id];
+        return s ? { ...n, x: s.x + dx, y: s.y + dy } : n;
+      }) });
+      return;
+    }
+    // Pan
+    if (isPan.current) setPan({ x: panS.current.px + (e.clientX - panS.current.x), y: panS.current.py + (e.clientY - panS.current.y) });
+  }, [drag, groupDrag, zoom, setDiag]);
+
+  const onUp = useCallback(() => {
+    isPan.current = false;
+    if (drag) { setDrag(null); setTimeout(() => { wasDrag.current = false; }, 50); }
+    if (groupDrag) { setGroupDrag(null); setTimeout(() => { wasDrag.current = false; }, 50); }
+  }, [drag, groupDrag]);
+
   const startDrag = (id: string, e: React.MouseEvent) => { e.stopPropagation(); const n = diag.nodes.find(x => x.id === id); if (!n) return; wasDrag.current = false; setDrag(id); dragS.current = { x: e.clientX, y: e.clientY, nx: n.x, ny: n.y }; };
-  const dblClick = (type: "node" | "edge", id: string, e: React.MouseEvent) => { e.stopPropagation(); if (wasDrag.current) return; const rc = ref.current?.getBoundingClientRect(); if (!rc) return; setPopover({ type, id, px: e.clientX - rc.left, py: e.clientY - rc.top }); };
+
+  const startGroupDrag = (nodeIds: string[], e: React.MouseEvent) => {
+    e.stopPropagation();
+    wasDrag.current = false;
+    const starts: Record<string, { x: number; y: number }> = {};
+    nodeIds.forEach(id => { const n = diag.nodes.find(x => x.id === id); if (n) starts[id] = { x: n.x, y: n.y }; });
+    setGroupDrag({ ids: nodeIds, sx: e.clientX, sy: e.clientY, starts });
+  };
+
+  const dblClick = (type: "node" | "edge" | "gate", id: string, e: React.MouseEvent) => { e.stopPropagation(); if (wasDrag.current) return; const rc = ref.current?.getBoundingClientRect(); if (!rc) return; setPopover({ type, id, px: e.clientX - rc.left, py: e.clientY - rc.top }); };
+
+  const updateNode = (id: string, patch: Partial<DiagNode>) => { setDiag({ ...diag, nodes: diag.nodes.map(n => n.id === id ? { ...n, ...patch } : n) }); };
 
   const byZone = (z: string) => diag.nodes.filter(n => n.zone === z);
   const zBounds = (ns: DiagNode[], px: number, py: number, minW?: number) => { if (!ns.length) return null; const xs = ns.map(n => n.x), ys = ns.map(n => n.y); return { x: Math.min(...xs) - px - 10, y: Math.min(...ys) - py, w: Math.max(Math.max(...xs) - Math.min(...xs) + px * 2 + 80, minW || 0), h: Math.max(...ys) - Math.min(...ys) + py * 2 + 100 }; };
@@ -338,14 +329,26 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
     const ns = diag.opsGroup.nodeIds.map(id => diag.nodes.find(n => n.id === id)).filter(Boolean) as DiagNode[];
     if (ns.length) {
       const xs = ns.map(n => n.x), ys = ns.map(n => n.y);
-      opsBound = { x: Math.min(...xs) - 50, y: Math.min(...ys) - 40, w: Math.max(...xs) - Math.min(...xs) + 140, h: Math.max(...ys) - Math.min(...ys) + 120 };
+      opsBound = { x: Math.min(...xs) - 60, y: Math.min(...ys) - 45, w: Math.max(...xs) - Math.min(...xs) + 180, h: Math.max(...ys) - Math.min(...ys) + 130 };
     }
   }
 
-  return (<div ref={ref} style={{ flex: 1, overflow: "hidden", position: "relative", cursor: drag ? "grabbing" : "grab", background: th.bg }}
+  // Compute boundary gates
+  const gates: Gate[] = [];
+  if (cloudB) {
+    diag.edges.filter(e => e.crossesBoundary && e.security).forEach(edge => {
+      const fn = diag.nodes.find(n => n.id === edge.from), tn = diag.nodes.find(n => n.id === edge.to);
+      if (!fn || !tn || !edge.security) return;
+      const srcIn = fn.zone === "sources" && tn.zone === "cloud";
+      const cloudOut = fn.zone === "cloud" && tn.zone === "consumers";
+      if (srcIn) gates.push({ id: `gate-${edge.id}`, edgeId: edge.id, x: cloudB.x, y: fn.y, direction: "in", security: edge.security!, fromName: fn.name, toName: tn.name, label: edge.label || "" });
+      if (cloudOut) gates.push({ id: `gate-${edge.id}`, edgeId: edge.id, x: cloudB.x + cloudB.w, y: fn.y, direction: "out", security: edge.security!, fromName: fn.name, toName: tn.name, label: edge.label || "" });
+    });
+  }
+
+  return (<div ref={ref} style={{ flex: 1, overflow: "hidden", position: "relative", cursor: drag || groupDrag ? "grabbing" : "grab", background: th.bg }}
     onWheel={onWheel} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onClick={() => setPopover(null)}>
     <svg width="100%" height="100%" style={{ position: "absolute", inset: 0 }}>
-      {/* Grid pattern */}
       {th.grid && <defs><pattern id="gridp" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.8" fill={th.gridColor} /></pattern></defs>}
       {th.grid && <rect width="100%" height="100%" fill="url(#gridp)" />}
 
@@ -370,19 +373,19 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
           <g transform={`translate(${cloudB.x + cloudB.w / 2 - 60},${cloudB.y - 14})`}><rect width={120} height={28} rx={6} fill="#4285f4" /><text x={60} y={19} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: "#fff", letterSpacing: .5 }}>Google Cloud</text></g></g>}
         {conB && <g><rect x={conB.x} y={conB.y} width={conB.w} height={conB.h} rx={12} fill={isDark ? "#162032" : "#fafafa"} stroke={isDark ? "#2a4060" : "#bdbdbd"} strokeWidth={1.5} strokeDasharray="8 4" /><text x={conB.x + conB.w / 2} y={conB.y + 18} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: isDark ? "#5a7a9a" : "#78909c", letterSpacing: 2 }}>CONSUMERS</text></g>}
 
-        {/* Phase groups */}
-        {phaseBounds.map((p, i) => (<g key={p.id}>
+        {/* Phase groups — draggable */}
+        {phaseBounds.map((p, i) => (<g key={p.id} onMouseDown={e => startGroupDrag(p.nodeIds, e)} style={{ cursor: "move" }}>
           <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={10} fill={isDark ? "rgba(66,133,244,0.06)" : "rgba(66,133,244,0.04)"} stroke={isDark ? "rgba(66,133,244,0.2)" : "rgba(66,133,244,0.15)"} strokeWidth={1} strokeDasharray="5 3" />
-          <text x={p.x + p.w / 2} y={p.y + 14} textAnchor="middle" style={{ fontSize: 9, fontWeight: 700, fill: isDark ? "#5a8ac0" : "#90a4ae", letterSpacing: 1 }}>PHASE {i + 1}: {p.name.toUpperCase()}</text>
+          <text x={p.x + p.w / 2} y={p.y + 14} textAnchor="middle" style={{ fontSize: 9, fontWeight: 700, fill: isDark ? "#5a8ac0" : "#90a4ae", letterSpacing: 1, pointerEvents: "none" }}>PHASE {i + 1}: {p.name.toUpperCase()}</text>
         </g>))}
 
-        {/* Ops group */}
-        {opsBound && <g>
+        {/* Ops group — draggable */}
+        {opsBound && diag.opsGroup && <g onMouseDown={e => startGroupDrag(diag.opsGroup!.nodeIds, e)} style={{ cursor: "move" }}>
           <rect x={opsBound.x} y={opsBound.y} width={opsBound.w} height={opsBound.h} rx={10} fill={isDark ? "rgba(84,110,122,0.1)" : "rgba(84,110,122,0.06)"} stroke={isDark ? "#37474f" : "#b0bec5"} strokeWidth={1.2} strokeDasharray="4 3" />
-          <text x={opsBound.x + opsBound.w / 2} y={opsBound.y + 14} textAnchor="middle" style={{ fontSize: 9, fontWeight: 700, fill: isDark ? "#607d8b" : "#90a4ae", letterSpacing: 1 }}>{(diag.opsGroup?.name || "OPS").toUpperCase()}</text>
+          <text x={opsBound.x + opsBound.w / 2} y={opsBound.y + 14} textAnchor="middle" style={{ fontSize: 9, fontWeight: 700, fill: isDark ? "#607d8b" : "#90a4ae", letterSpacing: 1, pointerEvents: "none" }}>{(diag.opsGroup?.name || "OPS").toUpperCase()}</text>
         </g>}
 
-        {/* Edges */}
+        {/* Edges — CLEAN, no inline indicators */}
         {diag.edges.map(edge => {
           const fn = diag.nodes.find(n => n.id === edge.from), tn = diag.nodes.find(n => n.id === edge.to); if (!fn || !tn) return null;
           const isCtrl = edge.edgeType === "control", isObs = edge.edgeType === "observe", isAlert = edge.edgeType === "alert", isOps = isCtrl || isObs || isAlert;
@@ -398,7 +401,6 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
           else if (sc?.private) { col = "#43a047"; dash = ""; w = 2; mk = "url(#aG)"; }
           else if (sc) { col = "#e65100"; dash = "6 4"; w = 2; mk = "url(#aO)"; }
           else { col = isDark ? "#546e7a" : "#90a4ae"; dash = "5 4"; w = 1.5; mk = "url(#aD)"; }
-          const indicators = !isOps ? getIndicators(sc) : [];
 
           return (<g key={edge.id}>
             <path d={path} fill="none" stroke="transparent" strokeWidth={20} onDoubleClick={e => dblClick("edge", edge.id, e)} style={{ cursor: "pointer" }} />
@@ -407,8 +409,22 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
               <rect x={mx - 15} y={my - 15} width={30} height={30} rx={8} fill={sel ? "#1a73e8" : edge.crossesBoundary ? "#e65100" : "#5c6bc0"} filter="url(#sh)" onDoubleClick={e => dblClick("edge", edge.id, e)} style={{ cursor: "pointer" }} />
               <text x={mx} y={my + 5.5} textAnchor="middle" style={{ fontSize: 15, fontWeight: 900, fill: "#fff", pointerEvents: "none" }}>{edge.step}</text>
             </>}
-            {indicators.length > 0 && !isOps && (() => { const ix = isV ? mx + 26 : (fn.x + mx) / 2 + 20, iy = isV ? (fn.y + my) / 2 : my; return <IndicatorIcons indicators={indicators} x={ix} y={iy} />; })()}
             {isOps && edge.label && <text x={mx + (isV ? 14 : 0)} y={my + (isV ? 0 : -10)} textAnchor="middle" style={{ fontSize: 8, fill: isAlert ? "#e53935" : "#7986cb", fontStyle: "italic", fontWeight: 600, pointerEvents: "none" }}>{edge.label}</text>}
+          </g>);
+        })}
+
+        {/* Boundary Gates — lock icons on cloud zone border */}
+        {gates.map(gate => {
+          const sel = popover?.type === "gate" && popover.id === gate.id;
+          const isPriv = gate.security.private;
+          const gateColor = isPriv ? "#43a047" : "#e65100";
+          return (<g key={gate.id} onClick={e => { e.stopPropagation(); dblClick("gate", gate.id, e); }} style={{ cursor: "pointer" }}>
+            <circle cx={gate.x} cy={gate.y} r={sel ? 12 : 10} fill={isDark ? "#1e1e1e" : "#fff"} stroke={sel ? "#1a73e8" : gateColor} strokeWidth={sel ? 2.5 : 2} filter="url(#sh)" />
+            {/* Lock icon */}
+            <g transform={`translate(${gate.x},${gate.y}) scale(0.5)`}>
+              <rect x={-4} y={-0.5} width={8} height={6.5} rx={1.5} fill={gateColor} />
+              <path d={`M-2.5,-0.5 L-2.5,-3.5 A2.5,2.5 0 0,1 2.5,-3.5 L2.5,-0.5`} fill="none" stroke={gateColor} strokeWidth={2} />
+            </g>
           </g>);
         })}
 
@@ -433,9 +449,10 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
     {/* Popovers */}
     {popover && (() => {
       const cw = ref.current?.clientWidth || 800, ch = ref.current?.clientHeight || 600;
-      const px = Math.min(popover.px + 10, cw - 390), py = Math.min(Math.max(popover.py - 60, 10), ch - 400);
-      if (popover.type === "node") { const n = diag.nodes.find(x => x.id === popover.id); if (!n) return null; return <div style={{ position: "absolute", left: px, top: py, zIndex: 100 }}><NodePop node={n} threats={(diag.threats || []).filter(t => t.target === n.id)} onClose={() => setPopover(null)} /></div>; }
+      const px = Math.min(popover.px + 10, cw - 400), py = Math.min(Math.max(popover.py - 60, 10), ch - 420);
+      if (popover.type === "node") { const n = diag.nodes.find(x => x.id === popover.id); if (!n) return null; return <div style={{ position: "absolute", left: px, top: py, zIndex: 100 }}><NodePop node={n} threats={(diag.threats || []).filter(t => t.target === n.id)} onClose={() => setPopover(null)} onUpdate={updateNode} /></div>; }
       if (popover.type === "edge") { const e = diag.edges.find(x => x.id === popover.id); if (!e) return null; return <div style={{ position: "absolute", left: px, top: py, zIndex: 100 }}><EdgePop edge={e} fn={diag.nodes.find(n => n.id === e.from)} tn={diag.nodes.find(n => n.id === e.to)} threats={(diag.threats || []).filter(t => t.target === e.id)} onClose={() => setPopover(null)} /></div>; }
+      if (popover.type === "gate") { const g = gates.find(x => x.id === popover.id); if (!g) return null; return <div style={{ position: "absolute", left: px, top: py, zIndex: 100 }}><GatePop gate={g} threats={(diag.threats || []).filter(t => t.target === g.edgeId)} onClose={() => setPopover(null)} /></div>; }
       return null;
     })()}
 
@@ -446,7 +463,7 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
       <button onClick={fit} style={{ height: 32, padding: "0 12px", borderRadius: 8, background: isDark ? "#333" : "#fff", border: `1px solid ${isDark ? "#555" : "#e0e0e0"}`, fontSize: 11, fontWeight: 600, color: isDark ? "#ccc" : "#333", cursor: "pointer", boxShadow: "0 1px 4px rgba(0,0,0,.08)" }}>⊞ Fit</button>
       <div style={{ height: 32, padding: "0 10px", borderRadius: 8, background: "rgba(0,0,0,.6)", color: "#fff", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center" }}>{Math.round(zoom * 100)}%</div>
     </div>
-    <div style={{ position: "absolute", bottom: 14, right: 14, background: "rgba(0,0,0,.5)", color: "#fff", padding: "6px 14px", borderRadius: 20, fontSize: 10 }}>Scroll zoom · Drag pan · Double-click details</div>
+    <div style={{ position: "absolute", bottom: 14, right: 14, background: "rgba(0,0,0,.5)", color: "#fff", padding: "6px 14px", borderRadius: 20, fontSize: 10 }}>Scroll zoom · Drag nodes/groups · Double-click details · Click 🔒 gates</div>
   </div>);
 }
 
@@ -479,7 +496,6 @@ export default function Dashboard({ user }: { user: User }) {
   const exportDrawio = useCallback(() => {
     if (!diag) return;
     let id = 2; const cells: string[] = [], nm: Record<string, number> = {};
-    // Zones
     const zones = [{ l: "SOURCES", ns: diag.nodes.filter(n => n.zone === "sources"), c: "#fafafa", s: "#bdbdbd", d: true }, { l: "Google Cloud", ns: diag.nodes.filter(n => n.zone === "cloud"), c: "#f0f7ff", s: "#4285f4", d: false }, { l: "CONSUMERS", ns: diag.nodes.filter(n => n.zone === "consumers"), c: "#fafafa", s: "#bdbdbd", d: true }];
     const zm: Record<string, number> = {};
     for (const z of zones) { if (!z.ns.length) continue; const xs = z.ns.map(n => n.x), ys = z.ns.map(n => n.y), p = 80; const zId = id++; cells.push(`<mxCell id="${zId}" value="${esc(z.l)}" style="rounded=1;whiteSpace=wrap;fillColor=${z.c};strokeColor=${z.s};${z.d ? "dashed=1;" : ""}fontStyle=1;fontSize=14;verticalAlign=top;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="${Math.min(...xs) - p}" y="${Math.min(...ys) - p}" width="${Math.max(...xs) - Math.min(...xs) + p * 2 + 80}" height="${Math.max(...ys) - Math.min(...ys) + p * 2 + 80}" as="geometry"/></mxCell>`); z.ns.forEach(n => { zm[n.id] = zId; }); }
@@ -498,45 +514,36 @@ export default function Dashboard({ user }: { user: User }) {
 
       {/* ── LEFT PANE ── */}
       <div style={{ width: 280, flexShrink: 0, background: "#fff", borderRight: "1px solid #e5e5e5", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        {/* Logo */}
         <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg,#1a73e8,#4285f4)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 900 }}>◇</div>
           <div><div style={{ fontSize: 16, fontWeight: 800, color: "#111" }}>ArchGen</div><div style={{ fontSize: 9, color: "#bbb" }}>Architecture Intelligence</div></div>
         </div>
-
-        {/* Prompt */}
         <div style={{ padding: "14px 16px", borderBottom: "1px solid #f0f0f0" }}>
           <textarea value={prompt} onChange={e => setPrompt(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generate(); } }} placeholder="Describe your architecture..." rows={3} style={{ width: "100%", padding: "10px 12px", border: "1px solid #e5e5e5", borderRadius: 10, fontSize: 12, outline: "none", resize: "none", lineHeight: 1.5, background: "#fafafa", boxSizing: "border-box", transition: "all .15s" }} />
           <button onClick={generate} disabled={!prompt.trim() || loading} style={{ width: "100%", marginTop: 8, padding: "9px 0", background: prompt.trim() ? "linear-gradient(135deg,#1a73e8,#4285f4)" : "#e0e0e0", color: "#fff", border: "none", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: prompt.trim() ? "pointer" : "default", transition: "all .15s" }}>
             {loading ? "Generating..." : "Generate Architecture"}</button>
           {error && <div style={{ marginTop: 6, padding: 8, borderRadius: 6, background: "#fff5f5", border: "1px solid #fecaca", color: "#dc2626", fontSize: 10 }}>{error}</div>}
         </div>
-
-        {/* Templates */}
         <div style={{ padding: "14px 16px", borderBottom: "1px solid #f0f0f0" }}>
           <div style={{ fontSize: 9, fontWeight: 800, color: "#bbb", letterSpacing: 1, marginBottom: 10 }}>TEMPLATES</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {[{ icon: "📊", name: "Streaming Analytics", p: "streaming analytics pipeline on GCP" },
               { icon: "🔄", name: "CDC Migration", p: "migrate from AWS RDS to BigQuery CDC" },
               { icon: "🤖", name: "RAG / GenAI", p: "RAG chatbot with Gemini and vector search" },
-            ].map((t, i) => (<button key={i} onClick={() => { setPrompt(t.p); setTimeout(() => { const ta = document.querySelector("textarea"); if (ta) { (ta as HTMLTextAreaElement).value = t.p; } }, 0); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#fafafa", border: "1px solid #eee", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all .12s" }} onMouseEnter={e => { e.currentTarget.style.background = "#f0f7ff"; e.currentTarget.style.borderColor = "#4285f4"; }} onMouseLeave={e => { e.currentTarget.style.background = "#fafafa"; e.currentTarget.style.borderColor = "#eee"; }}>
+            ].map((t, i) => (<button key={i} onClick={() => { setPrompt(t.p); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#fafafa", border: "1px solid #eee", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all .12s" }} onMouseEnter={e => { e.currentTarget.style.background = "#f0f7ff"; e.currentTarget.style.borderColor = "#4285f4"; }} onMouseLeave={e => { e.currentTarget.style.background = "#fafafa"; e.currentTarget.style.borderColor = "#eee"; }}>
               <span style={{ fontSize: 22 }}>{t.icon}</span>
               <div><div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{t.name}</div></div>
             </button>))}
           </div>
         </div>
-
-        {/* Bottom controls */}
         <div style={{ flex: 1 }} />
         <div style={{ padding: "12px 16px", borderTop: "1px solid #f0f0f0" }}>
-          {/* Theme */}
           <div style={{ position: "relative", marginBottom: 8 }}>
             <button onClick={() => { setShowTheme(!showTheme); setShowExport(false); }} style={{ width: "100%", padding: "7px 12px", background: "#fafafa", border: "1px solid #eee", borderRadius: 8, fontSize: 11, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span>🎨 Theme: {THEMES[theme]?.label}</span><span style={{ color: "#bbb" }}>▾</span></button>
             {showTheme && <div style={{ position: "absolute", bottom: 38, left: 0, right: 0, background: "#fff", border: "1px solid #e0e0e0", borderRadius: 10, boxShadow: "0 6px 20px rgba(0,0,0,.12)", zIndex: 200, overflow: "hidden" }}>
               {Object.entries(THEMES).map(([k, v]) => (<button key={k} onClick={() => { setTheme(k); setShowTheme(false); }} style={{ width: "100%", padding: "9px 14px", background: theme === k ? "#f0f7ff" : "none", border: "none", borderBottom: "1px solid #f5f5f5", cursor: "pointer", textAlign: "left", fontSize: 11, fontWeight: theme === k ? 700 : 400, color: theme === k ? "#1a73e8" : "#555" }}>{v.label}</button>))}</div>}
           </div>
-          {/* Export */}
           {diag && <div style={{ position: "relative", marginBottom: 8 }}>
             <button onClick={() => { setShowExport(!showExport); setShowTheme(false); }} style={{ width: "100%", padding: "7px 12px", background: "#1a73e8", color: "#fff", border: "none", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span>📥 Export</span><span>▾</span></button>
@@ -545,7 +552,6 @@ export default function Dashboard({ user }: { user: User }) {
               <button onClick={() => { exportJSON(); setShowExport(false); }} style={{ width: "100%", padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: 11 }}><b>📋 JSON</b><br /><span style={{ fontSize: 9, color: "#999" }}>Template data</span></button>
             </div>}
           </div>}
-          {/* User */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: 10, color: "#bbb" }}>{user.firstName || user.email}</span>
             <button onClick={() => logout()} style={{ padding: "4px 10px", background: "none", border: "1px solid #eee", borderRadius: 6, fontSize: 10, color: "#999", cursor: "pointer" }}>Logout</button>
@@ -555,15 +561,12 @@ export default function Dashboard({ user }: { user: User }) {
 
       {/* ── MAIN AREA ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        {/* Tab bar */}
         {diag && <div style={{ height: 44, padding: "0 20px", background: "#fff", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
           {TABS.map(t => (<button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "8px 16px", background: tab === t.id ? "#f0f7ff" : "none", border: tab === t.id ? "1px solid #4285f4" : "1px solid transparent", borderRadius: 8, fontSize: 12, fontWeight: tab === t.id ? 700 : 500, color: tab === t.id ? "#1a73e8" : "#888", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, transition: "all .12s" }}>
             <span>{t.icon}</span>{t.l}</button>))}
           <div style={{ flex: 1 }} />
           {source && <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 14, background: source === "template" ? "#e8f5e9" : "#fff3e0", color: source === "template" ? "#2e7d32" : "#e65100", fontWeight: 700 }}>{source === "template" ? "⚡ Template — instant, $0" : "🤖 AI Generated"}</span>}
         </div>}
-
-        {/* Content area */}
         {!diag && !loading && (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: THEMES[theme]?.bg || "#f8f9fa" }}>
             <div style={{ textAlign: "center" }}>
