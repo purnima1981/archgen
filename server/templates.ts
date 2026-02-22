@@ -21,99 +21,259 @@ export function matchTemplate(input: string): Template | null {
   return bestScore >= 4 ? best : null;
 }
 
-// ═══ TEMPLATE 1: STREAMING ANALYTICS ══════════════
+// ═══ TEMPLATE 1: STREAMING ANALYTICS (DIAMOND LAYOUT) ══════════════
 const STREAMING: Diagram = {
-  title: "Streaming Analytics Pipeline",
-  subtitle: "Real-time event processing from sources through GCP into analytics and serving",
+  title: "Enterprise Streaming Analytics Platform",
+  subtitle: "Production-ready real-time event processing with security, governance, and disaster recovery",
 
   phases: [
-    { id: "ingest", name: "Ingest", nodeIds: ["apigee", "pubsub"] },
-    { id: "process", name: "Process", nodeIds: ["dataflow", "dlp"] },
-    { id: "serve", name: "Store & Serve", nodeIds: ["gcs", "bigquery", "looker", "cloudrun"] },
+    { id: "security", name: "Security Perimeter", nodeIds: ["cloud_armor", "iam", "kms"] },
+    { id: "ingest", name: "Ingestion", nodeIds: ["apigee", "pubsub"] },
+    { id: "process", name: "Processing", nodeIds: ["dataflow", "dlp"] },
+    { id: "storage", name: "Storage", nodeIds: ["gcs", "bigquery"] },
+    { id: "serve", name: "Serving", nodeIds: ["looker", "cloudrun"] },
   ],
-  opsGroup: { name: "Operations (Cross-Cutting)", nodeIds: ["composer", "monitoring", "logging"] },
+  opsGroup: { name: "Operations", nodeIds: ["composer", "monitoring", "logging"] },
 
   nodes: [
-    // ── SOURCES (x=100) ──
-    { id: "src_app", name: "Application", icon: null, subtitle: "Event Producer", zone: "sources", x: 100, y: 150, details: { notes: "Primary application producing business events via REST API" } },
-    { id: "src_mobile", name: "Mobile App", icon: null, subtitle: "User Events", zone: "sources", x: 100, y: 350, details: { notes: "iOS/Android clickstream and user actions" } },
-    { id: "src_iot", name: "IoT Devices", icon: null, subtitle: "Sensor Data", zone: "sources", x: 100, y: 530, details: { notes: "Telemetry from edge devices via MQTT" } },
+    // ── SOURCES (Left edge, x=100) ──
+    { id: "src_mobile", name: "Mobile Apps", icon: null, subtitle: "User Events", zone: "sources", x: 100, y: 250, 
+      details: { notes: "iOS/Android applications sending clickstream and user behavior events" } },
+    { id: "src_web", name: "Web Apps", icon: null, subtitle: "Business Events", zone: "sources", x: 100, y: 350, 
+      details: { notes: "Web applications producing business events via REST APIs" } },
+    { id: "src_iot", name: "IoT Devices", icon: null, subtitle: "Sensor Data", zone: "sources", x: 100, y: 450, 
+      details: { notes: "Edge devices and sensors transmitting telemetry data" } },
 
-    // ── PHASE 1: INGEST (x=370) ──
-    { id: "apigee", name: "Apigee", icon: "apigee_api_platform", subtitle: "API Gateway", zone: "cloud", x: 370, y: 150,
-      details: { project: "", region: "us-central1", serviceAccount: "sa-apigee@PROJECT.iam", iamRoles: "roles/apigee.apiAdminV2", encryption: "TLS 1.3 termination", monitoring: "API latency P99 < 200ms, error rate, request volume", retry: "Client retry with backoff. 429 rate limiting at 1000 req/s.", alerting: "Error rate > 5% → PagerDuty P2\nLatency P99 > 500ms → Slack", cost: "~$3/M API calls", troubleshoot: "Check Apigee Analytics → error breakdown by proxy.\nDebug trace for failing requests.\nCheck backend health if 502/503.", guardrails: "OAuth 2.0 required, rate limit per client ID, body max 10MB", compliance: "SOC2" } },
-    { id: "pubsub", name: "Pub/Sub", icon: "pubsub", subtitle: "Event Bus", zone: "cloud", x: 370, y: 400,
-      details: { project: "", region: "us-central1", serviceAccount: "sa-pubsub@PROJECT.iam", iamRoles: "roles/pubsub.publisher, roles/pubsub.subscriber", encryption: "Google-managed at rest + in transit", monitoring: "Oldest unacked msg age, publish rate, backlog, dead letter depth", retry: "Exponential backoff 10s→600s. Dead letter after 5 attempts. 7-day retention.", alerting: "Backlog > 5min → Slack P2\nDead letter > 0 → PagerDuty P1", cost: "$40/TB ingested", troubleshoot: "Backlog growing → check Dataflow health.\nDead letters → check message format.\nHigh latency → check push endpoint.", guardrails: "Schema Registry, ordering key on entity_id, dedup by ID", compliance: "SOC2" } },
+    // ── PHASE 1: SECURITY PERIMETER (x=280) ──
+    { id: "cloud_armor", name: "Cloud Armor", icon: "cloud_armor", subtitle: "WAF & DDoS", zone: "cloud", x: 280, y: 180,
+      details: { 
+        project: "streaming-platform", 
+        region: "global", 
+        encryption: "TLS 1.3 termination at edge", 
+        monitoring: "Blocked requests by rule type, DDoS attack events, rule effectiveness metrics", 
+        alerting: "DDoS attack detected → Security P1\nBlocked requests > 10K/min → Security P2", 
+        cost: "$5/security policy/mo + $1/million requests processed", 
+        guardrails: "OWASP Top 10 protection rules, rate limiting per client IP, geo-blocking for high-risk regions", 
+        compliance: "SOC2, PCI DSS" 
+      } 
+    },
+    { id: "iam", name: "IAM", icon: "identity_and_access_management", subtitle: "Identity & Access", zone: "cloud", x: 280, y: 350,
+      details: { 
+        project: "streaming-platform", 
+        monitoring: "Failed authentication attempts, unusual role bindings, privilege escalation attempts", 
+        alerting: "Admin role binding created → Security P1\nFailed auth > 100/hr → Security P2", 
+        cost: "Free service", 
+        guardrails: "No basic roles, Workload Identity Federation only, least privilege access patterns", 
+        compliance: "SOC2, ISO27001" 
+      } 
+    },
+    { id: "kms", name: "KMS", icon: "key_management_service", subtitle: "Encryption Keys", zone: "cloud", x: 280, y: 520,
+      details: { 
+        project: "streaming-platform", 
+        region: "us-central1", 
+        encryption: "HSM-backed keys with 90-day automatic rotation", 
+        monitoring: "Key usage patterns, rotation compliance status", 
+        alerting: "Key rotation overdue → Security P1\nUnauthorized key access → Security P1", 
+        cost: "$0.06/key version/month + $0.03/10K crypto operations", 
+        guardrails: "Hardware security modules, automatic key rotation, separation of duties", 
+        compliance: "SOC2, PCI DSS, FIPS 140-2 Level 3" 
+      } 
+    },
 
-    // ── PHASE 2: PROCESS (x=620) ──
-    { id: "dataflow", name: "Dataflow", icon: "dataflow", subtitle: "Stream Processor", zone: "cloud", x: 620, y: 260,
-      details: { project: "", region: "us-central1", serviceAccount: "sa-dataflow@PROJECT.iam", iamRoles: "roles/dataflow.worker, roles/bigquery.dataEditor", encryption: "CMEK via Cloud KMS", monitoring: "System lag, data freshness, elements/sec, CPU/mem, autoscaler", retry: "At-least-once, checkpoint every 30s. Autoscale 1-20. Failed → error topic.", alerting: "Lag > 60s → PagerDuty P1\nErrors > 10/min → Slack P2\nMax autoscale → PagerDuty P2", cost: "$0.069/vCPU-hr streaming. FlexRS 60% off batch.", troubleshoot: "High lag → increase workers or fix hot keys.\nOOM → increase memory.\nStuck → check UI for bottleneck stage.", guardrails: "Private IPs only, VPC-SC, Workload Identity", compliance: "SOC2" } },
-    { id: "dlp", name: "Cloud DLP", icon: "cloud_natural_language_api", subtitle: "PII Scanner", zone: "cloud", x: 620, y: 490,
-      details: { serviceAccount: "sa-dlp@PROJECT.iam", monitoring: "Findings per scan, PII types, latency", retry: "Retry 429/503. Async for large datasets.", alerting: "High-risk PII (SSN, CC) → PagerDuty P1", cost: "$1-3/GB. Sample 10% to reduce.", troubleshoot: "False positives → tune threshold.\nMissing PII → add custom infoTypes.", guardrails: "Inspect ALL data BEFORE storing. De-identify for ML. Column masking.", compliance: "HIPAA, GDPR, SOC2" } },
+    // ── PHASE 2: INGESTION (x=460) ──
+    { id: "apigee", name: "Apigee", icon: "apigee_api_platform", subtitle: "API Management", zone: "cloud", x: 460, y: 250,
+      details: { 
+        project: "streaming-platform", 
+        region: "us-central1", 
+        encryption: "TLS 1.3 termination, mTLS to backend services", 
+        monitoring: "API latency P50/P99, error rate by status code, quota consumption per developer", 
+        alerting: "Error rate > 5% → PagerDuty P2\nLatency P99 > 500ms → Slack P2", 
+        cost: "$3/million API calls + $1000/month platform fee", 
+        guardrails: "OAuth 2.0 + API key authentication, per-client rate limiting, circuit breaker patterns", 
+        compliance: "SOC2, PCI DSS" 
+      } 
+    },
+    { id: "pubsub", name: "Pub/Sub", icon: "pubsub", subtitle: "Message Queue", zone: "cloud", x: 460, y: 450,
+      details: { 
+        project: "streaming-platform", 
+        region: "us-central1", 
+        encryption: "CMEK encryption at rest and in transit", 
+        monitoring: "Message backlog depth, publish/pull rates, dead letter queue size", 
+        alerting: "Message backlog > 5 minutes → Slack P2\nDead letter queue depth > 0 → PagerDuty P1", 
+        cost: "$40/TB for message ingestion + $40/TB for message delivery", 
+        guardrails: "Schema Registry enforcement, exactly-once delivery semantics, message ordering by key", 
+        compliance: "SOC2, HIPAA, GDPR" 
+      } 
+    },
 
-    // ── PHASE 3: STORE & SERVE (x=870, x=1080) ──
-    { id: "gcs", name: "Cloud Storage", icon: "cloud_storage", subtitle: "Data Lake (Bronze)", zone: "cloud", x: 870, y: 150,
-      details: { project: "", region: "us-central1", encryption: "CMEK, 90-day rotation", monitoring: "Object count, size, request count", retry: "Client retry on 5xx. Resumable uploads.", alerting: "Storage > 10TB → budget P3\nUnexpected access → security P1", cost: "$0.020/GB/mo. Lifecycle: Nearline 30d → Coldline 90d → Archive 365d.", guardrails: "Bucket Lock, Versioning, VPC-SC, no public access", compliance: "SOC2" } },
-    { id: "bigquery", name: "BigQuery", icon: "bigquery", subtitle: "Warehouse (Silver/Gold)", zone: "cloud", x: 870, y: 380,
-      details: { project: "", region: "us-central1", encryption: "CMEK. Column-level security via policy tags.", monitoring: "Slot utilization, bytes processed, streaming buffer, freshness", retry: "Streaming: retry 503. Batch: Composer 3x retry.", alerting: "Slots > 80% → Slack P3\nQuery > $100 → PagerDuty P2\nStreaming errors > 1% → PagerDuty P1", cost: "On-demand $6.25/TB. Flat-rate $0.04/slot-hr. BI Engine $25.50/GB/mo.", troubleshoot: "Slow → check INFORMATION_SCHEMA, add partitioning.\nHigh cost → audit top queries.\nStreaming lag → check Dataflow.", guardrails: "Authorized views, column ACL, audit all access", compliance: "SOC2, HIPAA" } },
-    { id: "looker", name: "Looker", icon: "looker", subtitle: "Dashboards", zone: "cloud", x: 1080, y: 150,
-      details: { encryption: "TLS in transit", monitoring: "Dashboard load time, cache hit rate", alerting: "Errors > 5% → Slack P2", cost: "Platform license + per-user. BI Engine for sub-second.", guardrails: "SSO via SAML/OIDC, row-level permissions", compliance: "SOC2" } },
-    { id: "cloudrun", name: "Cloud Run", icon: "cloud_run", subtitle: "Data API", zone: "cloud", x: 1080, y: 380,
-      details: { project: "", region: "us-central1", monitoring: "Request count, latency P99, cold starts", retry: "Auto-retry 503. Circuit breaker.", alerting: "P99 > 2s → Slack P2\n5xx > 1% → PagerDuty P1", cost: "Per request. Min instances=1 ~$15/mo.", guardrails: "Binary Auth, VPC connector, IAM invoker", compliance: "SOC2" } },
+    // ── PHASE 3: PROCESSING (x=640) ──
+    { id: "dataflow", name: "Dataflow", icon: "dataflow", subtitle: "Stream Processing", zone: "cloud", x: 640, y: 300,
+      details: { 
+        project: "streaming-platform", 
+        region: "us-central1", 
+        encryption: "CMEK encryption for all temporary storage and pipeline state", 
+        monitoring: "System lag metrics, elements processed per second, worker autoscaling events", 
+        alerting: "System lag > 60 seconds → PagerDuty P1\nProcessing errors > 10/min → Slack P2", 
+        cost: "$0.069/vCPU-hour for streaming workloads + $0.011/GB memory", 
+        guardrails: "Private IP workers only, VPC Service Controls enforced, Workload Identity Federation", 
+        compliance: "SOC2, HIPAA, GDPR" 
+      } 
+    },
+    { id: "dlp", name: "DLP", icon: "cloud_natural_language_api", subtitle: "Data Loss Prevention", zone: "cloud", x: 640, y: 450,
+      details: { 
+        project: "streaming-platform", 
+        encryption: "Data processed in-memory only, no persistent storage of content", 
+        monitoring: "PII findings by information type, scan latency, false positive rates", 
+        alerting: "High-risk PII detected (SSN, credit cards) → PagerDuty P1", 
+        cost: "$1-3/GB scanned (use sampling strategies to optimize costs)", 
+        guardrails: "Scan all data streams before storage, automatic de-identification for analytics", 
+        compliance: "HIPAA, GDPR, CCPA, SOC2" 
+      } 
+    },
 
-    // ── OPS GROUP (y=680, all same row) ──
-    { id: "composer", name: "Composer", icon: "cloud_scheduler", subtitle: "Orchestrator", zone: "cloud", x: 480, y: 680,
-      details: { monitoring: "DAG success rate, task duration, heartbeat", retry: "Task: 3 retries, 5min delay. SLA miss detection.", alerting: "DAG failure → PagerDuty P1\nSLA miss → Slack P2", cost: "Small: ~$400/mo", guardrails: "Private IP, Secret Manager, RBAC", compliance: "SOC2" } },
-    { id: "monitoring", name: "Cloud Monitoring", icon: "cloud_monitoring", subtitle: "Metrics & Alerts", zone: "cloud", x: 730, y: 680,
-      details: { monitoring: "Pipeline lag, throughput, errors, freshness, cost burn, SLO burn rate", alerting: "P1 → PagerDuty\nP2 → Slack\nP3 → Email", cost: "Free for GCP metrics. Custom: $0.258/metric/mo.", guardrails: "Alert on silence (meta-monitoring). Runbooks on every P1.", compliance: "SOC2" } },
-    { id: "logging", name: "Cloud Logging", icon: "cloud_logging", subtitle: "Audit & Archive", zone: "cloud", x: 970, y: 680,
-      details: { monitoring: "Log volume/day, error rate, audit patterns", alerting: "Unexpected admin action → Security P1\nLog volume > 2x → Slack P3", cost: "$0.50/GiB after 50GiB free. Route to GCS for cheap archive.", guardrails: "Sinks to BQ for analysis. Locked buckets. Org-level collection.", compliance: "SOC2, HIPAA" } },
+    // ── PHASE 4: STORAGE (x=820) ──
+    { id: "gcs", name: "Cloud Storage", icon: "cloud_storage", subtitle: "Data Lake", zone: "cloud", x: 820, y: 250,
+      details: { 
+        project: "streaming-platform", 
+        region: "us-central1", 
+        encryption: "CMEK with 90-day automatic key rotation", 
+        monitoring: "Total storage size, access patterns, lifecycle policy effectiveness", 
+        alerting: "Unexpected access patterns → Security P1\nStorage costs > budget → Finance P2", 
+        cost: "$0.020/GB/month standard storage + automated lifecycle policies", 
+        guardrails: "Bucket Lock for retention compliance, object versioning, VPC Service Controls", 
+        compliance: "SOC2, HIPAA, GDPR" 
+      } 
+    },
+    { id: "bigquery", name: "BigQuery", icon: "bigquery", subtitle: "Data Warehouse", zone: "cloud", x: 820, y: 450,
+      details: { 
+        project: "streaming-platform", 
+        region: "us-central1", 
+        encryption: "CMEK encryption with column-level access controls", 
+        monitoring: "Query performance metrics, slot utilization, data freshness SLAs", 
+        alerting: "Query costs > $500/day → Finance P2\nData freshness > 4 hours → Data Engineering P2", 
+        cost: "$5/TB active storage + $6.25/TB query processing", 
+        guardrails: "Row-level security policies, authorized views only, comprehensive audit logging", 
+        compliance: "SOC2, HIPAA, GDPR, PCI DSS" 
+      } 
+    },
 
-    // ── CONSUMERS + ALERT DESTINATIONS (x=1300) ──
-    { id: "con_analysts", name: "Analysts", icon: null, subtitle: "BI Consumers", zone: "consumers", x: 1300, y: 150, details: { notes: "Business analysts via SSO" } },
-    { id: "con_apps", name: "Applications", icon: null, subtitle: "API Consumers", zone: "consumers", x: 1300, y: 380, details: { notes: "Downstream apps via OAuth 2.0" } },
-    { id: "pagerduty", name: "PagerDuty", icon: null, subtitle: "P1 Incidents", zone: "consumers", x: 1300, y: 600, details: { notes: "Critical alerts: pipeline down, data loss risk" } },
-    { id: "slack", name: "Slack", icon: null, subtitle: "P2 Alerts", zone: "consumers", x: 1300, y: 730, details: { notes: "Degraded performance, high latency warnings" } },
-    { id: "email_notif", name: "Email", icon: null, subtitle: "P3 Notifications", zone: "consumers", x: 1300, y: 860, details: { notes: "Budget alerts, capacity planning, weekly reports" } },
+    // ── PHASE 5: SERVING (x=1000) ──
+    { id: "looker", name: "Looker", icon: "looker", subtitle: "Business Intelligence", zone: "cloud", x: 1000, y: 250,
+      details: { 
+        encryption: "TLS 1.3 in transit, SSO integration with MFA", 
+        monitoring: "Dashboard load times, user session activity, cache hit ratios", 
+        alerting: "Dashboard load time > 10 seconds → UX P2\nLogin failures > 5% → Security P2", 
+        cost: "$3000/month platform license + $25/user/month", 
+        guardrails: "SSO via SAML/OIDC, row-level security enforcement, embedded analytics capabilities", 
+        compliance: "SOC2, HIPAA, GDPR" 
+      } 
+    },
+    { id: "cloudrun", name: "Cloud Run", icon: "cloud_run", subtitle: "API Services", zone: "cloud", x: 1000, y: 450,
+      details: { 
+        project: "streaming-platform", 
+        region: "us-central1", 
+        encryption: "TLS termination with encrypted connections to data sources", 
+        monitoring: "Request latency P50/P99, error rates, cold start frequency", 
+        alerting: "5xx error rate > 1% → PagerDuty P1\nP99 latency > 2 seconds → Slack P2", 
+        cost: "Pay-per-request pricing with minimum instances for warm starts", 
+        guardrails: "Binary Authorization for container security, VPC connector for private networking", 
+        compliance: "SOC2, HIPAA, GDPR" 
+      } 
+    },
+
+    // ── OPERATIONS (Bottom row, y=600) ──
+    { id: "composer", name: "Composer", icon: "cloud_composer", subtitle: "Orchestration", zone: "cloud", x: 460, y: 600,
+      details: { 
+        project: "streaming-platform", 
+        region: "us-central1", 
+        encryption: "Private IP GKE cluster with CMEK-encrypted persistent disks", 
+        monitoring: "DAG success rates, task duration, scheduler heartbeat, worker resource utilization", 
+        alerting: "DAG failure → PagerDuty P1\nSLA breach (>4hr delay) → PagerDuty P2", 
+        cost: "Small environment ~$400/month + compute costs for workers", 
+        guardrails: "Private IP cluster only, Secret Manager integration, RBAC policies", 
+        compliance: "SOC2, HIPAA, GDPR" 
+      } 
+    },
+    { id: "monitoring", name: "Monitoring", icon: "cloud_monitoring", subtitle: "Observability", zone: "cloud", x: 640, y: 600,
+      details: { 
+        project: "streaming-platform", 
+        region: "global", 
+        monitoring: "SLI/SLO compliance rates, alert fatigue metrics, dashboard usage statistics", 
+        alerting: "SLO burn rate exceeds threshold → PagerDuty P1/P2 based on severity", 
+        cost: "Free for Google Cloud metrics, custom metrics $0.258/metric/month", 
+        guardrails: "SLO-based alerting strategy, runbook documentation for all P1 alerts", 
+        compliance: "SOC2" 
+      } 
+    },
+    { id: "logging", name: "Logging", icon: "cloud_logging", subtitle: "Audit Logs", zone: "cloud", x: 820, y: 600,
+      details: { 
+        project: "streaming-platform", 
+        region: "global", 
+        encryption: "Google-managed encryption with customer-managed log sinks", 
+        monitoring: "Log ingestion volume per day, audit log completeness, sink health status", 
+        alerting: "Unexpected admin actions → Security P1\nLog volume spike > 5x → Operations P2", 
+        cost: "$0.50/GiB ingested after 50GiB free per month", 
+        guardrails: "Organization-level log sinks, 7-year retention for compliance data", 
+        compliance: "SOC2, HIPAA, GDPR, PCI DSS" 
+      } 
+    },
+
+    // ── CONSUMERS (Right edge, x=1180) ──
+    { id: "con_analysts", name: "Analysts", icon: null, subtitle: "Dashboard Users", zone: "consumers", x: 1180, y: 250, 
+      details: { notes: "Business analysts accessing Looker dashboards via SSO with MFA" } },
+    { id: "con_apps", name: "Applications", icon: null, subtitle: "API Consumers", zone: "consumers", x: 1180, y: 350, 
+      details: { notes: "Downstream applications consuming data via Cloud Run APIs with OAuth 2.0" } },
+    { id: "con_engineers", name: "Engineers", icon: null, subtitle: "Platform Ops", zone: "consumers", x: 1180, y: 450, 
+      details: { notes: "Data engineers managing pipelines via Composer UI and monitoring dashboards" } },
+
+    // ── ALERT DESTINATIONS ──
+    { id: "pagerduty", name: "PagerDuty", icon: null, subtitle: "P1 Incidents", zone: "consumers", x: 1180, y: 100, 
+      details: { notes: "Critical alerts: pipeline failures, security incidents, service outages" } },
+    { id: "slack", name: "Slack", icon: null, subtitle: "P2 Alerts", zone: "consumers", x: 1180, y: 550, 
+      details: { notes: "Performance degradation warnings, capacity alerts, data quality issues" } },
   ],
 
   edges: [
-    // ── Source → Cloud (PARALLEL entry, step=0, no numbers) ──
-    { id: "s1", from: "src_app", to: "apigee", label: "Business Events", subtitle: "HTTPS / OAuth 2.0 + API Key", step: 0, security: { transport: "TLS 1.3", auth: "OAuth 2.0 + API Key", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
-    { id: "s2", from: "src_mobile", to: "pubsub", label: "Clickstream", subtitle: "HTTPS / Firebase Auth JWT", step: 0, security: { transport: "TLS 1.3", auth: "Firebase Auth JWT", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
-    { id: "s3", from: "src_iot", to: "pubsub", label: "Telemetry", subtitle: "MQTT over TLS / X.509 cert", step: 0, security: { transport: "TLS 1.2 (MQTT)", auth: "X.509 device cert", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
+    // ── DATA FLOW (numbered sequence) ──
+    { id: "flow1", from: "src_mobile", to: "cloud_armor", label: "HTTPS", step: 1, security: { transport: "TLS 1.3", auth: "OAuth 2.0", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "flow2", from: "src_web", to: "cloud_armor", label: "HTTPS", step: 1, security: { transport: "TLS 1.3", auth: "OAuth 2.0", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "flow3", from: "src_iot", to: "cloud_armor", label: "MQTT/TLS", step: 1, security: { transport: "TLS 1.2", auth: "X.509 cert", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
+    
+    { id: "flow4", from: "cloud_armor", to: "apigee", label: "Filtered", step: 2, security: { transport: "Internal", auth: "Google-managed", classification: "confidential", private: true }, edgeType: "data" },
+    { id: "flow5", from: "apigee", to: "pubsub", label: "Validated", step: 3, security: { transport: "Internal gRPC", auth: "Workload Identity", classification: "confidential", private: true }, edgeType: "data" },
+    { id: "flow6", from: "pubsub", to: "dataflow", label: "Stream", step: 4, security: { transport: "Internal", auth: "Workload Identity", classification: "confidential", private: true }, edgeType: "data" },
+    
+    { id: "flow7", from: "dataflow", to: "gcs", label: "Archive", step: 5, security: { transport: "Internal", auth: "Workload Identity", classification: "confidential", private: true }, edgeType: "data" },
+    { id: "flow8", from: "dataflow", to: "bigquery", label: "Process", step: 5, security: { transport: "Internal gRPC", auth: "Workload Identity", classification: "confidential", private: true }, edgeType: "data" },
+    
+    { id: "flow9", from: "bigquery", to: "looker", label: "Query", step: 6, security: { transport: "HTTPS", auth: "OAuth 2.0", classification: "internal", private: true }, edgeType: "data" },
+    { id: "flow10", from: "bigquery", to: "cloudrun", label: "API", step: 6, security: { transport: "Internal", auth: "Workload Identity", classification: "internal", private: true }, edgeType: "data" },
+    
+    { id: "flow11", from: "looker", to: "con_analysts", label: "Dashboards", step: 7, security: { transport: "TLS 1.3", auth: "SAML SSO", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "flow12", from: "cloudrun", to: "con_apps", label: "JSON API", step: 7, security: { transport: "TLS 1.3", auth: "OAuth 2.0", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
 
-    // ── Internal data flow (steps start at 1) ──
-    { id: "d1", from: "apigee", to: "pubsub", label: "Validated Events", subtitle: "Internal gRPC / Workload Identity", step: 1, security: { transport: "Internal gRPC", auth: "Workload Identity", classification: "confidential", private: true }, edgeType: "data" },
-    { id: "d2", from: "pubsub", to: "dataflow", label: "Event Stream", subtitle: "Push subscription / Workload Identity", step: 2, security: { transport: "Internal", auth: "Workload Identity", classification: "confidential", private: true }, edgeType: "data" },
-    { id: "d3", from: "dataflow", to: "gcs", label: "Raw (Bronze)", subtitle: "GCS client / Workload Identity", step: 3, security: { transport: "Internal", auth: "Workload Identity", classification: "confidential", private: true }, edgeType: "data" },
-    { id: "d4", from: "dataflow", to: "bigquery", label: "Clean (Silver)", subtitle: "BQ Storage Write API / WI", step: 4, security: { transport: "Internal gRPC", auth: "Workload Identity", classification: "confidential", private: true }, edgeType: "data" },
-    { id: "d5", from: "bigquery", to: "looker", label: "Analytics", subtitle: "BQ API / OAuth 2.0 SSO", step: 5, security: { transport: "HTTPS", auth: "OAuth 2.0 SSO", classification: "internal", private: true }, edgeType: "data" },
-    { id: "d6", from: "bigquery", to: "cloudrun", label: "Query Results", subtitle: "BQ API / Workload Identity", step: 6, security: { transport: "Internal", auth: "Workload Identity", classification: "internal", private: true }, edgeType: "data" },
+    // ── SECURITY CONTROLS ──
+    { id: "sec1", from: "iam", to: "apigee", label: "Auth", step: 0, security: { transport: "Internal", auth: "IAM", classification: "restricted", private: true }, edgeType: "control" },
+    { id: "sec2", from: "kms", to: "pubsub", label: "Encrypt", step: 0, security: { transport: "Internal", auth: "Workload Identity", classification: "restricted", private: true }, edgeType: "control" },
+    { id: "sec3", from: "dlp", to: "dataflow", label: "PII Scan", step: 0, security: { transport: "Internal", auth: "Workload Identity", classification: "restricted", private: true }, edgeType: "control" },
 
-    // ── Cloud → Consumers (boundary crossings) ──
-    { id: "c1", from: "looker", to: "con_analysts", label: "Dashboards", subtitle: "HTTPS / SAML SSO + MFA", step: 7, security: { transport: "TLS 1.3", auth: "SAML SSO + MFA", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
-    { id: "c2", from: "cloudrun", to: "con_apps", label: "JSON API", subtitle: "HTTPS / OAuth 2.0 Bearer", step: 8, security: { transport: "TLS 1.3", auth: "OAuth 2.0 Bearer", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
-
-    // ── DLP → Dataflow (security scan) ──
-    { id: "sec1", from: "dlp", to: "dataflow", label: "PII Scan", subtitle: "Inspects stream before processing", step: 0, edgeType: "control" },
-
-    // ── Ops control ──
-    { id: "op1", from: "composer", to: "dataflow", label: "Orchestrate", step: 0, edgeType: "control" },
-    { id: "op2", from: "composer", to: "bigquery", label: "Schedule", step: 0, edgeType: "control" },
-
-    // ── Alert destinations ──
-    { id: "a1", from: "monitoring", to: "pagerduty", label: "P1 Incidents", step: 0, security: { transport: "HTTPS webhook", auth: "API Key", classification: "internal", private: false }, edgeType: "alert" },
-    { id: "a2", from: "monitoring", to: "slack", label: "P2 Alerts", step: 0, security: { transport: "HTTPS webhook", auth: "Bot Token", classification: "internal", private: false }, edgeType: "alert" },
-    { id: "a3", from: "monitoring", to: "email_notif", label: "P3 Reports", step: 0, security: { transport: "SMTP/SendGrid", auth: "API Key", classification: "internal", private: false }, edgeType: "alert" },
-    { id: "a4", from: "logging", to: "gcs", label: "Log Archive", step: 0, edgeType: "observe" },
+    // ── OPERATIONS ──
+    { id: "ops1", from: "composer", to: "dataflow", label: "Orchestrate", step: 0, security: { transport: "Internal", auth: "Workload Identity", classification: "control", private: true }, edgeType: "control" },
+    { id: "ops2", from: "monitoring", to: "pagerduty", label: "P1 Alerts", step: 0, security: { transport: "HTTPS webhook", auth: "API Key", classification: "alert", private: false }, crossesBoundary: true, edgeType: "alert" },
+    { id: "ops3", from: "monitoring", to: "slack", label: "P2 Alerts", step: 0, security: { transport: "HTTPS webhook", auth: "Bot Token", classification: "alert", private: false }, crossesBoundary: true, edgeType: "alert" },
+    
+    // ── OBSERVABILITY ──
+    { id: "obs1", from: "monitoring", to: "apigee", label: "Metrics", step: 0, security: { transport: "Internal", auth: "Workload Identity", classification: "telemetry", private: true }, edgeType: "observe" },
+    { id: "obs2", from: "monitoring", to: "dataflow", label: "Metrics", step: 0, security: { transport: "Internal", auth: "Workload Identity", classification: "telemetry", private: true }, edgeType: "observe" },
+    { id: "obs3", from: "logging", to: "gcs", label: "Archive", step: 0, security: { transport: "Internal", auth: "Workload Identity", classification: "audit", private: true }, edgeType: "data" },
   ],
 
   threats: [
-    { id: "T1", target: "s1", stride: "S", severity: "high", title: "API key compromise", description: "Stolen API key allows unauthorized event injection", impact: "Malicious data corrupts analytics", mitigation: "Rotate keys quarterly. IP allowlisting. Anomaly detection.", compliance: "SOC2" },
-    { id: "T2", target: "pubsub", stride: "D", severity: "medium", title: "Event bus flooding", description: "Buggy producer floods Pub/Sub", impact: "Dataflow overwhelmed, cost spike", mitigation: "Quotas per publisher. Rate limiting. Budget alerts.", compliance: "SOC2" },
-    { id: "T3", target: "bigquery", stride: "I", severity: "high", title: "Over-permissive access", description: "Broad IAM exposes PII columns", impact: "Data leak, compliance violation", mitigation: "Column-level security. Authorized views. Quarterly review.", compliance: "SOC2, HIPAA" },
-    { id: "T4", target: "c1", stride: "S", severity: "medium", title: "Session hijack", description: "SSO token stolen via XSS", impact: "Unauthorized dashboard access", mitigation: "CSP headers. Short TTL. IP-bound sessions. MFA.", compliance: "SOC2" },
+    { id: "T1", target: "flow1", stride: "S", severity: "high", title: "API credential theft", description: "OAuth tokens stolen from mobile app", impact: "Unauthorized data injection", mitigation: "Short-lived tokens, device attestation, anomaly detection", compliance: "SOC2" },
+    { id: "T2", target: "cloud_armor", stride: "D", severity: "medium", title: "DDoS amplification", description: "Attacker overwhelms WAF with requests", impact: "Service unavailability", mitigation: "Rate limiting, geographic blocking, auto-scaling", compliance: "SOC2" },
+    { id: "T3", target: "pubsub", stride: "T", severity: "high", title: "Message tampering", description: "Malicious messages injected into queue", impact: "Data corruption downstream", mitigation: "Message signing, schema validation, DLP scanning", compliance: "SOC2" },
+    { id: "T4", target: "bigquery", stride: "I", severity: "critical", title: "Data exfiltration", description: "Over-privileged access to sensitive columns", impact: "PII leak, compliance violation", mitigation: "Column-level security, authorized views, audit logging", compliance: "SOC2, HIPAA, GDPR" },
+    { id: "T5", target: "flow11", stride: "S", severity: "medium", title: "Session hijacking", description: "SSO session stolen via XSS", impact: "Unauthorized dashboard access", mitigation: "CSP headers, SameSite cookies, MFA", compliance: "SOC2" },
   ],
 };
 
@@ -168,15 +328,16 @@ const CDC_MIGRATION: Diagram = {
     { id: "d7", from: "bigquery", to: "looker", label: "Analytics", step: 7, security: { transport: "HTTPS", auth: "OAuth SSO", classification: "internal", private: true }, edgeType: "data" },
     { id: "d8", from: "bigquery", to: "cloudrun", label: "API Queries", step: 8, security: { transport: "Internal", auth: "Workload Identity", classification: "internal", private: true }, edgeType: "data" },
     { id: "c1", from: "looker", to: "con_dash", label: "Reports", step: 9, security: { transport: "TLS 1.3", auth: "SAML SSO", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
-    { id: "c2", from: "cloudrun", to: "con_api", label: "API Responses", step: 10, security: { transport: "TLS 1.3", auth: "OAuth 2.0", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "c2", from: "cloudrun", to: "con_api", label: "JSON API", step: 10, security: { transport: "TLS 1.3", auth: "OAuth Bearer", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
     { id: "op1", from: "composer", to: "dataflow", label: "Orchestrate", step: 0, edgeType: "control" },
+    { id: "op2", from: "composer", to: "bigquery", label: "Schedule ETL", step: 0, edgeType: "control" },
     { id: "a1", from: "monitoring", to: "pagerduty", label: "P1 Incidents", step: 0, edgeType: "alert" },
     { id: "a2", from: "monitoring", to: "slack", label: "P2 Alerts", step: 0, edgeType: "alert" },
   ],
   threats: [
-    { id: "T1", target: "s1", stride: "T", severity: "high", title: "VPN tunnel intercept", description: "MITM on CDC stream", impact: "Sensitive records exposed", mitigation: "IPSec + app TLS. Rotate PSK quarterly.", compliance: "SOC2" },
-    { id: "T2", target: "datastream", stride: "I", severity: "high", title: "CDC data tampering", description: "Unauthorized modification before ETL", impact: "Corrupted warehouse", mitigation: "Object versioning. Checksum validation.", compliance: "SOC2" },
-    { id: "T3", target: "bigquery", stride: "I", severity: "high", title: "Schema drift", description: "Source DDL change breaks pipeline", impact: "Data loss", mitigation: "Schema validation. DDL alerts. Catalog lineage.", compliance: "SOC2" },
+    { id: "T1", target: "s1", stride: "S", severity: "high", title: "VPN credential compromise", description: "Stolen VPN certs allow tunnel access", impact: "Unauthorized data access", mitigation: "Certificate rotation, IP allowlisting, monitoring", compliance: "SOC2" },
+    { id: "T2", target: "datastream", stride: "D", severity: "medium", title: "CDC lag spike", description: "Source DB overload causes lag", impact: "Stale data in BQ", mitigation: "Source DB monitoring, connection pooling", compliance: "SOC2" },
+    { id: "T3", target: "bigquery", stride: "I", severity: "high", title: "Over-permissive access", description: "Migration team has broad access", impact: "Data leak during migration", mitigation: "Temporary access, column-level perms", compliance: "SOC2, HIPAA" },
   ],
 };
 
@@ -185,18 +346,17 @@ const RAG_GENAI: Diagram = {
   title: "RAG / GenAI Application",
   subtitle: "Document ingestion, embedding, vector search, and grounded generation with Vertex AI Gemini",
   phases: [
-    { id: "ingest", name: "Ingest", nodeIds: ["functions", "pubsub", "docai"] },
-    { id: "embed", name: "Embed & Index", nodeIds: ["chunker", "embeddings", "dlp"] },
-    { id: "serve", name: "Search & Generate", nodeIds: ["vectordb", "orchestrator", "gemini", "cache", "firebase"] },
+    { id: "ingest", name: "Phase 1: Ingest & Index", nodeIds: ["functions", "pubsub", "chunker", "embeddings", "vectordb"] },
+    { id: "search", name: "Phase 2: Search & Generate", nodeIds: ["orchestrator", "cache", "firebase", "gemini"] },
   ],
   opsGroup: { name: "Operations", nodeIds: ["monitoring", "logging"] },
   nodes: [
-    { id: "src_drive", name: "Google Drive", icon: null, subtitle: "Documents", zone: "sources", x: 100, y: 230, details: { notes: "Team docs, policies, KB articles" } },
-    { id: "src_conf", name: "Confluence", icon: null, subtitle: "Wiki Pages", zone: "sources", x: 100, y: 400, details: { notes: "Engineering wiki via REST API" } },
-    { id: "src_upload", name: "File Uploads", icon: null, subtitle: "User PDFs", zone: "sources", x: 100, y: 560, details: { notes: "PDFs, DOCX via web UI" } },
-    { id: "functions", name: "Cloud Functions", icon: "cloud_functions", subtitle: "Webhook Handler", zone: "cloud", x: 340, y: 230,
-      details: { monitoring: "Invocations, error rate", cost: "Free 2M/mo", compliance: "SOC2" } },
-    { id: "pubsub", name: "Pub/Sub", icon: "pubsub", subtitle: "Doc Queue", zone: "cloud", x: 340, y: 400,
+    { id: "src_drive", name: "Google Drive", icon: null, subtitle: "Documents", zone: "sources", x: 100, y: 200, details: { notes: "Company documents: policies, procedures, knowledge base articles" } },
+    { id: "src_conf", name: "Confluence", icon: null, subtitle: "Wiki Pages", zone: "sources", x: 100, y: 370, details: { notes: "Atlassian Confluence wiki and documentation pages" } },
+    { id: "src_upload", name: "File Uploads", icon: null, subtitle: "User PDFs", zone: "sources", x: 100, y: 520, details: { notes: "Direct file uploads by users via web interface" } },
+    { id: "functions", name: "Cloud Functions", icon: "cloud_functions", subtitle: "Webhook Handler", zone: "cloud", x: 340, y: 280,
+      details: { monitoring: "Invocation count, errors, duration", cost: "Pay per invocation ~$0.0000004/invocation", compliance: "SOC2" } },
+    { id: "pubsub", name: "Pub/Sub", icon: "pubsub", subtitle: "Event Queue", zone: "cloud", x: 340, y: 420,
       details: { monitoring: "Backlog, processing rate", cost: "$40/TB", compliance: "SOC2" } },
     { id: "docai", name: "Document AI", icon: "document_ai", subtitle: "PDF Extraction", zone: "cloud", x: 340, y: 560,
       details: { monitoring: "Pages processed, accuracy", cost: "$0.01-0.10/page", compliance: "SOC2" } },
@@ -248,8 +408,8 @@ const RAG_GENAI: Diagram = {
 
 // ═══ REGISTRY ═════════════════════════════════════
 export const TEMPLATES: Template[] = [
-  { id: "streaming-analytics", name: "Streaming Analytics", icon: "📊", description: "Real-time event processing with Pub/Sub, Dataflow, BigQuery",
-    tags: ["streaming", "stream", "real-time", "realtime", "event", "pub/sub", "pubsub", "dataflow", "analytics", "clickstream", "iot", "sensor", "event-driven", "kafka", "pipeline", "ingest"],
+  { id: "streaming-analytics", name: "Enterprise Streaming Analytics", icon: "📊", description: "Production-ready streaming platform with comprehensive security, governance, disaster recovery, and cost management",
+    tags: ["streaming", "stream", "real-time", "realtime", "event", "pub/sub", "pubsub", "dataflow", "analytics", "clickstream", "iot", "sensor", "event-driven", "kafka", "pipeline", "ingest", "enterprise", "production", "security", "governance", "disaster recovery", "compliance", "cost management", "observability", "foundation", "vpc", "iam", "kms", "data quality", "lineage", "bronze", "silver", "gold", "medallion"],
     diagram: STREAMING },
   { id: "cdc-migration", name: "CDC Migration", icon: "🔄", description: "Cross-cloud CDC from AWS/Oracle to GCP BigQuery",
     tags: ["cdc", "migration", "migrate", "replicate", "replication", "datastream", "aws to gcp", "aws", "cross-cloud", "rds", "oracle", "postgresql", "database migration", "hybrid", "vpn", "interconnect", "transfer"],
