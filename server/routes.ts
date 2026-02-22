@@ -1,85 +1,98 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
+import { Express, Request, Response } from "express";
 import { isAuthenticated } from "./auth";
-import { db } from "./db";
-import { diagrams } from "@shared/schema";
-import { eq, and, desc } from "drizzle-orm";
 import { matchTemplate, TEMPLATES } from "./templates";
+import { storage } from "./storage";
 
-export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
-
-  // GET templates list (for frontend template gallery)
-  app.get("/api/templates", isAuthenticated, (_req, res) => {
+export function registerRoutes(app: Express) {
+  // ── Template endpoints ──
+  app.get("/api/templates", isAuthenticated, (_req: Request, res: Response) => {
     res.json(TEMPLATES.map(t => ({ id: t.id, name: t.name, icon: t.icon, description: t.description })));
   });
 
-  // GET specific template by ID
-  app.get("/api/templates/:id", isAuthenticated, (req, res) => {
-    const t = TEMPLATES.find(t => t.id === req.params.id);
-    t ? res.json(t.diagram) : res.status(404).json({ error: "Template not found" });
+  app.get("/api/templates/:id", isAuthenticated, (req: Request, res: Response) => {
+    const t = TEMPLATES.find(x => x.id === req.params.id);
+    if (!t) return res.status(404).json({ error: "Template not found" });
+    res.json(t);
   });
 
-  // POST generate — keyword match first, LLM fallback
-  app.post("/api/diagrams/generate", isAuthenticated, async (req: any, res) => {
+  // ── Generate: template match FIRST ($0), LLM fallback ──
+  app.post("/api/diagrams/generate", isAuthenticated, async (req: Request, res: Response) => {
     try {
       const { prompt } = req.body;
       if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
-      // Step 1: Try keyword matching (instant, free)
-      const matched = matchTemplate(prompt);
-      if (matched) {
-        const diagram = JSON.parse(JSON.stringify(matched.diagram)); // deep clone
-        const userId = req.user.claims.sub;
-        const [saved] = await db.insert(diagrams).values({
-          title: diagram.title, prompt, diagramJson: JSON.stringify(diagram), userId
-        }).returning();
-        return res.json({ diagram, saved, source: "template", templateId: matched.id });
+      // 1. Try keyword match (instant, free)
+      const match = matchTemplate(prompt);
+      if (match) {
+        return res.json({ diagram: match.diagram, source: "template", templateId: match.id });
       }
 
-      // Step 2: LLM fallback (for truly custom requests)
-      if (!process.env.ANTHROPIC_API_KEY) {
-        return res.status(400).json({ error: "No matching template found. Add an API key for custom generation." });
-      }
-
-      const ICONS = `compute_engine,cloud_run,cloud_functions,app_engine,google_kubernetes_engine,cloud_storage,bigquery,cloud_sql,cloud_spanner,firestore,bigtable,memorystore,dataflow,dataproc,pubsub,data_catalog,dataplex,datastream,looker,vertexai,document_ai,cloud_vpn,cloud_armor,cloud_interconnect,virtual_private_cloud,identity_and_access_management,secret_manager,key_management_service,binary_authorization,identity_platform,cloud_build,artifact_registry,cloud_deploy,cloud_monitoring,cloud_logging,cloud_scheduler,apigee_api_platform,cloud_api_gateway,eventarc,workflows`;
+      // 2. LLM fallback
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (!apiKey) return res.status(500).json({ error: "No API key configured. Try a template instead." });
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01" },
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 8000,
-          system: `You are a principal cloud architect. Generate architecture as JSON.
-Icons: ${ICONS}. Use exact IDs or null for non-GCP.
-Output: {"title":"","subtitle":"","nodes":[{"id":"","name":"","icon":"","subtitle":"","zone":"sources|cloud|consumers","x":0,"y":0,"details":{"project":"","region":"","serviceAccount":"","iamRoles":"","encryption":"","monitoring":"","retry":"","alerting":"","cost":"","troubleshoot":"","guardrails":"","compliance":"","notes":""}}],"edges":[{"id":"","from":"","to":"","label":"","subtitle":"","step":1,"security":{"transport":"","auth":"","classification":"","private":true},"crossesBoundary":false}],"threats":[{"id":"","target":"","stride":"","severity":"","title":"","description":"","impact":"","mitigation":"","compliance":""}]}
-Rules: sources x~80, cloud x=300-1050, consumers x~1230. Rows y~140 apart. Ops row y~530. crossesBoundary=true at source↔cloud or cloud↔consumer. Include ops row (orchestrator, monitoring, logging). Output ONLY valid JSON.`,
-          messages: [{ role: "user", content: prompt }]
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 4096,
+          system: `You are a GCP architecture generator. Return ONLY valid JSON matching this schema:
+{
+  "title": "string",
+  "subtitle": "string",
+  "nodes": [{ "id": "string", "name": "string", "icon": "gcp_icon_id|null", "subtitle": "string", "zone": "sources|cloud|consumers", "x": number, "y": number, "details": { "monitoring": "string", "alerting": "string", "cost": "string", "retry": "string", "guardrails": "string", "compliance": "string" } }],
+  "edges": [{ "id": "string", "from": "node_id", "to": "node_id", "label": "string", "subtitle": "string", "step": number, "security": { "transport": "string", "auth": "string", "classification": "string", "private": boolean }, "crossesBoundary": boolean, "edgeType": "data|control|observe|alert" }],
+  "threats": [{ "id": "string", "target": "node_or_edge_id", "stride": "S|T|R|I|D|E", "severity": "critical|high|medium|low", "title": "string", "description": "string", "impact": "string", "mitigation": "string" }],
+  "phases": [{ "id": "string", "name": "string", "nodeIds": ["string"] }],
+  "opsGroup": { "name": "string", "nodeIds": ["string"] }
+}
+Source edges (step=0) are parallel entry points. Internal flow steps start at 1. Include phases, opsGroup, and alert destination nodes (PagerDuty, Slack etc in consumers zone). Use GCP icon IDs like: pubsub, dataflow, bigquery, cloud_storage, cloud_run, cloud_functions, apigee_api_platform, cloud_sql, vertexai, cloud_monitoring, cloud_logging, cloud_scheduler, looker, datastream, memorystore, identity_platform, cloud_vpn, cloud_interconnect, document_ai, data_catalog, cloud_natural_language_api.`,
+          messages: [{ role: "user", content: prompt }],
         }),
       });
 
-      if (!response.ok) { const e = await response.json(); throw new Error(e.error?.message || "API error"); }
-      const data = await response.json();
-      const dj = JSON.parse((data.content?.[0]?.text || "").replace(/```json\s*/g, "").replace(/```/g, "").trim());
-      if (dj.edges) { dj.edges.sort((a: any, b: any) => (a.step ?? 999) - (b.step ?? 999)); dj.edges.forEach((e: any, i: number) => { e.step = i + 1; }); }
+      if (!response.ok) {
+        const err = await response.text();
+        console.error("Anthropic API error:", err);
+        return res.status(502).json({ error: "AI generation failed. Try a template." });
+      }
 
-      const userId = req.user.claims.sub;
-      const [saved] = await db.insert(diagrams).values({ title: dj.title || "Untitled", prompt, diagramJson: JSON.stringify(dj), userId }).returning();
-      res.json({ diagram: dj, saved, source: "llm" });
-    } catch (error: any) {
-      console.error("Diagram error:", error?.message || error);
-      res.status(500).json({ error: error?.message || "Failed to generate diagram" });
+      const data = await response.json();
+      const text = data.content?.[0]?.text || "";
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) return res.status(502).json({ error: "Invalid AI response. Try a template." });
+
+      const diagram = JSON.parse(jsonMatch[0]);
+      res.json({ diagram, source: "llm" });
+    } catch (err: any) {
+      console.error("Generate error:", err);
+      res.status(500).json({ error: err.message || "Generation failed" });
     }
   });
 
-  // CRUD
-  app.get("/api/diagrams", isAuthenticated, async (req: any, res) => {
-    try { res.json(await db.select().from(diagrams).where(eq(diagrams.userId, req.user.claims.sub)).orderBy(desc(diagrams.createdAt))); } catch { res.status(500).json({ error: "Failed" }); }
-  });
-  app.get("/api/diagrams/:id", isAuthenticated, async (req: any, res) => {
-    try { const [d] = await db.select().from(diagrams).where(and(eq(diagrams.id, parseInt(req.params.id)), eq(diagrams.userId, req.user.claims.sub))); d ? res.json(d) : res.status(404).json({ error: "Not found" }); } catch { res.status(500).json({ error: "Failed" }); }
-  });
-  app.delete("/api/diagrams/:id", isAuthenticated, async (req: any, res) => {
-    try { await db.delete(diagrams).where(and(eq(diagrams.id, parseInt(req.params.id)), eq(diagrams.userId, req.user.claims.sub))); res.status(204).send(); } catch { res.status(500).json({ error: "Failed" }); }
+  // ── CRUD for saved diagrams ──
+  app.get("/api/diagrams", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user?.id;
+      if (!userId) return res.json([]);
+      const diagrams = await storage.getDiagramsByUser(userId);
+      res.json(diagrams);
+    } catch { res.json([]); }
   });
 
-  return httpServer;
+  app.get("/api/diagrams/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const diagram = await storage.getDiagram(parseInt(req.params.id));
+      if (!diagram) return res.status(404).json({ error: "Not found" });
+      res.json(diagram);
+    } catch { res.status(500).json({ error: "Failed to fetch" }); }
+  });
+
+  app.delete("/api/diagrams/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      await storage.deleteDiagram(parseInt(req.params.id));
+      res.json({ success: true });
+    } catch { res.status(500).json({ error: "Failed to delete" }); }
+  });
 }
