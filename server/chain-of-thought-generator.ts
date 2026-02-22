@@ -1,477 +1,219 @@
+// ═══ CHAIN OF THOUGHT GENERATOR — PROMPTS & TYPES ═══
+// Used by routes.ts to drive multi-step architecture reasoning
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export interface ArchitectureRequest {
-  prompt: string;
-  cloudProvider?: "gcp" | "aws" | "azure" | "multi-cloud";
-  context?: string;
-}
-
-export interface ThinkingPhase {
-  phase: string;
-  reasoning: string;
-  timestamp: number;
-}
-
-export interface ArchComponent {
-  id: string;
-  name: string;
-  type: ComponentType;
-  layer: ArchLayer;
-  provider?: string;
-  description: string;
-  properties?: Record<string, string>;
-}
-
-export interface ArchConnection {
-  from: string;
-  to: string;
-  protocol: string;
-  label?: string;
-  encrypted: boolean;
-  crossesTrustBoundary: boolean;
-  direction: "unidirectional" | "bidirectional";
-}
-
-export interface TrustBoundary {
-  id: string;
-  name: string;
-  componentIds: string[];
-  securityZone: "public" | "dmz" | "private" | "restricted";
-}
-
-export interface ArchitectureBlueprint {
+export interface ChainOfThoughtStep {
+  step: number;
   title: string;
-  summary: string;
-  thinkingTrace: ThinkingPhase[];
-  components: ArchComponent[];
-  connections: ArchConnection[];
-  trustBoundaries: TrustBoundary[];
-  layers: Record<ArchLayer, string[]>;
-  concerns: ArchitecturalConcerns;
-  recommendations: string[];
+  content: string;
+  editable: boolean;
+  completed: boolean;
 }
 
-export interface ArchitecturalConcerns {
-  security: ConcernDetail[];
-  networking: ConcernDetail[];
-  observability: ConcernDetail[];
-  governance: ConcernDetail[];
-  auth: ConcernDetail[];
-  cost: ConcernDetail[];
+export interface ArchitectureReasoning {
+  id: string;
+  prompt: string;
+  userId: string;
+  createdAt: Date;
+  steps: ChainOfThoughtStep[];
+  finalDiagram?: any;
 }
 
-export interface ConcernDetail {
-  area: string;
-  description: string;
-  components: string[];
-  severity: "critical" | "high" | "medium" | "low";
-}
+// ─── Step 1: Requirements Analysis ───────────────────────────────────────────
 
-export type ComponentType =
-  | "compute"
-  | "database"
-  | "storage"
-  | "network"
-  | "security"
-  | "ai-ml"
-  | "monitoring"
-  | "gateway"
-  | "queue"
-  | "cache"
-  | "identity"
-  | "governance"
-  | "external"
-  | "client"
-  | "cdn"
-  | "container"
-  | "serverless";
+export const REQUIREMENTS_PROMPT = `You are a principal cloud architect with 20+ years of experience designing 
+mission-critical systems. You think like a paranoid security engineer, a network topology expert, 
+an SRE who's been paged at 3am, and a governance officer who's survived SOC2/ISO27001/FedRAMP audits.
 
-export type ArchLayer =
-  | "client"
-  | "edge"
-  | "ingress"
-  | "application"
-  | "ai-ml"
-  | "data"
-  | "platform"
-  | "observability"
-  | "security"
-  | "governance";
+Analyze this architecture request and extract EVERY requirement — explicit and implied.
 
-// ─── System Prompts for Each Thinking Phase ──────────────────────────────────
+REQUEST: "{prompt}"
 
-const ARCHITECT_PERSONA = `You are a principal cloud architect with 20+ years of experience designing 
-mission-critical systems for Fortune 100 companies. You think like a paranoid security engineer, 
-a network topology expert, an SRE who's been paged at 3am, and a governance officer who's survived 
-SOC2/ISO27001/FedRAMP audits — all at once.
+Think deeply about:
+- What is the core use case and data flow end-to-end?
+- Who are the actors (users, services, admins, CI/CD pipelines)?
+- What data is involved? PII? Confidential? Regulated?
+- Is this internal-only, external-facing, or hybrid?
+- What are the latency, availability, throughput, and scale needs?
+- What compliance frameworks apply (SOC2, HIPAA, PCI-DSS, GDPR, FedRAMP)?
+- What integration points exist (APIs, data sources, third-party services)?
+- What are the disaster recovery and business continuity needs?
 
-You NEVER produce a lazy diagram. You always consider:
-- What happens when this gets attacked?
-- What happens at 100x scale?
-- What can't we see when things break?
-- Who has access to what and why?
-- What does the auditor ask about?
+Output a structured analysis in this format:
 
-You know the FULL catalog of every major cloud provider's services — not just the obvious ones.
+## Functional Requirements
+- [List every functional requirement]
+
+## Non-Functional Requirements
+- Latency: [expected latency targets]
+- Availability: [SLA targets, e.g., 99.9%, 99.99%]
+- Scalability: [expected load, growth projections]
+- Data Classification: [public / internal / confidential / restricted]
+- Compliance: [applicable frameworks]
+
+## Actors & Integration Points
+- [List all actors and external systems]
+
+## Exposure Model
+- [Internal only / External facing / Hybrid]
+- [Trust boundaries identified]
+
+## Inferred Requirements
+- [Requirements not explicitly stated but critical — security, monitoring, DR, etc.]
+
+Be exhaustive. A lazy requirements analysis leads to a lazy architecture.`;
+
+// ─── Step 2: Architecture Principles ─────────────────────────────────────────
+
+export const PRINCIPLES_PROMPT = `You are a principal cloud architect. Based on the requirements analysis below,
+define the architecture principles that will guide every design decision.
+
+REQUIREMENTS:
+{requirements}
+
+For each principle, explain WHY it matters for THIS specific system — not generic platitudes.
+
+Consider these dimensions:
+- **Security**: Zero trust, defense in depth, encryption everywhere, least privilege, supply chain security
+- **Networking**: Private connectivity, network segmentation, egress controls, DDoS protection, DNS strategy
+- **Observability**: Structured logging, distributed tracing, SLIs/SLOs, alerting strategy, cost monitoring
+- **Governance**: Data lineage, model registry (if AI/ML), audit logging, policy-as-code, change management
+- **Auth**: Identity provider strategy, service-to-service auth, API key management, RBAC/ABAC, workload identity
+- **Resilience**: Failure domains, circuit breakers, retry policies, graceful degradation, chaos engineering readiness
+- **Cost**: FinOps principles, right-sizing, committed use, storage tiering, egress optimization
+
+Output in this format:
+
+## Core Principles
+1. **[Principle Name]**: [Why this matters for this system]
+   - Implication: [What this means for component selection]
+
+## Security Posture
+- [Security principles specific to this architecture]
+
+## Networking Strategy  
+- [Network design principles]
+
+## Observability Strategy
+- [Monitoring and alerting principles]
+
+## Governance & Compliance
+- [Governance principles mapped to compliance requirements]
+
+## Cost Strategy
+- [Cost optimization principles]
+
+Be specific to THIS system. Generic principles are useless.`;
+
+// ─── Step 3: Component Design ────────────────────────────────────────────────
+
+export const COMPONENTS_PROMPT = `You are a principal cloud architect who knows the FULL catalog of every major 
+cloud provider's services — not just the obvious ones.
+
 When someone says "RAG on Vertex AI", you don't just think Vertex + BigQuery. You think:
 Model Armor, VPC Service Controls, Cloud Armor, Private Service Connect, Vertex AI Pipelines,
-Feature Store, Model Registry, Experiment Tracking, Endpoint monitoring, Cloud Trace, 
-Error Reporting, Binary Authorization, Artifact Registry, Secret Manager, Cloud KMS, 
-IAM Workload Identity Federation, and tools like IBM watsonx.governance, Maxim AI for evaluation,
-LangSmith/LangFuse for tracing, Weights & Biases for experiment tracking.
+Feature Store, Model Registry, Experiment Tracking, Endpoint monitoring, Cloud Trace,
+Error Reporting, Binary Authorization, Artifact Registry, Secret Manager, Cloud KMS,
+IAM Workload Identity Federation, and complementary tools like IBM watsonx.governance, 
+Maxim AI for evaluation, LangSmith/LangFuse for tracing, Weights & Biases for experiments.
 
-You output ONLY valid JSON — no markdown, no backticks, no preamble.`;
+Based on the requirements and principles, enumerate ALL components needed.
 
-const PHASE_PROMPTS = {
-  decompose: `PHASE 1: USE CASE DECOMPOSITION
+REQUIREMENTS:
+{requirements}
 
-Analyze the user's request and decompose it into:
-1. **Core Workflow**: What is the primary data/request flow end-to-end?
-2. **Actors**: Who/what interacts with this system (users, services, admins, CI/CD)?
-3. **Data Classification**: What data is involved? PII? Confidential? Public?
-4. **Integration Points**: What external systems, APIs, or data sources are involved?
-5. **Non-Functional Requirements**: Infer latency, availability, scale, and compliance needs.
-6. **Exposure Model**: Is this internal-only, external-facing, or hybrid?
+PRINCIPLES:
+{principles}
 
-Output JSON:
-{
-  "workflow": "string describing the core flow",
-  "actors": [{"name": "string", "type": "human|service|admin|pipeline", "external": boolean}],
-  "dataClassification": "public|internal|confidential|restricted",
-  "integrations": [{"name": "string", "type": "string", "direction": "inbound|outbound|bidirectional"}],
-  "nfrs": {"latency": "string", "availability": "string", "scale": "string", "compliance": ["string"]},
-  "exposureModel": "internal|external|hybrid",
-  "inferredRequirements": ["string"]
-}`,
+For each component, specify:
+1. **Name & Service**: Exact cloud service or third-party tool
+2. **Purpose**: What it does in THIS architecture (not generic descriptions)
+3. **Layer**: Which architectural layer (client / edge / ingress / application / AI-ML / data / platform / observability / security / governance)
+4. **Why This Choice**: Why this service over alternatives
+5. **Configuration Notes**: Key settings, sizing, regions
+6. **Security Controls**: Encryption, IAM, network policies for this component
+7. **Monitoring**: What to monitor, what alerts to set
 
-  discover: `PHASE 2: COMPONENT DISCOVERY
+Think about components most architects FORGET:
+- Secrets management and key rotation
+- Certificate management
+- WAF and bot detection  
+- API gateway with rate limiting
+- Service mesh or network policies
+- Model evaluation and drift detection (for AI/ML)
+- Data loss prevention
+- Audit logging and SIEM integration
+- Cost alerting and budget controls
+- Disaster recovery and backup
+- CI/CD pipeline security (binary authorization, vulnerability scanning)
 
-Given the decomposed use case, enumerate ALL components needed — go deep, not shallow.
+Output a comprehensive component inventory organized by architectural layer.
+A real enterprise architecture has 20-50+ components, not 5-10.`;
 
-For each component think:
-- Is there a managed service for this?
-- What's the security-hardened version?
-- What's the enterprise-grade monitoring for this?
-- What tools exist for governance/evaluation of this?
-- Am I missing a caching/queue/CDN layer?
-- What about secrets management, key management, certificate management?
-- What about WAF, DDoS protection, bot detection?
-- What about model evaluation, drift detection, A/B testing?
-- What third-party tools complement this (Maxim AI, IBM watsonx, Datadog, etc.)?
+// ─── Step 4: Architecture Assembly ───────────────────────────────────────────
 
-Output JSON array of components:
-[{
-  "id": "unique-kebab-id",
-  "name": "Display Name",
-  "type": "compute|database|storage|network|security|ai-ml|monitoring|gateway|queue|cache|identity|governance|external|client|cdn|container|serverless",
-  "layer": "client|edge|ingress|application|ai-ml|data|platform|observability|security|governance",
-  "provider": "gcp|aws|azure|third-party|open-source",
-  "description": "What it does in this architecture",
-  "properties": {"key": "value pairs for relevant config"}
-}]
+export const ASSEMBLY_PROMPT = `You are a principal cloud architect. Now assemble the components into a 
+complete architecture specification with all connections, trust boundaries, and operational details.
 
-Be exhaustive. A real architecture has 20-50+ components, not 5-10.`,
+REQUIREMENTS:
+{requirements}
 
-  security_sweep: `PHASE 3: ARCHITECTURAL CONCERNS SWEEP
+PRINCIPLES:
+{principles}
 
-For EVERY component discovered, systematically evaluate these cross-cutting concerns:
+COMPONENTS:
+{components}
 
-**Security**: Encryption at rest & in transit, key rotation, vulnerability scanning, binary authorization, 
-supply chain security, data loss prevention, threat modeling (STRIDE), secrets management.
+For the assembly, define:
 
-**Networking**: VPC design, subnet segmentation, private connectivity (Private Service Connect, PrivateLink), 
-firewall rules, DNS, load balancing, CDN, DDoS protection, egress controls, network policies.
+## Data Flow
+- Map the complete request/response flow end-to-end, step by step
+- Number each step sequentially
+- Specify protocol, encryption, and auth for each hop
 
-**Observability**: Structured logging, distributed tracing, metrics/SLIs/SLOs, alerting, 
-error tracking, cost monitoring, AI-specific monitoring (drift, latency, token usage, hallucination rates).
+## Trust Boundaries
+- Define security zones (public / DMZ / private / restricted)
+- Which components live in which zone
+- What crosses boundaries and how it's secured
 
-**Governance**: Data lineage, model registry, experiment tracking, approval workflows, 
-audit logging, compliance mapping, policy-as-code, responsible AI evaluation.
+## Connection Map
+For EVERY connection between components:
+- Protocol (HTTPS, gRPC, WebSocket, TCP, Pub/Sub, VPC peering, Private Service Connect)
+- Encryption (TLS 1.3, mTLS, application-level encryption)
+- Authentication (OAuth, service account, API key, workload identity)
+- Does it cross a trust boundary?
+- Data classification of what flows through
 
-**Auth**: Identity provider, service-to-service auth, user auth, API key management, 
-OAuth/OIDC flows, RBAC/ABAC, workload identity, just-in-time access.
+## Failure Modes
+- What happens when each component fails?
+- Circuit breaker and retry strategies
+- Graceful degradation plan
 
-**Cost**: Resource right-sizing, committed use discounts, spot/preemptible instances, 
-storage tiering, egress cost optimization, FinOps tagging.
+## Operational Runbook Highlights
+- Key metrics and SLIs for each component
+- Alert thresholds and escalation paths
+- Common troubleshooting scenarios
 
-Output JSON:
-{
-  "security": [{"area": "string", "description": "string", "components": ["component-ids"], "severity": "critical|high|medium|low"}],
-  "networking": [...],
-  "observability": [...],
-  "governance": [...],
-  "auth": [...],
-  "cost": [...]
-}`,
+## Cost Estimate
+- Approximate monthly cost breakdown by component
+- Cost optimization opportunities
 
-  connections: `PHASE 4: CONNECTION MAPPING
+Be precise. This specification will be used to generate the final architecture diagram.`;
 
-Map every connection between components. For each connection determine:
-1. Protocol (HTTPS, gRPC, WebSocket, TCP, pub/sub, internal API, VPC peering, etc.)
-2. Is it encrypted? How?
-3. Does it cross a trust boundary (public→private, external→internal)?
-4. Direction of data flow
-5. What auth mechanism protects this connection?
+// ─── Step 5: Final Diagram Generation ────────────────────────────────────────
 
-Also define trust boundaries — groups of components that share a security zone.
+export const DIAGRAM_PROMPT = `You are a principal cloud architect generating a production-grade architecture 
+diagram from a detailed specification.
 
-Output JSON:
-{
-  "connections": [{
-    "from": "component-id",
-    "to": "component-id",
-    "protocol": "string",
-    "label": "short description",
-    "encrypted": boolean,
-    "crossesTrustBoundary": boolean,
-    "direction": "unidirectional|bidirectional",
-    "authMechanism": "string"
-  }],
-  "trustBoundaries": [{
-    "id": "boundary-id",
-    "name": "Display Name",
-    "componentIds": ["component-ids"],
-    "securityZone": "public|dmz|private|restricted"
-  }]
-}`,
+SPECIFICATION:
+{specification}
 
-  synthesize: `PHASE 5: FINAL SYNTHESIS
+Convert this specification into a complete, deployable architecture diagram.
+Every node must have comprehensive operational details.
+Every edge must specify security properties.
+Include threat modeling for critical attack surfaces.
+Include deployment phases for phased rollout.
+Group operational/observability components together.
 
-Combine all previous analysis into a final architecture blueprint. Produce:
-1. A clear title for this architecture
-2. A 2-3 sentence executive summary
-3. The complete component list (refined from Phase 2)
-4. All connections (from Phase 4)
-5. Trust boundaries (from Phase 4)
-6. Layer mapping (which components belong to which architectural layer)
-7. Top 5-10 actionable recommendations ranked by impact
-
-Output the COMPLETE blueprint as JSON:
-{
-  "title": "string",
-  "summary": "string",
-  "components": [full component objects],
-  "connections": [full connection objects],
-  "trustBoundaries": [full boundary objects],
-  "layers": {"client": ["ids"], "edge": ["ids"], ...},
-  "recommendations": ["string"]
-}`
-};
-
-// ─── Raw Anthropic API call (no SDK) ─────────────────────────────────────────
-
-async function callClaude(
-  systemPrompt: string,
-  userMessage: string,
-  apiKey: string,
-  model: string
-): Promise<string> {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 8192,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(
-      `Anthropic API error ${response.status}: ${(err as any)?.error?.message || response.statusText}`
-    );
-  }
-
-  const data: any = await response.json();
-  const text = data.content
-    ?.filter((block: any) => block.type === "text")
-    .map((block: any) => block.text)
-    .join("") || "{}";
-
-  return text;
-}
-
-// ─── Core Generator Class ────────────────────────────────────────────────────
-
-export class ChainOfThoughtGenerator {
-  private apiKey: string;
-  private model: string;
-
-  constructor(apiKey?: string, model?: string) {
-    this.apiKey = apiKey || process.env.ANTHROPIC_API_KEY || "";
-    this.model = model || "claude-sonnet-4-20250514";
-  }
-
-  async generate(request: ArchitectureRequest): Promise<ArchitectureBlueprint> {
-    const thinkingTrace: ThinkingPhase[] = [];
-    const provider = request.cloudProvider || "gcp";
-
-    const decomposition = await this.runPhase(
-      "decompose",
-      PHASE_PROMPTS.decompose,
-      `Analyze this architecture request for ${provider.toUpperCase()}:\n\n"${request.prompt}"${
-        request.context ? `\n\nAdditional context: ${request.context}` : ""
-      }`,
-      thinkingTrace
-    );
-
-    const components = await this.runPhase(
-      "discover",
-      PHASE_PROMPTS.discover,
-      `Based on this decomposed use case, discover ALL components needed:\n\n${JSON.stringify(decomposition, null, 2)}\n\nCloud provider preference: ${provider.toUpperCase()}`,
-      thinkingTrace
-    );
-
-    const concerns = await this.runPhase(
-      "security_sweep",
-      PHASE_PROMPTS.security_sweep,
-      `Evaluate architectural concerns for these components:\n\n${JSON.stringify(components, null, 2)}\n\nUse case context:\n${JSON.stringify(decomposition, null, 2)}`,
-      thinkingTrace
-    );
-
-    const connectionMap = await this.runPhase(
-      "connections",
-      PHASE_PROMPTS.connections,
-      `Map all connections between these components:\n\n${JSON.stringify(components, null, 2)}\n\nSecurity concerns to address:\n${JSON.stringify(concerns, null, 2)}`,
-      thinkingTrace
-    );
-
-    const blueprint = await this.runPhase(
-      "synthesize",
-      PHASE_PROMPTS.synthesize,
-      `Synthesize the final architecture blueprint from all phases:\n\nDecomposition:\n${JSON.stringify(decomposition, null, 2)}\n\nComponents:\n${JSON.stringify(components, null, 2)}\n\nConcerns:\n${JSON.stringify(concerns, null, 2)}\n\nConnections:\n${JSON.stringify(connectionMap, null, 2)}`,
-      thinkingTrace
-    );
-
-    return {
-      title: blueprint.title || "Architecture Blueprint",
-      summary: blueprint.summary || "",
-      thinkingTrace,
-      components: blueprint.components || components,
-      connections: blueprint.connections || connectionMap.connections || [],
-      trustBoundaries: blueprint.trustBoundaries || connectionMap.trustBoundaries || [],
-      layers: blueprint.layers || this.buildLayerMap(blueprint.components || components),
-      concerns: concerns as ArchitecturalConcerns,
-      recommendations: blueprint.recommendations || [],
-    };
-  }
-
-  async *generateStream(
-    request: ArchitectureRequest
-  ): AsyncGenerator<{ phase: string; status: "started" | "completed"; data?: any }> {
-    const thinkingTrace: ThinkingPhase[] = [];
-    const provider = request.cloudProvider || "gcp";
-    const phases = ["decompose", "discover", "security_sweep", "connections", "synthesize"] as const;
-
-    const prompts: Record<string, (prev: Record<string, any>) => string> = {
-      decompose: () =>
-        `Analyze this architecture request for ${provider.toUpperCase()}:\n\n"${request.prompt}"${
-          request.context ? `\n\nAdditional context: ${request.context}` : ""
-        }`,
-      discover: (prev) =>
-        `Based on this decomposed use case, discover ALL components needed:\n\n${JSON.stringify(prev.decompose, null, 2)}\n\nCloud provider preference: ${provider.toUpperCase()}`,
-      security_sweep: (prev) =>
-        `Evaluate architectural concerns for these components:\n\n${JSON.stringify(prev.discover, null, 2)}\n\nUse case context:\n${JSON.stringify(prev.decompose, null, 2)}`,
-      connections: (prev) =>
-        `Map all connections between these components:\n\n${JSON.stringify(prev.discover, null, 2)}\n\nSecurity concerns to address:\n${JSON.stringify(prev.security_sweep, null, 2)}`,
-      synthesize: (prev) =>
-        `Synthesize the final architecture blueprint from all phases:\n\nDecomposition:\n${JSON.stringify(prev.decompose, null, 2)}\n\nComponents:\n${JSON.stringify(prev.discover, null, 2)}\n\nConcerns:\n${JSON.stringify(prev.security_sweep, null, 2)}\n\nConnections:\n${JSON.stringify(prev.connections, null, 2)}`,
-    };
-
-    const results: Record<string, any> = {};
-
-    for (const phase of phases) {
-      yield { phase, status: "started" };
-
-      const phasePrompt = (PHASE_PROMPTS as any)[phase];
-      const userMessage = prompts[phase](results);
-      const result = await this.runPhase(phase, phasePrompt, userMessage, thinkingTrace);
-      results[phase] = result;
-
-      yield { phase, status: "completed", data: result };
-    }
-  }
-
-  private async runPhase(
-    phaseName: string,
-    phaseSystemPrompt: string,
-    userMessage: string,
-    trace: ThinkingPhase[]
-  ): Promise<any> {
-    const startTime = Date.now();
-
-    try {
-      const text = await callClaude(
-        `${ARCHITECT_PERSONA}\n\n${phaseSystemPrompt}`,
-        userMessage,
-        this.apiKey,
-        this.model
-      );
-
-      const cleaned = text
-        .replace(/^```(?:json)?\s*/i, "")
-        .replace(/\s*```$/i, "")
-        .trim();
-
-      const parsed = JSON.parse(cleaned);
-
-      trace.push({
-        phase: phaseName,
-        reasoning: `Completed ${phaseName} phase — identified ${
-          Array.isArray(parsed) ? parsed.length : Object.keys(parsed).length
-        } items`,
-        timestamp: Date.now() - startTime,
-      });
-
-      return parsed;
-    } catch (error: any) {
-      trace.push({
-        phase: phaseName,
-        reasoning: `Phase ${phaseName} encountered error: ${error.message}`,
-        timestamp: Date.now() - startTime,
-      });
-
-      if (phaseName === "discover") return [];
-      if (phaseName === "connections") return { connections: [], trustBoundaries: [] };
-      return {};
-    }
-  }
-
-  private buildLayerMap(components: ArchComponent[]): Record<ArchLayer, string[]> {
-    const layers: Record<ArchLayer, string[]> = {
-      client: [], edge: [], ingress: [], application: [],
-      "ai-ml": [], data: [], platform: [], observability: [],
-      security: [], governance: [],
-    };
-
-    for (const comp of components) {
-      if (comp.layer && layers[comp.layer]) {
-        layers[comp.layer].push(comp.id);
-      }
-    }
-
-    return layers;
-  }
-}
-
-// ─── Convenience Exports ─────────────────────────────────────────────────────
-
-export async function generateArchitecture(
-  request: ArchitectureRequest
-): Promise<ArchitectureBlueprint> {
-  const generator = new ChainOfThoughtGenerator();
-  return generator.generate(request);
-}
-
-export async function* streamArchitecture(request: ArchitectureRequest) {
-  const generator = new ChainOfThoughtGenerator();
-  yield* generator.generateStream(request);
-}
-
-export default ChainOfThoughtGenerator;
+Think like someone who will be ON CALL for this system at 3am — what do they need to see?`;
