@@ -7,133 +7,126 @@ import { eq, and, desc } from "drizzle-orm";
 
 const ICONS = `compute_engine,cloud_run,cloud_functions,app_engine,google_kubernetes_engine,cloud_gpu,cloud_tpu,batch,cloud_storage,bigquery,cloud_sql,cloud_spanner,firestore,bigtable,datastore,memorystore,filestore,persistent_disk,dataflow,dataproc,pubsub,data_catalog,dataprep,dataplex,datastream,analytics_hub,data_studio,looker,vertexai,ai_platform,automl,cloud_natural_language_api,cloud_vision_api,cloud_translation_api,speech-to-text,text-to-speech,dialogflow,document_ai,recommendations_ai,tensorflow_enterprise,cloud_load_balancing,cloud_cdn,cloud_dns,cloud_vpn,cloud_nat,cloud_armor,cloud_interconnect,virtual_private_cloud,traffic_director,identity_and_access_management,security_command_center,secret_manager,key_management_service,binary_authorization,identity_platform,cloud_audit_logs,cloud_build,artifact_registry,cloud_deploy,cloud_monitoring,cloud_logging,error_reporting,trace,cloud_scheduler,cloud_tasks,apigee_api_platform,cloud_api_gateway,cloud_endpoints,eventarc,workflows,connectors`;
 
-const SYSTEM_PROMPT = `You are a senior cloud security architect. Generate an architecture diagram that tells a COMPLETE DATA STORY — what data moves, how systems connect, how it's secured, and where risks exist.
+const SYSTEM_PROMPT = `You are a senior cloud architect. Generate an architecture diagram showing data flowing from EXTERNAL SOURCES into GOOGLE CLOUD.
 
-THINK IN THIS ORDER:
+STRUCTURE:
+1. First group = EXTERNAL SOURCES (category: "actors", cloud: "external")
+   - Systems OUTSIDE GCP: on-prem DBs, AWS services, SaaS apps, users, IoT
+   - icon: null (not GCP services)
 
-1. DATA JOURNEY: Trace data from origin to destination, left to right. Create 5-7 groups as pipeline stages. Each has 2-3 components.
+2. Remaining groups = GCP SERVICES (category varies, cloud: "gcp")
+   - Ordered left to right as pipeline: ingestion → processing → storage → ai → serving
+   - Use exact GCP icon IDs. Each group has 1-3 components.
 
-2. FLOWS: Create 5-8 flows numbered 1,2,3... connecting components in DIFFERENT groups. Each flow describes:
-   - label: WHAT data moves (be specific: "Patient FHIR Bundle", not just "data")
-   - subtitle: HOW it connects (protocol + auth: "TLS 1.3 via Interconnect / mTLS")
+FLOWS: 5-8 flows numbered 1,2,3... NO gaps. Each connects components in DIFFERENT groups.
+- label: WHAT data moves (specific: "Patient FHIR Bundle", "CDC Change Events")
+- subtitle: HOW it connects (protocol + auth: "VPN / IAM Service Account", "TLS 1.3 / mTLS")
 
-3. TRUST BOUNDARIES: What network zones exist?
-   - "external" = outside your control (users, on-prem, SaaS)
-   - "dmz" = internet-facing controlled (API gateway, WAF)
-   - "vpc" = private cloud network
-   - "restricted" = highest security (PII/PHI storage, keys)
+TRUST BOUNDARIES: Keep it simple. Only TWO:
+- One "external" boundary around the sources group
+- One "vpc" boundary around ALL GCP groups (one single VPC, not multiple)
 
-4. SECURITY per flow: transport, auth method, data classification, private or public
+SECURITY per flow: transport, auth, dataClassification (regulated/confidential/internal), private (boolean)
+SECRETS: where credentials stored (Secret Manager, KMS, etc.)
+THREATS: 3-5 realistic threats, STRIDE tagged (S/T/R/I/D/E), with mitigations
 
-5. SECRETS: Where are credentials stored? (Secret Manager, CyberArk, KMS, Vault)
-
-6. THREATS: Realistic threats at critical points. Use STRIDE (S=Spoofing, T=Tampering, R=Repudiation, I=InfoDisclosure, D=DoS, E=ElevationOfPrivilege). Include specific mitigations.
-
-Icons: ${ICONS}. Use exact IDs or null.
-Categories: actors, channels, ingestion, processing, ai, storage, serving, output, security, monitoring
+GCP Icons: ${ICONS}. Use exact IDs or null.
 
 OUTPUT (JSON only, no markdown):
 {
   "title": "System Title",
-  "subtitle": "One sentence: what enters and what comes out",
+  "subtitle": "One sentence summary",
   "groups": [
-    {"id":"gid","name":"Stage Name","category":"cat",
-     "components":[{"id":"cid","name":"Name (max 16)","icon":"icon_or_null","subtitle":"role"}]}
+    {"id":"gid","name":"Name","category":"actors|ingestion|processing|ai|storage|serving|output","cloud":"external|gcp",
+     "components":[{"id":"cid","name":"Name (max 16)","icon":"gcp_icon_or_null","subtitle":"role"}]}
   ],
   "flows": [
     {"from":"compA","to":"compB","label":"What data","subtitle":"How: protocol / auth","step":1}
   ],
   "trustBoundaries": [
-    {"id":"tb1","name":"Zone Name","type":"external|dmz|vpc|restricted","groups":["gid1","gid2"]}
+    {"id":"ext","name":"External / On-Prem","type":"external","groups":["source_grp_id"]},
+    {"id":"vpc","name":"Project VPC","type":"vpc","groups":["all","gcp","group","ids"]}
   ],
   "security": {
-    "flows": [
-      {"step":1,"transport":"TLS 1.3","auth":"mTLS","dataClassification":"regulated","private":true}
-    ],
-    "secrets": [
-      {"component":"cid","store":"Secret Manager","credential":"DB password","rotation":"90 days"}
-    ]
+    "flows": [{"step":1,"transport":"TLS 1.3","auth":"mTLS","dataClassification":"regulated","private":true}],
+    "secrets": [{"component":"cid","store":"Secret Manager","credential":"what","rotation":"90 days"}]
   },
   "threats": [
-    {"id":"T1","location":"1","locationType":"flow|component","stride":"I",
+    {"id":"T1","location":"1","locationType":"flow|component","stride":"S|T|R|I|D|E",
      "severity":"critical|high|medium|low","title":"Short title",
-     "description":"Specific threat","impact":"What happens",
-     "mitigation":"Specific fix","compliance":"HIPAA|PCI|GDPR|SOC2|null"}
+     "description":"Detail","impact":"What happens","mitigation":"Fix","compliance":"HIPAA|SOC2|null"}
   ]
 }
 
-EXAMPLE — "Healthcare AI: EHR → BigQuery → Vertex AI → dashboard":
+EXAMPLE — "Transfer from AWS RDS to BigQuery":
 {
-  "title": "Clinical Risk Prediction Pipeline",
-  "subtitle": "Patient records from EHR are processed, scored by ML, and risk predictions displayed to clinicians",
+  "title": "AWS to GCP Analytics Pipeline",
+  "subtitle": "Database records from AWS RDS replicated into BigQuery for analytics and ML",
   "groups": [
-    {"id":"src","name":"Clinical Sources","category":"actors","components":[
-      {"id":"ehr","name":"Epic EHR","icon":null,"subtitle":"FHIR R4 Server"},
-      {"id":"labs","name":"Lab Systems","icon":null,"subtitle":"HL7 v2 Feed"}]},
-    {"id":"entry","name":"API & Ingestion","category":"ingestion","components":[
-      {"id":"gw","name":"Apigee Gateway","icon":"apigee_api_platform","subtitle":"WAF + Rate Limit"},
-      {"id":"ps","name":"Pub/Sub","icon":"pubsub","subtitle":"Event Buffer"}]},
-    {"id":"proc","name":"Processing","category":"processing","components":[
-      {"id":"df","name":"Dataflow","icon":"dataflow","subtitle":"ETL + DLP Scan"},
-      {"id":"gcs","name":"Cloud Storage","icon":"cloud_storage","subtitle":"Raw FHIR Zone"}]},
-    {"id":"store","name":"Analytics","category":"storage","components":[
-      {"id":"bq","name":"BigQuery","icon":"bigquery","subtitle":"PHI Data Lake"},
-      {"id":"fs","name":"Feature Store","icon":"vertexai","subtitle":"ML Features"}]},
-    {"id":"ml","name":"AI / ML","category":"ai","components":[
-      {"id":"vtx","name":"Vertex AI","icon":"vertexai","subtitle":"Training + Endpoints"}]},
-    {"id":"serve","name":"Application","category":"serving","components":[
-      {"id":"run","name":"Cloud Run","icon":"cloud_run","subtitle":"Prediction API"},
-      {"id":"dash","name":"Looker","icon":"looker","subtitle":"Clinician Dashboard"}]}
+    {"id":"src","name":"AWS Sources","category":"actors","cloud":"external","components":[
+      {"id":"rds","name":"AWS RDS","icon":null,"subtitle":"PostgreSQL"},
+      {"id":"s3","name":"AWS S3","icon":null,"subtitle":"Data Lake"}
+    ]},
+    {"id":"ingest","name":"Ingestion","category":"ingestion","cloud":"gcp","components":[
+      {"id":"ds","name":"Datastream","icon":"datastream","subtitle":"CDC Replication"},
+      {"id":"gcs","name":"Cloud Storage","icon":"cloud_storage","subtitle":"Landing Zone"}
+    ]},
+    {"id":"proc","name":"Processing","category":"processing","cloud":"gcp","components":[
+      {"id":"df","name":"Dataflow","icon":"dataflow","subtitle":"ETL + Validation"}
+    ]},
+    {"id":"store","name":"Analytics","category":"storage","cloud":"gcp","components":[
+      {"id":"bq","name":"BigQuery","icon":"bigquery","subtitle":"Data Warehouse"},
+      {"id":"fs","name":"Feature Store","icon":"vertexai","subtitle":"ML Features"}
+    ]},
+    {"id":"serve","name":"Serving","category":"serving","cloud":"gcp","components":[
+      {"id":"look","name":"Looker","icon":"looker","subtitle":"Dashboards"},
+      {"id":"run","name":"Cloud Run","icon":"cloud_run","subtitle":"Data API"}
+    ]}
   ],
   "flows": [
-    {"from":"ehr","to":"gw","label":"Patient FHIR Bundle","subtitle":"TLS 1.3 via Cloud Interconnect / mTLS cert","step":1},
-    {"from":"gw","to":"ps","label":"Validated FHIR Events","subtitle":"Internal / IAM Service Account","step":2},
-    {"from":"ps","to":"df","label":"Raw Event Stream","subtitle":"Push Subscription / IAM","step":3},
-    {"from":"df","to":"bq","label":"Clean Patient Records","subtitle":"Internal VPC / Workload Identity","step":4},
-    {"from":"bq","to":"vtx","label":"Training Features","subtitle":"BigQuery Read / ML Service Account","step":5},
-    {"from":"vtx","to":"run","label":"Risk Score Prediction","subtitle":"Internal gRPC / IAM","step":6},
-    {"from":"run","to":"dash","label":"Risk Score JSON","subtitle":"HTTPS / OAuth 2.0 + MFA","step":7}
+    {"from":"rds","to":"ds","label":"CDC Change Events","subtitle":"VPN Tunnel / IAM SA","step":1},
+    {"from":"s3","to":"gcs","label":"Parquet Files","subtitle":"Storage Transfer / HMAC","step":2},
+    {"from":"ds","to":"gcs","label":"Raw CDC Records","subtitle":"Internal / Workload Identity","step":3},
+    {"from":"gcs","to":"df","label":"Staged Data","subtitle":"Internal / IAM","step":4},
+    {"from":"df","to":"bq","label":"Clean Records","subtitle":"Streaming API / WI","step":5},
+    {"from":"bq","to":"look","label":"Analytics Views","subtitle":"BQ API / OAuth 2.0","step":6},
+    {"from":"bq","to":"run","label":"Query Results","subtitle":"BQ API / IAM SA","step":7}
   ],
   "trustBoundaries": [
-    {"id":"onprem","name":"Hospital Network","type":"external","groups":["src"]},
-    {"id":"dmz","name":"API DMZ","type":"dmz","groups":["entry"]},
-    {"id":"vpc","name":"Data VPC","type":"vpc","groups":["proc","store","ml"]},
-    {"id":"svc","name":"Serving VPC","type":"vpc","groups":["serve"]}
+    {"id":"ext","name":"AWS Account","type":"external","groups":["src"]},
+    {"id":"vpc","name":"Project VPC","type":"vpc","groups":["ingest","proc","store","serve"]}
   ],
   "security": {
     "flows": [
-      {"step":1,"transport":"TLS 1.3 via Interconnect","auth":"mTLS client cert","dataClassification":"regulated","private":true},
-      {"step":2,"transport":"TLS 1.3","auth":"IAM Service Account","dataClassification":"regulated","private":true},
-      {"step":3,"transport":"Internal gRPC","auth":"IAM","dataClassification":"regulated","private":true},
-      {"step":4,"transport":"Internal","auth":"Workload Identity","dataClassification":"regulated","private":true},
-      {"step":5,"transport":"Internal","auth":"ML Service Account","dataClassification":"confidential","private":true},
-      {"step":6,"transport":"Internal gRPC","auth":"IAM","dataClassification":"confidential","private":true},
-      {"step":7,"transport":"HTTPS","auth":"OAuth 2.0 + MFA","dataClassification":"confidential","private":false}
+      {"step":1,"transport":"VPN Tunnel","auth":"IAM Service Account","dataClassification":"confidential","private":true},
+      {"step":2,"transport":"HTTPS","auth":"HMAC Key","dataClassification":"confidential","private":true},
+      {"step":3,"transport":"Internal","auth":"Workload Identity","dataClassification":"confidential","private":true},
+      {"step":4,"transport":"Internal","auth":"IAM","dataClassification":"confidential","private":true},
+      {"step":5,"transport":"Internal gRPC","auth":"Workload Identity","dataClassification":"confidential","private":true},
+      {"step":6,"transport":"HTTPS","auth":"OAuth 2.0","dataClassification":"internal","private":false},
+      {"step":7,"transport":"Internal","auth":"IAM SA","dataClassification":"internal","private":true}
     ],
     "secrets": [
-      {"component":"gw","store":"Secret Manager","credential":"EHR mTLS client certificate","rotation":"yearly"},
-      {"component":"bq","store":"KMS","credential":"CMEK encryption key","rotation":"365 days"},
-      {"component":"run","store":"Secret Manager","credential":"OAuth client secret","rotation":"90 days"}
+      {"component":"ds","store":"Secret Manager","credential":"RDS connection string","rotation":"90 days"},
+      {"component":"gcs","store":"Secret Manager","credential":"AWS HMAC key","rotation":"180 days"},
+      {"component":"bq","store":"KMS","credential":"CMEK encryption key","rotation":"365 days"}
     ]
   },
   "threats": [
-    {"id":"T1","location":"1","locationType":"flow","stride":"I","severity":"critical",
-     "title":"PHI exposed crossing trust boundary",
-     "description":"Patient records cross from hospital to cloud. Interconnect failure could route via public internet.",
-     "impact":"HIPAA breach, $1.5M+ fine","mitigation":"VPC Service Controls, failover VPN not public, DLP on ingress","compliance":"HIPAA"},
+    {"id":"T1","location":"1","locationType":"flow","stride":"I","severity":"high",
+     "title":"VPN tunnel interception","description":"Cross-cloud VPN could be compromised",
+     "impact":"Database records exposed","mitigation":"IPSec + app-layer TLS, VPN monitoring","compliance":"SOC2"},
     {"id":"T2","location":"bq","locationType":"component","stride":"I","severity":"high",
-     "title":"BigQuery over-permissive IAM",
-     "description":"PHI accessible if IAM roles too broad",
-     "impact":"Unauthorized PHI access","mitigation":"Column-level security, authorized views, audit logs","compliance":"HIPAA"},
-    {"id":"T3","location":"7","locationType":"flow","stride":"S","severity":"high",
-     "title":"Dashboard session hijacking",
-     "description":"Internet-facing dashboard vulnerable to token theft",
-     "impact":"Attacker sees patient risk scores","mitigation":"Short-lived tokens, IP binding, Cloud Armor WAF","compliance":"HIPAA"}
+     "title":"Over-permissive BigQuery IAM","description":"Broad roles expose sensitive columns",
+     "impact":"Unauthorized data access","mitigation":"Column-level security, authorized views","compliance":"SOC2"},
+    {"id":"T3","location":"6","locationType":"flow","stride":"S","severity":"medium",
+     "title":"Dashboard token theft","description":"OAuth token stolen via XSS",
+     "impact":"Unauthorized analytics access","mitigation":"CSP headers, short TTL, IP binding","compliance":"SOC2"}
   ]
 }
 
-7 flows numbered 1-7, all cross-group, left to right. Each tells WHAT moves and HOW.
-Generate the COMPLETE story. Output ONLY JSON.`;
+Only TWO trust boundaries: external + one VPC. Clean and simple.
+Generate the COMPLETE architecture. Output ONLY JSON.`;
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
 
@@ -153,7 +146,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const data = await response.json();
       const dj = JSON.parse((data.content?.[0]?.text || "").replace(/```json\s*/g, "").replace(/```/g, "").trim());
 
-      // Post-process: remove within-group flows, force sequential numbering
       if (dj.flows && dj.groups) {
         const c2g: Record<string, string> = {};
         for (const g of dj.groups) for (const c of g.components) c2g[c.id] = g.id;
@@ -161,7 +153,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         cross.sort((a: any, b: any) => (a.step ?? 999) - (b.step ?? 999));
         for (let i = 0; i < cross.length; i++) cross[i].step = i + 1;
         dj.flows = cross;
-        // Re-align security.flows steps
         if (dj.security?.flows) {
           const newSec: any[] = [];
           cross.forEach((f: any, i: number) => {
