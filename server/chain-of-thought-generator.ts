@@ -1,5 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface ArchitectureRequest {
@@ -48,7 +46,7 @@ export interface ArchitectureBlueprint {
   components: ArchComponent[];
   connections: ArchConnection[];
   trustBoundaries: TrustBoundary[];
-  layers: Record<ArchLayer, string[]>; // layer -> component IDs
+  layers: Record<ArchLayer, string[]>;
   concerns: ArchitecturalConcerns;
   recommendations: string[];
 }
@@ -260,26 +258,60 @@ Output the COMPLETE blueprint as JSON:
 }`
 };
 
+// ─── Raw Anthropic API call (no SDK) ─────────────────────────────────────────
+
+async function callClaude(
+  systemPrompt: string,
+  userMessage: string,
+  apiKey: string,
+  model: string
+): Promise<string> {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 8192,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userMessage }],
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(
+      `Anthropic API error ${response.status}: ${(err as any)?.error?.message || response.statusText}`
+    );
+  }
+
+  const data: any = await response.json();
+  const text = data.content
+    ?.filter((block: any) => block.type === "text")
+    .map((block: any) => block.text)
+    .join("") || "{}";
+
+  return text;
+}
+
 // ─── Core Generator Class ────────────────────────────────────────────────────
 
 export class ChainOfThoughtGenerator {
-  private client: Anthropic;
+  private apiKey: string;
   private model: string;
 
   constructor(apiKey?: string, model?: string) {
-    this.client = new Anthropic({ apiKey: apiKey || process.env.ANTHROPIC_API_KEY });
+    this.apiKey = apiKey || process.env.ANTHROPIC_API_KEY || "";
     this.model = model || "claude-sonnet-4-20250514";
   }
 
-  /**
-   * Run the full chain-of-thought pipeline and return a complete architecture blueprint.
-   * Each phase feeds into the next, building up a comprehensive architectural analysis.
-   */
   async generate(request: ArchitectureRequest): Promise<ArchitectureBlueprint> {
     const thinkingTrace: ThinkingPhase[] = [];
     const provider = request.cloudProvider || "gcp";
 
-    // ── Phase 1: Decompose ──
     const decomposition = await this.runPhase(
       "decompose",
       PHASE_PROMPTS.decompose,
@@ -289,7 +321,6 @@ export class ChainOfThoughtGenerator {
       thinkingTrace
     );
 
-    // ── Phase 2: Component Discovery ──
     const components = await this.runPhase(
       "discover",
       PHASE_PROMPTS.discover,
@@ -297,7 +328,6 @@ export class ChainOfThoughtGenerator {
       thinkingTrace
     );
 
-    // ── Phase 3: Security & Concerns Sweep ──
     const concerns = await this.runPhase(
       "security_sweep",
       PHASE_PROMPTS.security_sweep,
@@ -305,7 +335,6 @@ export class ChainOfThoughtGenerator {
       thinkingTrace
     );
 
-    // ── Phase 4: Connection Mapping ──
     const connectionMap = await this.runPhase(
       "connections",
       PHASE_PROMPTS.connections,
@@ -313,7 +342,6 @@ export class ChainOfThoughtGenerator {
       thinkingTrace
     );
 
-    // ── Phase 5: Final Synthesis ──
     const blueprint = await this.runPhase(
       "synthesize",
       PHASE_PROMPTS.synthesize,
@@ -321,7 +349,6 @@ export class ChainOfThoughtGenerator {
       thinkingTrace
     );
 
-    // ── Assemble Final Output ──
     return {
       title: blueprint.title || "Architecture Blueprint",
       summary: blueprint.summary || "",
@@ -335,10 +362,6 @@ export class ChainOfThoughtGenerator {
     };
   }
 
-  /**
-   * Stream the chain-of-thought generation, yielding phase results as they complete.
-   * Useful for showing the "thinking" process to the user in real-time.
-   */
   async *generateStream(
     request: ArchitectureRequest
   ): AsyncGenerator<{ phase: string; status: "started" | "completed"; data?: any }> {
@@ -375,8 +398,6 @@ export class ChainOfThoughtGenerator {
     }
   }
 
-  // ─── Private Methods ─────────────────────────────────────────────────────────
-
   private async runPhase(
     phaseName: string,
     phaseSystemPrompt: string,
@@ -386,20 +407,13 @@ export class ChainOfThoughtGenerator {
     const startTime = Date.now();
 
     try {
-      const response = await this.client.messages.create({
-        model: this.model,
-        max_tokens: 8192,
-        system: `${ARCHITECT_PERSONA}\n\n${phaseSystemPrompt}`,
-        messages: [{ role: "user", content: userMessage }],
-      });
+      const text = await callClaude(
+        `${ARCHITECT_PERSONA}\n\n${phaseSystemPrompt}`,
+        userMessage,
+        this.apiKey,
+        this.model
+      );
 
-      const text =
-        response.content
-          .filter((block): block is Anthropic.TextBlock => block.type === "text")
-          .map((block) => block.text)
-          .join("") || "{}";
-
-      // Strip markdown code fences if present
       const cleaned = text
         .replace(/^```(?:json)?\s*/i, "")
         .replace(/\s*```$/i, "")
@@ -423,7 +437,6 @@ export class ChainOfThoughtGenerator {
         timestamp: Date.now() - startTime,
       });
 
-      // Return sensible defaults so the pipeline continues
       if (phaseName === "discover") return [];
       if (phaseName === "connections") return { connections: [], trustBoundaries: [] };
       return {};
@@ -432,16 +445,9 @@ export class ChainOfThoughtGenerator {
 
   private buildLayerMap(components: ArchComponent[]): Record<ArchLayer, string[]> {
     const layers: Record<ArchLayer, string[]> = {
-      client: [],
-      edge: [],
-      ingress: [],
-      application: [],
-      "ai-ml": [],
-      data: [],
-      platform: [],
-      observability: [],
-      security: [],
-      governance: [],
+      client: [], edge: [], ingress: [], application: [],
+      "ai-ml": [], data: [], platform: [], observability: [],
+      security: [], governance: [],
     };
 
     for (const comp of components) {
@@ -456,9 +462,6 @@ export class ChainOfThoughtGenerator {
 
 // ─── Convenience Exports ─────────────────────────────────────────────────────
 
-/**
- * Quick one-shot generation — instantiates a generator and runs the full pipeline.
- */
 export async function generateArchitecture(
   request: ArchitectureRequest
 ): Promise<ArchitectureBlueprint> {
@@ -466,9 +469,6 @@ export async function generateArchitecture(
   return generator.generate(request);
 }
 
-/**
- * Streaming generation — yields phase-by-phase results for real-time UX.
- */
 export async function* streamArchitecture(request: ArchitectureRequest) {
   const generator = new ChainOfThoughtGenerator();
   yield* generator.generateStream(request);
