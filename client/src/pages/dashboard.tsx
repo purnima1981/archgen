@@ -69,7 +69,7 @@ function getCat(ic?: string | null) { return (ic && CAT[ic]) || DEF_CAT; }
 /* ── Types ────────────────────────────────────────── */
 interface NodeDetails { project?: string; region?: string; serviceAccount?: string; iamRoles?: string; encryption?: string; monitoring?: string; retry?: string; alerting?: string; cost?: string; troubleshoot?: string; guardrails?: string; compliance?: string; notes?: string }
 interface DiagNode { id: string; name: string; icon?: string | null; subtitle?: string; zone: "sources" | "cloud" | "consumers"; x: number; y: number; details?: NodeDetails }
-interface EdgeSecurity { transport: string; auth: string; classification: string; private: boolean }
+interface EdgeSecurity { transport: string; auth: string; classification: string; private: boolean; network?: string; vpcsc?: string; dlp?: string; keyRotation?: string; egressPolicy?: string; compliance?: string }
 interface DiagEdge { id: string; from: string; to: string; label?: string; subtitle?: string; step: number; security?: EdgeSecurity; crossesBoundary?: boolean; edgeType?: "data" | "control" | "observe" | "alert" }
 interface Threat { id: string; target: string; stride: string; severity: string; title: string; description: string; impact: string; mitigation: string; compliance?: string | null }
 interface Phase { id: string; name: string; nodeIds: string[] }
@@ -301,8 +301,26 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
 
   const byZone = (z: string) => diag.nodes.filter(n => n.zone === z);
   const zBounds = (ns: DiagNode[], px: number, py: number, minW?: number) => { if (!ns.length) return null; const xs = ns.map(n => n.x), ys = ns.map(n => n.y); return { x: Math.min(...xs) - px - 10, y: Math.min(...ys) - py, w: Math.max(Math.max(...xs) - Math.min(...xs) + px * 2 + 80, minW || 0), h: Math.max(...ys) - Math.min(...ys) + py * 2 + 100 }; };
-  const ortho = (fx: number, fy: number, tx: number, ty: number) => { const g = 40, x1 = fx + g, x4 = tx - g; if (Math.abs(fy - ty) < 14) return `M${x1},${fy} L${x4},${ty}`; const mx = (x1 + x4) / 2; return `M${x1},${fy} L${mx},${fy} L${mx},${ty} L${x4},${ty}`; };
-  const orthoV = (fx: number, fy: number, tx: number, ty: number) => { const g = 40, ys = fy - g, yt = ty + g; if (Math.abs(fx - tx) < 14) return `M${fx},${ys} L${tx},${yt}`; const my = (ys + yt) / 2; return `M${fx},${ys} L${fx},${my} L${tx},${my} L${tx},${yt}`; };
+  // Smart edge routing: exits/enters correct side of node based on relative position
+  const R = 38; // half node + small gap (BG=68 → 34 + 4)
+  const edgePath = (fx: number, fy: number, tx: number, ty: number): { path: string; mx: number; my: number } => {
+    const dx = tx - fx, dy = ty - fy;
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+    // Mostly horizontal
+    if (adx > ady * 0.4) {
+      const signX = dx > 0 ? 1 : -1;
+      const x1 = fx + R * signX, x4 = tx - R * signX;
+      if (ady < 14) { return { path: `M${x1},${fy} L${x4},${ty}`, mx: (x1 + x4) / 2, my: fy }; }
+      const midX = (x1 + x4) / 2;
+      return { path: `M${x1},${fy} L${midX},${fy} L${midX},${ty} L${x4},${ty}`, mx: midX, my: (fy + ty) / 2 };
+    }
+    // Mostly vertical
+    const signY = dy > 0 ? 1 : -1;
+    const y1 = fy + R * signY, y4 = ty - R * signY;
+    if (adx < 14) { return { path: `M${fx},${y1} L${tx},${y4}`, mx: fx, my: (y1 + y4) / 2 }; }
+    const midY = (y1 + y4) / 2;
+    return { path: `M${fx},${y1} L${fx},${midY} L${tx},${midY} L${tx},${y4}`, mx: (fx + tx) / 2, my: midY };
+  };
 
   const BG = 68, ICO = 50;
   const srcB = zBounds(byZone("sources"), 65, 65, 170);
@@ -382,13 +400,11 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
           <text x={opsBound.x + opsBound.w / 2} y={opsBound.y + 14} textAnchor="middle" style={{ fontSize: 9, fontWeight: 700, fill: isDark ? "#607d8b" : "#90a4ae", letterSpacing: 1, pointerEvents: "none" }}>{(diag.opsGroup?.name || "OPS").toUpperCase()}</text>
         </g>}
 
-        {/* Edges — CLEAN, no inline indicators */}
+        {/* Edges */}
         {diag.edges.map(edge => {
           const fn = diag.nodes.find(n => n.id === edge.from), tn = diag.nodes.find(n => n.id === edge.to); if (!fn || !tn) return null;
           const isCtrl = edge.edgeType === "control", isObs = edge.edgeType === "observe", isAlert = edge.edgeType === "alert", isOps = isCtrl || isObs || isAlert;
-          const isV = Math.abs(fn.y - tn.y) > Math.abs(fn.x - tn.x);
-          const path = isV ? orthoV(fn.x, fn.y, tn.x, tn.y) : ortho(fn.x, fn.y, tn.x, tn.y);
-          const mx = (fn.x + tn.x) / 2, my = (fn.y + tn.y) / 2;
+          const { path, mx, my } = edgePath(fn.x, fn.y, tn.x, tn.y);
           const sc = edge.security, sel = popover?.type === "edge" && popover.id === edge.id;
           let col: string, dash: string, w: number, mk: string;
           if (sel) { col = "#1a73e8"; dash = ""; w = 3; mk = "url(#aB)"; }
@@ -406,7 +422,7 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
               <rect x={mx - 15} y={my - 15} width={30} height={30} rx={8} fill={sel ? "#1a73e8" : edge.crossesBoundary ? "#e65100" : "#5c6bc0"} filter="url(#sh)" onDoubleClick={e => dblClick("edge", edge.id, e)} style={{ cursor: "pointer" }} />
               <text x={mx} y={my + 5.5} textAnchor="middle" style={{ fontSize: 15, fontWeight: 900, fill: "#fff", pointerEvents: "none" }}>{edge.step}</text>
             </>}
-            {isOps && edge.label && <text x={mx + (isV ? 14 : 0)} y={my + (isV ? 0 : -10)} textAnchor="middle" style={{ fontSize: 8, fill: isAlert ? "#e53935" : "#7986cb", fontStyle: "italic", fontWeight: 600, pointerEvents: "none" }}>{edge.label}</text>}
+            {isOps && edge.label && <text x={mx + 14} y={my - 6} textAnchor="middle" style={{ fontSize: 8, fill: isAlert ? "#e53935" : "#7986cb", fontStyle: "italic", fontWeight: 600, pointerEvents: "none" }}>{edge.label}</text>}
           </g>);
         })}
 
