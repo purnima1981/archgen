@@ -421,7 +421,7 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
           </div>
 
           {/* Pillars */}
-          <div style={{ width: 190, display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+          <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
             {BP_PILLARS.map(p => {
               const node = getNode(p.id);
               const items = parsePillarItems(p.id);
@@ -499,7 +499,7 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
             </div>
           </div>
           {/* Spacer to match connector + pillar width */}
-          <div style={{ width: 234, flexShrink: 0 }} />
+          <div style={{ width: 324, flexShrink: 0 }} />
         </div>
       </div>
 
