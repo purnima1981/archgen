@@ -74,17 +74,39 @@ const CAT: Record<string, { bg: string; border: string }> = {
   dbt: { bg: "#fbe9e7", border: "#ff694b" }, azure: { bg: "#e3f2fd", border: "#0078d4" },
 };
 const DEF_CAT = { bg: "#f5f5f5", border: "#bdbdbd" };
-function getCat(ic?: string | null) { return (ic && CAT[ic]) || DEF_CAT; }
+// Layer colors for blueprint/capability-map nodes (no icons)
+const LAYER_CAT: Record<string, { bg: string; border: string }> = {
+  src_: { bg: "#eceff1", border: "#546e7a" },     // slate gray
+  ing_: { bg: "#e3f2fd", border: "#1565c0" },     // blue
+  proc_: { bg: "#f3e5f5", border: "#7b1fa2" },    // purple
+  raw_landing: { bg: "#e8f5e9", border: "#2e7d32" },  // green
+  bronze: { bg: "#fff8e1", border: "#f9a825" },    // amber
+  silver: { bg: "#eceff1", border: "#78909c" },    // cool gray
+  gold: { bg: "#fff8e1", border: "#ff8f00" },      // gold
+  serve_: { bg: "#fff3e0", border: "#e65100" },    // orange
+  pillar_: { bg: "#fce4ec", border: "#ad1457" },   // dark pink
+  con_: { bg: "#e0f7fa", border: "#00838f" },      // teal
+};
+function getCat(ic?: string | null, nodeId?: string) {
+  if (ic && CAT[ic]) return CAT[ic];
+  if (nodeId) {
+    if (LAYER_CAT[nodeId]) return LAYER_CAT[nodeId];
+    for (const [prefix, cat] of Object.entries(LAYER_CAT)) {
+      if (prefix.endsWith("_") && nodeId.startsWith(prefix)) return cat;
+    }
+  }
+  return DEF_CAT;
+}
 
 /* ── Types ────────────────────────────────────────── */
 interface NodeDetails { project?: string; region?: string; serviceAccount?: string; iamRoles?: string; encryption?: string; monitoring?: string; retry?: string; alerting?: string; cost?: string; troubleshoot?: string; guardrails?: string; compliance?: string; notes?: string }
-interface DiagNode { id: string; name: string; icon?: string | null; subtitle?: string; zone: "sources" | "cloud" | "consumers"; x: number; y: number; details?: NodeDetails }
+interface DiagNode { id: string; name: string; icon?: string | null; subtitle?: string; zone: "sources" | "cloud" | "consumers" | "connectivity"; x: number; y: number; details?: NodeDetails }
 interface EdgeSecurity { transport: string; auth: string; classification: string; private: boolean; network?: string; vpcsc?: string; dlp?: string; keyRotation?: string; egressPolicy?: string; compliance?: string }
 interface DiagEdge { id: string; from: string; to: string; label?: string; subtitle?: string; step: number; security?: EdgeSecurity; crossesBoundary?: boolean; edgeType?: "data" | "control" | "observe" | "alert" }
 interface Threat { id: string; target: string; stride: string; severity: string; title: string; description: string; impact: string; mitigation: string; compliance?: string | null }
 interface Phase { id: string; name: string; nodeIds: string[] }
 interface OpsGroup { name: string; nodeIds: string[] }
-interface Diagram { title: string; subtitle?: string; nodes: DiagNode[]; edges: DiagEdge[]; threats?: Threat[]; phases?: Phase[]; opsGroup?: OpsGroup }
+interface Diagram { title: string; subtitle?: string; layout?: string; nodes: DiagNode[]; edges: DiagEdge[]; threats?: Threat[]; phases?: Phase[]; opsGroup?: OpsGroup }
 
 const SEV: Record<string, string> = { critical: "#b71c1c", high: "#e53935", medium: "#fb8c00", low: "#fdd835" };
 const THEMES: Record<string, { label: string; bg: string; grid?: boolean; gridColor?: string }> = {
@@ -183,7 +205,7 @@ function HighlightsTab({ diag }: { diag: Diagram }) {
     {diag.phases && <div style={{ marginBottom: 28 }}><h3 style={{ fontSize: 13, fontWeight: 800, color: "#555", letterSpacing: .5, marginBottom: 12 }}>ARCHITECTURE PHASES</h3>
       <div style={{ display: "flex", gap: 8 }}>{diag.phases.map((p, i) => (<div key={p.id} style={{ flex: 1, padding: 14, background: "#f8f9fa", borderRadius: 10, border: "1px solid #eee" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}><div style={{ width: 24, height: 24, borderRadius: 6, background: "#5c6bc0", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800 }}>{i + 1}</div><span style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{p.name}</span></div>
-        {p.nodeIds.map(nid => { const n = diag.nodes.find(x => x.id === nid); return n ? <div key={nid} style={{ fontSize: 10, color: "#666", padding: "2px 0", display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 5, height: 5, borderRadius: "50%", background: getCat(n.icon).border }} />{n.name}</div> : null; })}
+        {p.nodeIds.map(nid => { const n = diag.nodes.find(x => x.id === nid); return n ? <div key={nid} style={{ fontSize: 10, color: "#666", padding: "2px 0", display: "flex", alignItems: "center", gap: 4 }}><div style={{ width: 5, height: 5, borderRadius: "50%", background: getCat(n.icon, n.id).border }} />{n.name}</div> : null; })}
       </div>))}</div></div>}
     {costNodes.length > 0 && <div style={{ marginBottom: 28 }}><h3 style={{ fontSize: 13, fontWeight: 800, color: "#555", letterSpacing: .5, marginBottom: 12 }}>COST BREAKDOWN</h3>
       <div style={{ background: "#f8f9fa", borderRadius: 10, overflow: "hidden", border: "1px solid #eee" }}>{costNodes.map(n => (<div key={n.id} style={{ padding: "10px 14px", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ fontSize: 11, fontWeight: 600, color: "#333" }}>{n.name}</span><span style={{ fontSize: 11, color: "#1a73e8", fontWeight: 600 }}>{n.details?.cost}</span></div>))}</div></div>}
@@ -238,6 +260,245 @@ function FlowTab({ diag }: { diag: Diagram }) {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginLeft: 14 }}>{diag.opsGroup.nodeIds.map(nid => { const n = diag.nodes.find(x => x.id === nid); return n ? (<div key={nid} style={{ padding: "8px 14px", background: "#f8f9fa", borderRadius: 8, border: "1px solid #eee" }}><div style={{ fontSize: 11, fontWeight: 700, color: "#333" }}>{n.name}</div><div style={{ fontSize: 9, color: "#888" }}>{n.subtitle}</div>{n.details?.alerting && <div style={{ fontSize: 9, color: "#e65100", marginTop: 4 }}>{n.details.alerting.split("\n")[0]}</div>}</div>) : null; })}</div>
     </div>}
   </div>);
+}
+
+/* ═══ BLUEPRINT VIEW — Capability Map Renderer (v9 layout) ═══ */
+const BP_LAYERS = [
+  { prefix: "con_", num: 8, name: "CONSUMERS", tag: "Experience", bg: "#ecfeff", border: "#67e8f9", numBg: "#0e7490", nameC: "#0e7490", tagBg: "#cffafe", tagC: "#155e75", capBg: "#fff", capBd: "#a5f3fc", capC: "#134e4a" },
+  { prefix: "serve_", num: 7, name: "SERVING & DELIVERY", tag: "Deliver", bg: "#fff7ed", border: "#fdba74", numBg: "#c2410c", nameC: "#c2410c", tagBg: "#ffedd5", tagC: "#9a3412", capBg: "#fff", capBd: "#fed7aa", capC: "#7c2d12" },
+  { prefix: "medal_", num: 6, name: "MEDALLION ARCHITECTURE", tag: "Curate", bg: "#fffbeb", border: "#fcd34d", numBg: "#d97706", nameC: "#b45309", tagBg: "#fef3c7", tagC: "#92400e", capBg: "", capBd: "", capC: "" },
+  { prefix: "proc_", num: 5, name: "PROCESSING & TRANSFORMATION", tag: "Transform", bg: "#f5f3ff", border: "#c4b5fd", numBg: "#6d28d9", nameC: "#6d28d9", tagBg: "#ede9fe", tagC: "#5b21b6", capBg: "#fff", capBd: "#ddd6fe", capC: "#3b0764" },
+  { prefix: "lake_", num: 4, name: "DATA LAKE — RAW LANDING", tag: "Land", bg: "#ecfdf5", border: "#6ee7b7", numBg: "#047857", nameC: "#047857", tagBg: "#d1fae5", tagC: "#065f46", capBg: "#fff", capBd: "#a7f3d0", capC: "#064e3b" },
+  { prefix: "ing_", num: 3, name: "INGESTION", tag: "All 5 Patterns", bg: "#eff6ff", border: "#93c5fd", numBg: "#1d4ed8", nameC: "#1d4ed8", tagBg: "#dbeafe", tagC: "#1e40af", capBg: "#fff", capBd: "#bfdbfe", capC: "#1e3a5f" },
+];
+const BP_PILLARS = [
+  { id: "pillar_sec", color: "#dc2626", bg: "#fef2f2", itemBg: "#fee2e2", itemC: "#991b1b", descC: "#b91c1c", badgeBg: "#fecaca", badgeC: "#991b1b", badges: ["SOC2", "ISO 27001", "HIPAA", "PCI-DSS"] },
+  { id: "pillar_gov", color: "#2563eb", bg: "#eff6ff", itemBg: "#dbeafe", itemC: "#1e3a8a", descC: "#1d4ed8", badgeBg: "#bfdbfe", badgeC: "#1e3a8a", badges: ["GDPR", "CCPA", "HIPAA", "DATA MESH"] },
+  { id: "pillar_obs", color: "#d97706", bg: "#fffbeb", itemBg: "#fef3c7", itemC: "#92400e", descC: "#b45309", badgeBg: "#fde68a", badgeC: "#92400e", badges: ["SLO/SLA", "MTTR", "DORA"] },
+  { id: "pillar_orch", color: "#7c3aed", bg: "#f5f3ff", itemBg: "#ede9fe", itemC: "#4c1d95", descC: "#6d28d9", badgeBg: "#ddd6fe", badgeC: "#4c1d95", badges: ["FINOPS", "TAGGING", "QUOTAS"] },
+];
+const MEDAL_ZONES = [
+  { id: "bronze", bg: "#fef3c7", bd: "#f59e0b", lblC: "#b45309", desc: "Ingested · schema-applied · deduplicated" },
+  { id: "silver", bg: "#f9fafb", bd: "#9ca3af", lblC: "#4b5563", desc: "Cleaned · conformed · business rules" },
+  { id: "gold", bg: "#fef9c3", bd: "#eab308", lblC: "#a16207", desc: "Curated · aggregated · consumption-ready" },
+];
+
+function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: any; setPopover: (p: any) => void }) {
+  const connRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const pillarRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [selectedCap, setSelectedCap] = useState<string | null>(null);
+
+  const getNode = (id: string) => diag.nodes.find(n => n.id === id);
+  const nodesByPrefix = (pfx: string) => diag.nodes.filter(n => n.id.startsWith(pfx));
+
+  // Draw connector arrows from platform box edge to pillars
+  useEffect(() => {
+    const draw = () => {
+      const svg = svgRef.current;
+      const col = connRef.current;
+      if (!svg || !col) return;
+      const colRect = col.getBoundingClientRect();
+      let paths = "";
+      BP_PILLARS.forEach(p => {
+        const el = pillarRefs.current[p.id];
+        if (!el) return;
+        const pRect = el.getBoundingClientRect();
+        const pY = pRect.top + pRect.height / 2 - colRect.top;
+        const endX = colRect.width;
+        paths += `<circle cx="1" cy="${pY}" r="3.5" fill="${p.color}" opacity="0.7"/>`;
+        paths += `<line x1="5" y1="${pY}" x2="${endX - 7}" y2="${pY}" stroke="${p.color}" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.45"/>`;
+        paths += `<polygon points="${endX - 1},${pY} ${endX - 8},${pY - 4} ${endX - 8},${pY + 4}" fill="${p.color}" opacity="0.6"/>`;
+      });
+      svg.innerHTML = paths;
+    };
+    setTimeout(draw, 100);
+    window.addEventListener("resize", draw);
+    return () => window.removeEventListener("resize", draw);
+  }, [diag]);
+
+  const capClick = (nodeId: string) => {
+    if (selectedCap === nodeId) { setSelectedCap(null); setPopover(null); }
+    else { setSelectedCap(nodeId); setPopover({ type: "node", id: nodeId }); }
+  };
+
+  const CapBox = ({ nodeId, style }: { nodeId: string; style: React.CSSProperties }) => {
+    const n = getNode(nodeId);
+    if (!n) return null;
+    const isSel = selectedCap === nodeId;
+    return (
+      <div onClick={() => capClick(nodeId)} style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 7, cursor: "pointer", transition: "all 0.12s", outline: isSel ? "2px solid #1a73e8" : "none", outlineOffset: 1, ...style }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 3px 8px rgba(0,0,0,0.06)"; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ""; (e.currentTarget as HTMLDivElement).style.boxShadow = ""; }}>
+        <div style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.2 }}>{n.name}</div>
+        {n.subtitle && <div style={{ fontSize: 8, opacity: 0.5, marginTop: 1 }}>{n.subtitle}</div>}
+      </div>
+    );
+  };
+
+  const FlowArrow = () => <div style={{ textAlign: "center", padding: "1px 0", fontSize: 10, color: "#d0d0d0", letterSpacing: 5, lineHeight: 1 }}>▲ ▲ ▲</div>;
+
+  const srcNodes = nodesByPrefix("src_");
+  const connNodes = nodesByPrefix("conn_");
+  const pillarNodes = BP_PILLARS.map(p => getNode(p.id)).filter(Boolean);
+
+  // Get pillar sub-capabilities from details.notes
+  const parsePillarItems = (nodeId: string): { name: string; desc: string }[] => {
+    const n = getNode(nodeId);
+    if (!n?.details?.notes) return [];
+    const lines = n.details.notes.split("\n").filter(l => l.trim().startsWith("•"));
+    return lines.map(l => {
+      const clean = l.replace(/^[•\s]+/, "").trim();
+      const paren = clean.match(/^([^(]+)\(([^)]+)\)/);
+      if (paren) return { name: paren[1].trim(), desc: paren[2].trim() };
+      return { name: clean, desc: "" };
+    });
+  };
+
+  return (
+    <div style={{ flex: 1, overflow: "auto", background: "#fff", padding: "24px 32px 20px", fontFamily: "Inter, -apple-system, sans-serif" }}>
+      {/* Title */}
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 18 }}>
+        <h1 style={{ fontSize: 18, fontWeight: 900, color: "#111", letterSpacing: -0.3, margin: 0 }}>{diag.title}</h1>
+        <div style={{ fontSize: 10, color: "#aaa", fontWeight: 500 }}>{diag.subtitle}</div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        {/* ═══ UPPER: Platform + Connectors + Pillars ═══ */}
+        <div style={{ display: "flex", gap: 0, alignItems: "stretch" }}>
+
+          {/* Platform Group Box */}
+          <div style={{ flex: 1, border: "2px solid #94a3b8", borderRadius: 14, padding: 14, background: "#f8fafc", position: "relative" }}>
+            <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#64748b", letterSpacing: 1.5, textTransform: "uppercase" as const }}>YOUR DATA PLATFORM</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {BP_LAYERS.map((layer, li) => {
+                const isLast = li === BP_LAYERS.length - 1;
+                const isMedallion = layer.prefix === "medal_";
+                return (
+                  <div key={layer.prefix}>
+                    <div style={{ borderRadius: 10, padding: "10px 14px", border: `1.5px solid ${layer.border}`, background: layer.bg }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", background: layer.numBg, flexShrink: 0 }}>{layer.num}</div>
+                        <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: layer.nameC }}>{layer.name}</div>
+                        <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, letterSpacing: 0.4, textTransform: "uppercase" as const, background: layer.tagBg, color: layer.tagC }}>{layer.tag}</div>
+                      </div>
+                      {isMedallion ? (
+                        <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                          {MEDAL_ZONES.map((mz, mi) => (
+                            <div key={mz.id} style={{ display: "flex", alignItems: "center", gap: 5, flex: 1 }}>
+                              <div onClick={() => capClick(mz.id)} style={{ flex: 1, padding: "12px 10px", borderRadius: 8, textAlign: "center", border: `2px solid ${mz.bd}`, background: mz.bg, cursor: "pointer", outline: selectedCap === mz.id ? "2px solid #1a73e8" : "none", outlineOffset: 1 }}>
+                                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: mz.lblC }}>{mz.id.toUpperCase()}</div>
+                                <div style={{ fontSize: 8, opacity: 0.45, marginTop: 2 }}>{getNode(mz.id)?.subtitle || mz.desc}</div>
+                              </div>
+                              {mi < MEDAL_ZONES.length - 1 && <div style={{ fontSize: 16, color: "#d0d0d0", flexShrink: 0 }}>→</div>}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                          {nodesByPrefix(layer.prefix).map(n => (
+                            <CapBox key={n.id} nodeId={n.id} style={{ background: layer.capBg, border: `1px solid ${layer.capBd}`, color: layer.capC, ...(layer.prefix === "lake_" ? { flex: 2 } : {}) }} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {!isLast && <FlowArrow />}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Connector Column */}
+          <div ref={connRef} style={{ width: 44, flexShrink: 0, position: "relative" }}>
+            <svg ref={svgRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", overflow: "visible" }} />
+          </div>
+
+          {/* Pillars */}
+          <div style={{ width: 190, display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+            {BP_PILLARS.map(p => {
+              const node = getNode(p.id);
+              const items = parsePillarItems(p.id);
+              return (
+                <div key={p.id} ref={el => { pillarRefs.current[p.id] = el; }} style={{ flex: 1, borderRadius: 10, padding: "12px 14px", borderLeft: `4px solid ${p.color}`, background: p.bg, display: "flex", flexDirection: "column" }}>
+                  <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase" as const, marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid rgba(0,0,0,0.06)", color: p.descC }}>{node?.name || p.id}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+                    {items.map((item, i) => (
+                      <div key={i} style={{ padding: "5px 9px", borderRadius: 6, background: p.itemBg, color: p.itemC, display: "flex", flexDirection: "column", gap: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <div style={{ width: 4, height: 4, borderRadius: "50%", background: p.color, flexShrink: 0 }} />
+                          <span style={{ fontSize: 9, fontWeight: 700 }}>{item.name}</span>
+                        </div>
+                        {item.desc && <div style={{ fontSize: 7.5, opacity: 0.55, paddingLeft: 9, lineHeight: 1.3, color: p.descC }}>{item.desc}</div>}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: "auto", paddingTop: 8, borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", gap: 3, flexWrap: "wrap" }}>
+                    {p.badges.map(b => <span key={b} style={{ fontSize: 7, fontWeight: 700, padding: "2px 6px", borderRadius: 4, letterSpacing: 0.3, textTransform: "uppercase" as const, background: p.badgeBg, color: p.badgeC }}>{b}</span>)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ═══ LOWER: Aligned to platform width only ═══ */}
+        <div style={{ display: "flex" }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            {/* Trust Boundary */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "4px 0" }}>
+              <div style={{ flex: 1, borderTop: "2px dashed #e11d48", opacity: 0.3 }} />
+              <div style={{ padding: "2px 14px", fontSize: 7.5, fontWeight: 800, color: "#e11d48", letterSpacing: 1.5, textTransform: "uppercase" as const, whiteSpace: "nowrap" }}>▲ Trust Boundary ▲</div>
+              <div style={{ flex: 1, borderTop: "2px dashed #e11d48", opacity: 0.3 }} />
+            </div>
+
+            {/* Connectivity Layer */}
+            <div style={{ border: "2px solid #f472b6", borderRadius: 12, padding: "10px 14px", background: "#fdf2f8", position: "relative" }}>
+              <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#be185d", letterSpacing: 1.2, textTransform: "uppercase" as const }}>CONNECTIVITY & ACCESS — HANDSHAKE LAYER</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
+                <div style={{ width: 18, height: 18, borderRadius: 5, background: "#be185d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", flexShrink: 0 }}>②</div>
+                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: "#be185d" }}>Connectivity & Access</div>
+                <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#fce7f3", color: "#9d174d", letterSpacing: 0.4, textTransform: "uppercase" as const }}>Trust Boundary</div>
+              </div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                {connNodes.map(n => (
+                  <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #f9a8d4", color: "#831843" }} />
+                ))}
+              </div>
+            </div>
+
+            {/* Flow arrow */}
+            <div style={{ textAlign: "center", padding: "4px 0", fontSize: 11, color: "#d0d0d0", letterSpacing: 5 }}>▲ ▲ ▲</div>
+
+            {/* Sources (external) */}
+            <div style={{ border: "2px dashed #d1d5db", borderRadius: 12, padding: "10px 14px", background: "#f9fafb", position: "relative" }}>
+              <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#6b7280", letterSpacing: 1.2, textTransform: "uppercase" as const }}>EXTERNAL — SOURCE SYSTEMS (YOU DON'T OWN THESE)</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8, padding: "4px 0 0" }}>
+                <div style={{ width: 18, height: 18, borderRadius: 5, background: "#4b5563", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", flexShrink: 0 }}>①</div>
+                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: "#4b5563" }}>Source Systems</div>
+                <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#f3f4f6", color: "#6b7280", letterSpacing: 0.4, textTransform: "uppercase" as const }}>8 Categories</div>
+              </div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                {srcNodes.map(n => (
+                  <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #e5e7eb", color: "#374151" }} />
+                ))}
+              </div>
+            </div>
+          </div>
+          {/* Spacer to match connector + pillar width */}
+          <div style={{ width: 234, flexShrink: 0 }} />
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: "flex", gap: 14, justifyContent: "center", marginTop: 14, flexWrap: "wrap" }}>
+        {[["#4b5563","Sources (ext)"],["#be185d","Connectivity"],["#1d4ed8","Ingestion"],["#047857","Data Lake"],["#6d28d9","Processing"],["#d97706","Medallion"],["#c2410c","Serving"],["#0e7490","Consumers"]].map(([c, l]) => (
+          <div key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 8.5, color: "#999", fontWeight: 500 }}>
+            <div style={{ width: 8, height: 8, borderRadius: 2, background: c }} />{l}
+          </div>
+        ))}
+      </div>
+      <div style={{ textAlign: "center", marginTop: 6, fontSize: 8.5, color: "#ccc", fontWeight: 500 }}>Platform agnostic · Sources external · Connectivity is the trust boundary · Pillars span internal layers only</div>
+    </div>
+  );
 }
 
 /* ═══ SVG CANVAS ═══════════════════════════════════ */
@@ -469,19 +730,20 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
 
         {/* Nodes */}
         {diag.nodes.map(node => {
-          const ip = iconUrl(node.name, node.icon || undefined);
+          const ip = node.icon ? iconUrl(node.name, node.icon) : null;
           const sel = popover?.type === "node" && popover.id === node.id;
           const isConnSrc = connectMode && connectSource === node.id;
           const th2 = (diag.threats || []).filter(t => t.target === node.id);
-          const cat = getCat(node.icon);
+          const cat = getCat(node.icon, node.id);
           return (<g key={node.id}
             onMouseDown={e => { if (connectMode) return; startDrag(node.id, e); }}
             onClick={e => { if (connectMode && onConnectClick) { e.stopPropagation(); onConnectClick(node.id); } }}
             onDoubleClick={e => { if (!connectMode) dblClick("node", node.id, e); }}
             style={{ cursor: connectMode ? "crosshair" : drag === node.id ? "grabbing" : "pointer" }}>
             {(sel || isConnSrc) && <rect x={node.x - BG / 2 - 6} y={node.y - BG / 2 - 6} width={BG + 12} height={BG + 12} rx={18} fill="none" stroke={isConnSrc ? "#e65100" : "#1a73e8"} strokeWidth={2.5} strokeDasharray="5 3" />}
-            <rect x={node.x - BG / 2} y={node.y - BG / 2} width={BG} height={BG} rx={14} fill={ip ? (isDark ? cat.border + "20" : cat.bg) : (isDark ? "#2a2a2a" : "#f5f5f5")} stroke={isConnSrc ? "#e65100" : ip ? cat.border : (isDark ? "#444" : "#e0e0e0")} strokeWidth={sel || isConnSrc ? 2.5 : 1.8} filter="url(#sh)" />
-            {ip ? <image href={ip} x={node.x - ICO / 2} y={node.y - ICO / 2} width={ICO} height={ICO} /> : <text x={node.x} y={node.y + 7} textAnchor="middle" style={{ fontSize: 24, fill: isDark ? "#9fa8da" : "#5c6bc0" }}>☁</text>}
+            <rect x={node.x - BG / 2} y={node.y - BG / 2} width={BG} height={BG} rx={14} fill={ip ? (isDark ? cat.border + "20" : cat.bg) : (isDark ? cat.border + "30" : cat.bg)} stroke={isConnSrc ? "#e65100" : cat.border} strokeWidth={sel || isConnSrc ? 2.5 : 1.8} filter="url(#sh)" />
+            {ip && <image href={ip} x={node.x - ICO / 2} y={node.y - ICO / 2} width={ICO} height={ICO} />}
+            {!ip && <text x={node.x} y={node.y + 5} textAnchor="middle" style={{ fontSize: 10, fontWeight: 800, fill: isDark ? cat.border : cat.border, letterSpacing: 0.5, opacity: 0.7 }}>{node.name.length <= 8 ? node.name.toUpperCase() : node.name.split(/[\s\/]/)[0].toUpperCase()}</text>}
             <text x={node.x} y={node.y + BG / 2 + 16} textAnchor="middle" style={{ fontSize: 11, fontWeight: 700, fill: isDark ? "#ccc" : "#222", pointerEvents: "none" }}>{node.name}</text>
             {node.subtitle && <text x={node.x} y={node.y + BG / 2 + 29} textAnchor="middle" style={{ fontSize: 9, fill: isDark ? "#666" : "#888", pointerEvents: "none" }}>{node.subtitle}</text>}
             {th2.length > 0 && <g transform={`translate(${node.x + BG / 2 - 4},${node.y - BG / 2 - 4})`}><polygon points="0,-10 -8,3 8,3" fill={SEV[th2[0].severity]} stroke={isDark ? "#1e1e1e" : "#fff"} strokeWidth={2} /><text y={0} textAnchor="middle" style={{ fontSize: 8, fontWeight: 900, fill: "#fff" }}>!</text></g>}
@@ -729,7 +991,7 @@ export default function Dashboard({ user }: { user: User }) {
     const zm: Record<string, number> = {};
     const zo: Record<string, { x: number; y: number }> = {}; // zone origins per node
     for (const z of zones) { if (!z.ns.length) continue; const xs = z.ns.map(n => n.x), ys = z.ns.map(n => n.y), p = 80; const zx = Math.min(...xs) - p, zy = Math.min(...ys) - p; const zId = id++; cells.push(`<mxCell id="${zId}" value="${esc(z.l)}" style="rounded=1;whiteSpace=wrap;fillColor=${z.c};strokeColor=${z.s};${z.d ? "dashed=1;" : ""}fontStyle=1;fontSize=14;verticalAlign=top;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="${zx}" y="${zy}" width="${Math.max(...xs) - Math.min(...xs) + p * 2 + 80}" height="${Math.max(...ys) - Math.min(...ys) + p * 2 + 80}" as="geometry"/></mxCell>`); z.ns.forEach(n => { zm[n.id] = zId; zo[n.id] = { x: zx, y: zy }; }); }
-    for (const n of diag.nodes) { const nId = id++; nm[n.id] = nId; const cat = getCat(n.icon); const origin = zo[n.id] || { x: 0, y: 0 }; cells.push(`<mxCell id="${nId}" value="${esc(n.name)}${n.subtitle ? '<br><font style=&quot;font-size:9px&quot;>' + esc(n.subtitle) + '</font>' : ''}" style="rounded=1;whiteSpace=wrap;fillColor=${cat.bg};strokeColor=${cat.border};fontStyle=1;fontSize=11;" vertex="1" parent="${zm[n.id] || 1}"><mxGeometry x="${n.x - 60 - origin.x}" y="${n.y - 40 - origin.y}" width="120" height="80" as="geometry"/></mxCell>`); }
+    for (const n of diag.nodes) { const nId = id++; nm[n.id] = nId; const cat = getCat(n.icon, n.id); const origin = zo[n.id] || { x: 0, y: 0 }; cells.push(`<mxCell id="${nId}" value="${esc(n.name)}${n.subtitle ? '<br><font style=&quot;font-size:9px&quot;>' + esc(n.subtitle) + '</font>' : ''}" style="rounded=1;whiteSpace=wrap;fillColor=${cat.bg};strokeColor=${cat.border};fontStyle=1;fontSize=11;" vertex="1" parent="${zm[n.id] || 1}"><mxGeometry x="${n.x - 60 - origin.x}" y="${n.y - 40 - origin.y}" width="120" height="80" as="geometry"/></mxCell>`); }
     for (const e of diag.edges) { const eId = id++, src = nm[e.from], tgt = nm[e.to]; if (!src || !tgt) continue; const isP = e.security?.private; const col = e.edgeType === "alert" ? "#e53935" : e.edgeType === "control" ? "#7986cb" : isP ? "#43a047" : "#e65100"; cells.push(`<mxCell id="${eId}" value="${e.step > 0 ? '(' + e.step + ') ' : ''}${esc(e.label || '')}" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=${col};strokeWidth=2;${!isP ? 'dashed=1;' : ''}fontSize=9;" edge="1" source="${src}" target="${tgt}" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>`); }
     const xml = `<?xml version="1.0"?><mxfile><diagram name="${esc(diag.title)}" id="e"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>${cells.join("")}</root></mxGraphModel></diagram></mxfile>`;
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([xml], { type: "application/xml" })); a.download = `${diag.title.replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}.drawio`; a.click();
@@ -812,7 +1074,10 @@ export default function Dashboard({ user }: { user: User }) {
             <div style={{ color: "#999", fontSize: 13 }}>Building your architecture...</div>
           </div>
         )}
-        {diag && tab === "diagram" && (
+        {diag && tab === "diagram" && diag.layout === "blueprint" && (
+          <BlueprintView diag={diag} popover={popover} setPopover={setPopover} />
+        )}
+        {diag && tab === "diagram" && diag.layout !== "blueprint" && (
           <div ref={diagAreaRef} style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", background: THEMES[theme]?.bg || "#f8f9fa", overflow: "hidden" }}>
             
             {/* Edit Mode Toggle Button */}

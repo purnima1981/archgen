@@ -8,7 +8,7 @@ interface DiagNode {
   name: string;
   icon?: string | null;
   subtitle?: string;
-  zone: "sources" | "cloud" | "consumers";
+  zone: "sources" | "cloud" | "consumers" | "connectivity";
   x: number;
   y: number;
   details?: {
