@@ -39,11 +39,11 @@ const STREAMING: Diagram = {
 
   nodes: [
     // ── SOURCES (Left edge, x=100) ──
-    { id: "src_mobile", name: "Mobile Apps", icon: null, subtitle: "User Events", zone: "sources", x: 100, y: 250, 
+    { id: "src_mobile", name: "Mobile Apps", icon: "external_users", subtitle: "User Events", zone: "sources", x: 100, y: 250, 
       details: { notes: "iOS/Android applications sending clickstream and user behavior events" } },
-    { id: "src_web", name: "Web Apps", icon: null, subtitle: "Business Events", zone: "sources", x: 100, y: 350, 
+    { id: "src_web", name: "Web Apps", icon: "external_users", subtitle: "Business Events", zone: "sources", x: 100, y: 350, 
       details: { notes: "Web applications producing business events via REST APIs" } },
-    { id: "src_iot", name: "IoT Devices", icon: null, subtitle: "Sensor Data", zone: "sources", x: 100, y: 450, 
+    { id: "src_iot", name: "IoT Devices", icon: "webhook", subtitle: "Sensor Data", zone: "sources", x: 100, y: 450, 
       details: { notes: "Edge devices and sensors transmitting telemetry data" } },
 
     // ── PHASE 1: SECURITY PERIMETER (x=280) ──
@@ -221,17 +221,17 @@ const STREAMING: Diagram = {
     },
 
     // ── CONSUMERS (Right edge, x=1180) ──
-    { id: "con_analysts", name: "Analysts", icon: null, subtitle: "Dashboard Users", zone: "consumers", x: 1180, y: 250, 
+    { id: "con_analysts", name: "Analysts", icon: "analyst", subtitle: "Dashboard Users", zone: "consumers", x: 1180, y: 250, 
       details: { notes: "Business analysts accessing Looker dashboards via SSO with MFA" } },
-    { id: "con_apps", name: "Applications", icon: null, subtitle: "API Consumers", zone: "consumers", x: 1180, y: 350, 
+    { id: "con_apps", name: "Applications", icon: "rest_api", subtitle: "API Consumers", zone: "consumers", x: 1180, y: 350, 
       details: { notes: "Downstream applications consuming data via Cloud Run APIs with OAuth 2.0" } },
-    { id: "con_engineers", name: "Engineers", icon: null, subtitle: "Platform Ops", zone: "consumers", x: 1180, y: 450, 
+    { id: "con_engineers", name: "Engineers", icon: "developer", subtitle: "Platform Ops", zone: "consumers", x: 1180, y: 450, 
       details: { notes: "Data engineers managing pipelines via Composer UI and monitoring dashboards" } },
 
     // ── ALERT DESTINATIONS ──
-    { id: "pagerduty", name: "PagerDuty", icon: null, subtitle: "P1 Incidents", zone: "consumers", x: 1180, y: 100, 
+    { id: "pagerduty", name: "PagerDuty", icon: "pagerduty", subtitle: "P1 Incidents", zone: "consumers", x: 1180, y: 100, 
       details: { notes: "Critical alerts: pipeline failures, security incidents, service outages" } },
-    { id: "slack", name: "Slack", icon: null, subtitle: "P2 Alerts", zone: "consumers", x: 1180, y: 550, 
+    { id: "slack", name: "Slack", icon: "slack", subtitle: "P2 Alerts", zone: "consumers", x: 1180, y: 550, 
       details: { notes: "Performance degradation warnings, capacity alerts, data quality issues" } },
   ],
 
@@ -290,9 +290,9 @@ const CDC_MIGRATION: Diagram = {
   ],
   opsGroup: { name: "Operations", nodeIds: ["composer", "catalog", "monitoring"] },
   nodes: [
-    { id: "src_rds", name: "AWS RDS", icon: null, subtitle: "PostgreSQL", zone: "sources", x: 100, y: 250, details: { notes: "Logical replication enabled (wal_level=logical)" } },
-    { id: "src_s3", name: "AWS S3", icon: null, subtitle: "Historical Files", zone: "sources", x: 100, y: 420, details: { notes: "CSV/Parquet batch backfill exports" } },
-    { id: "src_oracle", name: "On-Prem Oracle", icon: null, subtitle: "Legacy DB", zone: "sources", x: 100, y: 580, details: { notes: "Oracle 12c+ with LogMiner for CDC" } },
+    { id: "src_rds", name: "AWS RDS", icon: "aws_rds", subtitle: "PostgreSQL", zone: "sources", x: 100, y: 250, details: { notes: "Logical replication enabled (wal_level=logical)" } },
+    { id: "src_s3", name: "AWS S3", icon: "aws_s3", subtitle: "Historical Files", zone: "sources", x: 100, y: 420, details: { notes: "CSV/Parquet batch backfill exports" } },
+    { id: "src_oracle", name: "On-Prem Oracle", icon: "oracle", subtitle: "Legacy DB", zone: "sources", x: 100, y: 580, details: { notes: "Oracle 12c+ with LogMiner for CDC" } },
     { id: "vpn", name: "Cloud VPN", icon: "cloud_vpn", subtitle: "Encrypted Tunnel", zone: "cloud", x: 350, y: 250,
       details: { encryption: "IPSec IKEv2, AES-256-GCM", monitoring: "Tunnel status, bandwidth, packet loss", alerting: "Tunnel down → PagerDuty P1", cost: "~$0.075/hr + egress", compliance: "SOC2" } },
     { id: "sts", name: "Transfer Service", icon: "cloud_storage", subtitle: "S3 Batch Transfer", zone: "cloud", x: 350, y: 420,
@@ -309,13 +309,13 @@ const CDC_MIGRATION: Diagram = {
       details: { encryption: "CMEK, column-level security", alerting: "Freshness > 15min → PagerDuty P2", cost: "$6.25/TB", compliance: "SOC2, HIPAA" } },
     { id: "looker", name: "Looker", icon: "looker", subtitle: "Migration Dashboard", zone: "cloud", x: 1000, y: 460, details: { guardrails: "SSO, row-level perms", compliance: "SOC2" } },
     { id: "cloudrun", name: "Cloud Run", icon: "cloud_run", subtitle: "Data API", zone: "cloud", x: 1000, y: 560, details: { guardrails: "Binary Auth, VPC connector", compliance: "SOC2" } },
-    { id: "composer", name: "Composer", icon: "cloud_scheduler", subtitle: "Orchestrator", zone: "cloud", x: 450, y: 720, details: { alerting: "DAG failure → PagerDuty P1", cost: "~$400/mo", compliance: "SOC2" } },
+    { id: "composer", name: "Composer", icon: "cloud_composer", subtitle: "Orchestrator", zone: "cloud", x: 450, y: 720, details: { alerting: "DAG failure → PagerDuty P1", cost: "~$400/mo", compliance: "SOC2" } },
     { id: "catalog", name: "Data Catalog", icon: "data_catalog", subtitle: "Metadata & Lineage", zone: "cloud", x: 660, y: 720, details: { guardrails: "Mandatory tags: owner, classification, SLA", compliance: "SOC2" } },
     { id: "monitoring", name: "Monitoring", icon: "cloud_monitoring", subtitle: "Observability", zone: "cloud", x: 870, y: 720, details: { monitoring: "CDC lag, freshness SLOs, throughput", compliance: "SOC2" } },
-    { id: "con_dash", name: "Stakeholders", icon: null, subtitle: "Migration Tracking", zone: "consumers", x: 1230, y: 300, details: { notes: "Project stakeholders via Looker" } },
-    { id: "con_api", name: "Applications", icon: null, subtitle: "Migrated Apps", zone: "consumers", x: 1230, y: 460, details: { notes: "Apps switching to GCP API" } },
-    { id: "pagerduty", name: "PagerDuty", icon: null, subtitle: "P1 Incidents", zone: "consumers", x: 1230, y: 650, details: { notes: "Critical: pipeline down" } },
-    { id: "slack", name: "Slack", icon: null, subtitle: "P2 Alerts", zone: "consumers", x: 1230, y: 760, details: { notes: "Degraded performance" } },
+    { id: "con_dash", name: "Stakeholders", icon: "analyst", subtitle: "Migration Tracking", zone: "consumers", x: 1230, y: 300, details: { notes: "Project stakeholders via Looker" } },
+    { id: "con_api", name: "Applications", icon: "rest_api", subtitle: "Migrated Apps", zone: "consumers", x: 1230, y: 460, details: { notes: "Apps switching to GCP API" } },
+    { id: "pagerduty", name: "PagerDuty", icon: "pagerduty", subtitle: "P1 Incidents", zone: "consumers", x: 1230, y: 650, details: { notes: "Critical: pipeline down" } },
+    { id: "slack", name: "Slack", icon: "slack", subtitle: "P2 Alerts", zone: "consumers", x: 1230, y: 760, details: { notes: "Degraded performance" } },
   ],
   edges: [
     { id: "s1", from: "src_rds", to: "vpn", label: "CDC WAL Stream", step: 0, security: { transport: "IPSec + TLS", auth: "DB creds in Secret Manager", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
@@ -353,9 +353,9 @@ const RAG_GENAI: Diagram = {
   ],
   opsGroup: { name: "Operations", nodeIds: ["monitoring", "logging"] },
   nodes: [
-    { id: "src_drive", name: "Google Drive", icon: null, subtitle: "Documents", zone: "sources", x: 100, y: 200, details: { notes: "Company documents: policies, procedures, knowledge base articles" } },
-    { id: "src_conf", name: "Confluence", icon: null, subtitle: "Wiki Pages", zone: "sources", x: 100, y: 370, details: { notes: "Atlassian Confluence wiki and documentation pages" } },
-    { id: "src_upload", name: "File Uploads", icon: null, subtitle: "User PDFs", zone: "sources", x: 100, y: 520, details: { notes: "Direct file uploads by users via web interface" } },
+    { id: "src_drive", name: "Google Drive", icon: "external_users", subtitle: "Documents", zone: "sources", x: 100, y: 200, details: { notes: "Company documents: policies, procedures, knowledge base articles" } },
+    { id: "src_conf", name: "Confluence", icon: "atlassian", subtitle: "Wiki Pages", zone: "sources", x: 100, y: 370, details: { notes: "Atlassian Confluence wiki and documentation pages" } },
+    { id: "src_upload", name: "File Uploads", icon: "sftp_server", subtitle: "User PDFs", zone: "sources", x: 100, y: 520, details: { notes: "Direct file uploads by users via web interface" } },
     { id: "functions", name: "Cloud Functions", icon: "cloud_functions", subtitle: "Webhook Handler", zone: "cloud", x: 340, y: 280,
       details: { monitoring: "Invocation count, errors, duration", cost: "Pay per invocation ~$0.0000004/invocation", compliance: "SOC2" } },
     { id: "pubsub", name: "Pub/Sub", icon: "pubsub", subtitle: "Event Queue", zone: "cloud", x: 340, y: 420,
@@ -380,9 +380,9 @@ const RAG_GENAI: Diagram = {
       details: { guardrails: "MFA for admin. Rate limit. TTL 4hr.", compliance: "SOC2" } },
     { id: "monitoring", name: "Monitoring", icon: "cloud_monitoring", subtitle: "Observability", zone: "cloud", x: 530, y: 740, details: { monitoring: "Retrieval quality, latency, cost", compliance: "SOC2" } },
     { id: "logging", name: "Cloud Logging", icon: "cloud_logging", subtitle: "Prompt Audit", zone: "cloud", x: 770, y: 740, details: { guardrails: "Redact PII. Locked retention.", compliance: "SOC2" } },
-    { id: "con_users", name: "End Users", icon: null, subtitle: "Chat Interface", zone: "consumers", x: 1230, y: 420, details: { notes: "React UI with streaming" } },
-    { id: "pagerduty", name: "PagerDuty", icon: null, subtitle: "P1 Incidents", zone: "consumers", x: 1230, y: 620, details: { notes: "Critical: Gemini down" } },
-    { id: "slack", name: "Slack", icon: null, subtitle: "P2 Alerts", zone: "consumers", x: 1230, y: 740, details: { notes: "Quality degradation" } },
+    { id: "con_users", name: "End Users", icon: "external_users", subtitle: "Chat Interface", zone: "consumers", x: 1230, y: 420, details: { notes: "React UI with streaming" } },
+    { id: "pagerduty", name: "PagerDuty", icon: "pagerduty", subtitle: "P1 Incidents", zone: "consumers", x: 1230, y: 620, details: { notes: "Critical: Gemini down" } },
+    { id: "slack", name: "Slack", icon: "slack", subtitle: "P2 Alerts", zone: "consumers", x: 1230, y: 740, details: { notes: "Quality degradation" } },
   ],
   edges: [
     { id: "s1", from: "src_drive", to: "functions", label: "Doc Changes", step: 0, security: { transport: "TLS 1.3", auth: "OAuth 2.0", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
@@ -408,8 +408,187 @@ const RAG_GENAI: Diagram = {
   ],
 };
 
+// ═══ TEMPLATE 4: ENTERPRISE DATA ANALYTICS BLUEPRINT (CAPABILITY MAP) ══════════════
+const BLUEPRINT: Diagram = {
+  title: "Enterprise Data Analytics Platform",
+  subtitle: "Platform-agnostic capability map — all non-negotiable layers included",
+
+  phases: [
+    { id: "ingestion", name: "Ingestion", nodeIds: ["ing_batch", "ing_cdc", "ing_stream", "ing_file", "ing_api"] },
+    { id: "processing", name: "Processing & Transformation", nodeIds: ["proc_elt", "proc_stream", "proc_quality", "proc_enrich", "proc_pii"] },
+    { id: "storage", name: "Storage — Medallion Architecture", nodeIds: ["raw_landing", "bronze", "silver", "gold"] },
+    { id: "serving", name: "Serving & Delivery", nodeIds: ["serve_semantic", "serve_api", "serve_market", "serve_retl"] },
+  ],
+  opsGroup: { name: "Crosscutting Pillars", nodeIds: ["pillar_sec", "pillar_gov", "pillar_obs", "pillar_orch"] },
+
+  nodes: [
+    // ── SOURCES (zone: sources) ──────────────────────────
+    { id: "src_db", name: "Relational Databases", icon: null, subtitle: "Oracle, PostgreSQL, MySQL, SQL Server", zone: "sources", x: 130, y: 180,
+      details: { notes: "On-premise and cloud-hosted relational databases. Typical ingestion: batch extract or CDC replication." } },
+    { id: "src_saas", name: "SaaS / CRM", icon: null, subtitle: "Salesforce, SAP, Workday, ServiceNow", zone: "sources", x: 130, y: 330,
+      details: { notes: "Cloud SaaS platforms with API-based extraction. Requires OAuth, rate-limit handling, incremental sync." } },
+    { id: "src_files", name: "Files / SFTP", icon: null, subtitle: "CSV, Parquet, Excel, SFTP drops", zone: "sources", x: 130, y: 480,
+      details: { notes: "Batch file drops from partners, vendors, or internal systems. Landing zone pattern with validation." } },
+    { id: "src_apis", name: "REST / GraphQL APIs", icon: null, subtitle: "Partner APIs, webhooks, feeds", zone: "sources", x: 130, y: 630,
+      details: { notes: "External and internal APIs providing structured data. Pull (polling) or push (webhook) patterns." } },
+    { id: "src_stream", name: "Event Streams", icon: null, subtitle: "Kafka, IoT sensors, clickstream", zone: "sources", x: 130, y: 780,
+      details: { notes: "High-volume real-time event producers. Requires backpressure handling, exactly-once semantics." } },
+    { id: "src_legacy", name: "Legacy / Mainframe", icon: null, subtitle: "COBOL, MQ, flat files, FTP", zone: "sources", x: 130, y: 930,
+      details: { notes: "Legacy systems with limited connectivity. Often requires custom connectors, file-based integration, or MQ bridging." } },
+
+    // ── INGESTION LAYER (y ≈ 180) ────────────────────────
+    { id: "ing_batch", name: "Batch Pull / ELT", icon: null, subtitle: "Scheduled extraction", zone: "cloud", x: 390, y: 180,
+      details: { notes: "Scheduled full or incremental extracts. Supports: JDBC pull, API pagination, bulk export.\n\nPatterns: Full refresh, incremental (watermark), snapshot diff." } },
+    { id: "ing_cdc", name: "CDC / Replication", icon: null, subtitle: "Change data capture", zone: "cloud", x: 540, y: 180,
+      details: { notes: "Log-based change data capture for low-latency replication.\n\nSupports: binlog (MySQL), WAL (PostgreSQL), LogMiner (Oracle), Change Tracking (SQL Server)." } },
+    { id: "ing_stream", name: "Stream Ingestion", icon: null, subtitle: "Real-time events", zone: "cloud", x: 690, y: 180,
+      details: { notes: "Event-driven ingestion for real-time data.\n\nSupports: message bus subscription, IoT telemetry, clickstream capture, webhook reception." } },
+    { id: "ing_file", name: "File Transfer", icon: null, subtitle: "SFTP / bulk drops", zone: "cloud", x: 840, y: 180,
+      details: { notes: "Managed file transfer with validation.\n\nSupports: SFTP polling, S3/GCS transfer, partner file drops with schema validation on landing." } },
+    { id: "ing_api", name: "API Ingestion", icon: null, subtitle: "REST / webhook pull", zone: "cloud", x: 990, y: 180,
+      details: { notes: "API-based data collection.\n\nSupports: REST polling, GraphQL queries, webhook receivers, OAuth token management, rate limit handling." } },
+
+    // ── PROCESSING LAYER (y ≈ 370) ───────────────────────
+    { id: "proc_elt", name: "Batch ELT Engine", icon: null, subtitle: "Scheduled transforms", zone: "cloud", x: 420, y: 370,
+      details: { notes: "Core transformation engine for batch workloads.\n\nCapabilities: SQL transforms, joins, aggregations, SCD handling, deduplication, schema evolution." } },
+    { id: "proc_stream", name: "Stream Processing", icon: null, subtitle: "Real-time compute", zone: "cloud", x: 590, y: 370,
+      details: { notes: "Real-time event processing engine.\n\nCapabilities: windowed aggregations, sessionization, late-data handling, watermarks, exactly-once semantics." } },
+    { id: "proc_quality", name: "Data Quality", icon: null, subtitle: "Validation & profiling", zone: "cloud", x: 760, y: 370,
+      details: { notes: "★ NON-NEGOTIABLE\n\nData quality checks at every medallion transition.\n\nCapabilities: schema validation, null checks, referential integrity, statistical profiling, anomaly detection, freshness SLAs." } },
+    { id: "proc_enrich", name: "Enrichment / Joins", icon: null, subtitle: "Lookups & reference data", zone: "cloud", x: 930, y: 370,
+      details: { notes: "Data enrichment and cross-source joins.\n\nCapabilities: reference data lookups, geo-enrichment, master data joins, derived columns, business logic application." } },
+    { id: "proc_pii", name: "PII Detection & Masking", icon: null, subtitle: "Privacy & redaction", zone: "cloud", x: 1080, y: 370,
+      details: { notes: "★ NON-NEGOTIABLE\n\nAutomatic PII/PHI detection and masking.\n\nCapabilities: regex + ML detection, tokenization, hashing, column-level encryption, de-identification for analytics." } },
+
+    // ── STORAGE: MEDALLION (y ≈ 560) ─────────────────────
+    { id: "raw_landing", name: "Raw Landing Zone", icon: null, subtitle: "Unmodified source data", zone: "cloud", x: 400, y: 560,
+      details: { notes: "★ NON-NEGOTIABLE\n\nImmutable copy of source data as-is.\n\nPurpose: audit trail, reprocessing, debugging.\nRetention: 90-365 days.\nFormat: source-native (JSON, CSV, Avro).\nAccess: restricted to platform team only." } },
+    { id: "bronze", name: "Bronze", icon: null, subtitle: "Ingested & schema-applied", zone: "cloud", x: 570, y: 560,
+      details: { notes: "★ NON-NEGOTIABLE\n\nSchema-applied, deduplicated, typed data.\n\nTransforms: schema enforcement, dedup, type casting, partition by ingestion date.\nQuality gate: schema validation pass required.\nAccess: data engineers." } },
+    { id: "silver", name: "Silver", icon: null, subtitle: "Cleaned & conformed", zone: "cloud", x: 740, y: 560,
+      details: { notes: "★ NON-NEGOTIABLE\n\nBusiness-rule applied, conformed data.\n\nTransforms: joins, lookups, business rules, SCD Type 2, null handling, standardization.\nQuality gate: referential integrity + business rules pass.\nAccess: analysts + engineers." } },
+    { id: "gold", name: "Gold", icon: null, subtitle: "Curated & consumption-ready", zone: "cloud", x: 910, y: 560,
+      details: { notes: "★ NON-NEGOTIABLE\n\nAggregated, modeled, optimized for consumption.\n\nTransforms: star schema, wide tables, pre-aggregations, materialized views.\nQuality gate: metric reconciliation + SLA freshness.\nAccess: all authorized consumers." } },
+
+    // ── SERVING LAYER (y ≈ 750) ──────────────────────────
+    { id: "serve_semantic", name: "Semantic / Metrics Layer", icon: null, subtitle: "Definitions & dimensions", zone: "cloud", x: 420, y: 750,
+      details: { notes: "Centralized metric definitions and dimensional model.\n\nCapabilities: reusable measures, governed dimensions, version-controlled definitions, caching." } },
+    { id: "serve_api", name: "API Gateway", icon: null, subtitle: "Data-as-a-service", zone: "cloud", x: 590, y: 750,
+      details: { notes: "Expose gold-layer data via managed APIs.\n\nCapabilities: rate limiting, authentication, versioning, caching, usage analytics, developer portal." } },
+    { id: "serve_market", name: "Data Marketplace", icon: null, subtitle: "Discovery & sharing", zone: "cloud", x: 760, y: 750,
+      details: { notes: "Self-service data discovery and access management.\n\nCapabilities: dataset catalog, access requests, data products, cross-team sharing, usage tracking." } },
+    { id: "serve_retl", name: "Reverse ETL", icon: null, subtitle: "Push to operational systems", zone: "cloud", x: 930, y: 750,
+      details: { notes: "Sync curated data back to operational systems.\n\nCapabilities: CRM enrichment, marketing activation, operational dashboards, SaaS writeback." } },
+
+    // ── CROSSCUTTING PILLARS (x ≈ 1100) ──────────────────
+    { id: "pillar_sec", name: "Security & Identity", icon: null, subtitle: "IAM / Encryption / Network", zone: "cloud", x: 1100, y: 220,
+      details: { 
+        notes: "★ NON-NEGOTIABLE PILLAR\n\nSpans all layers. Capabilities:\n• Identity & Access Management (RBAC, least privilege)\n• Encryption at Rest (AES-256, CMEK)\n• Encryption in Transit (TLS 1.3)\n• Secrets Management (vault, rotation)\n• Network Perimeter (VPC, firewall, private endpoints)",
+        encryption: "At rest: AES-256 CMEK | In transit: TLS 1.3",
+        iamRoles: "Platform Admin, Data Engineer, Analyst, Viewer (least privilege)",
+        compliance: "SOC2, ISO 27001, HIPAA, PCI-DSS (as applicable)"
+      } },
+    { id: "pillar_gov", name: "Governance & Quality", icon: null, subtitle: "Catalog / Lineage / DLP", zone: "cloud", x: 1100, y: 420,
+      details: { 
+        notes: "★ NON-NEGOTIABLE PILLAR\n\nSpans all layers. Capabilities:\n• Data Catalog (search, discover, tag)\n• Data Lineage (end-to-end provenance)\n• DLP / Privacy (PII detection, masking)\n• Quality Rules (automated checks per medallion zone)\n• Classification (sensitivity labels, retention policies)",
+        compliance: "GDPR, CCPA, HIPAA — automatic PII detection and classification"
+      } },
+    { id: "pillar_obs", name: "Observability & Ops", icon: null, subtitle: "Monitor / Log / Alert", zone: "cloud", x: 1100, y: 620,
+      details: { 
+        notes: "★ NON-NEGOTIABLE PILLAR\n\nSpans all layers. Capabilities:\n• Pipeline Monitoring (latency, throughput, error rates)\n• Centralized Logging (structured logs, audit trail)\n• Alerting / Incident Management (P1/P2/P3 routing)\n• SLA / Freshness Tracking (data arrival SLOs)",
+        monitoring: "Pipeline health, medallion zone freshness, consumer SLAs",
+        alerting: "P1 → PagerDuty | P2 → Slack | P3 → Email"
+      } },
+    { id: "pillar_orch", name: "Orchestration & Cost", icon: null, subtitle: "Workflows / Budget / Chargeback", zone: "cloud", x: 1100, y: 820,
+      details: { 
+        notes: "★ NON-NEGOTIABLE PILLAR\n\nSpans all layers. Capabilities:\n• Workflow / DAG Orchestration (dependency management)\n• Scheduling (cron, event-triggered, SLA-aware)\n• Budget Alerts / Quotas (spend thresholds per team)\n• Cost Attribution / Chargeback (label-based cost allocation)",
+        cost: "Budget alerts at 80%/100% threshold per team/project"
+      } },
+
+    // ── CONSUMERS (zone: consumers) ──────────────────────
+    { id: "con_bi", name: "BI Dashboards", icon: null, subtitle: "Executive & operational reporting", zone: "consumers", x: 1280, y: 220,
+      details: { notes: "Interactive dashboards for business stakeholders.\n\nConsumes: Gold layer via semantic layer.\nUsers: Executives, managers, business analysts." } },
+    { id: "con_self", name: "Self-Service Analytics", icon: null, subtitle: "Ad-hoc exploration", zone: "consumers", x: 1280, y: 400,
+      details: { notes: "Self-service query and exploration tools.\n\nConsumes: Silver + Gold layers with governed access.\nUsers: Business analysts, power users." } },
+    { id: "con_embed", name: "Embedded Analytics", icon: null, subtitle: "In-app insights", zone: "consumers", x: 1280, y: 580,
+      details: { notes: "Analytics embedded directly in operational applications.\n\nConsumes: Gold layer via API or embedded SDK.\nUsers: End customers, internal app users." } },
+    { id: "con_ds", name: "Data Science / Notebooks", icon: null, subtitle: "ML feature engineering", zone: "consumers", x: 1280, y: 760,
+      details: { notes: "Data science workbenches for exploration and modeling.\n\nConsumes: Silver + Gold layers.\nUsers: Data scientists, ML engineers." } },
+    { id: "con_apps", name: "Downstream Applications", icon: null, subtitle: "Operational systems", zone: "consumers", x: 1280, y: 940,
+      details: { notes: "Operational systems consuming curated data.\n\nConsumes: Gold layer via APIs or Reverse ETL.\nUsers: CRM, marketing automation, microservices." } },
+  ],
+
+  edges: [
+    // ── Source → Ingestion (crossing trust boundary) ──
+    { id: "s1", from: "src_db", to: "ing_batch", label: "Extract", step: 1, crossesBoundary: true, edgeType: "data", security: { transport: "TLS 1.3", auth: "Service Account", classification: "Confidential", private: true } },
+    { id: "s2", from: "src_db", to: "ing_cdc", label: "Replicate", step: 1, crossesBoundary: true, edgeType: "data", security: { transport: "TLS 1.3", auth: "Service Account", classification: "Confidential", private: true } },
+    { id: "s3", from: "src_saas", to: "ing_batch", label: "API Pull", step: 1, crossesBoundary: true, edgeType: "data", security: { transport: "TLS 1.3", auth: "OAuth 2.0", classification: "Confidential", private: false } },
+    { id: "s4", from: "src_files", to: "ing_file", label: "Transfer", step: 1, crossesBoundary: true, edgeType: "data", security: { transport: "SFTP / TLS", auth: "SSH Key", classification: "Internal", private: true } },
+    { id: "s5", from: "src_apis", to: "ing_api", label: "Poll / Push", step: 1, crossesBoundary: true, edgeType: "data", security: { transport: "TLS 1.3", auth: "API Key / OAuth", classification: "Confidential", private: false } },
+    { id: "s6", from: "src_stream", to: "ing_stream", label: "Subscribe", step: 1, crossesBoundary: true, edgeType: "data", security: { transport: "TLS 1.3", auth: "mTLS", classification: "Internal", private: true } },
+    { id: "s7", from: "src_legacy", to: "ing_file", label: "Export", step: 1, crossesBoundary: true, edgeType: "data", security: { transport: "VPN / SFTP", auth: "Certificate", classification: "Internal", private: true } },
+
+    // ── Ingestion → Processing ──
+    { id: "d1", from: "ing_batch", to: "proc_elt", label: "Transform", step: 2, edgeType: "data" },
+    { id: "d2", from: "ing_cdc", to: "proc_stream", label: "Stream", step: 2, edgeType: "data" },
+    { id: "d3", from: "ing_stream", to: "proc_stream", label: "Process", step: 2, edgeType: "data" },
+    { id: "d4", from: "ing_file", to: "proc_elt", label: "Validate & Load", step: 2, edgeType: "data" },
+    { id: "d5", from: "ing_api", to: "proc_elt", label: "Parse & Load", step: 2, edgeType: "data" },
+
+    // ── Processing → Raw Landing ──
+    { id: "d6", from: "proc_elt", to: "raw_landing", label: "Land Raw", step: 3, edgeType: "data" },
+    { id: "d7", from: "proc_stream", to: "raw_landing", label: "Land Raw", step: 3, edgeType: "data" },
+
+    // ── Medallion Flow (the core) ──
+    { id: "m1", from: "raw_landing", to: "bronze", label: "Schema Apply", subtitle: "Dedup, type cast, partition", step: 4, edgeType: "data" },
+    { id: "m2", from: "bronze", to: "silver", label: "Clean & Conform", subtitle: "Business rules, joins, SCD", step: 5, edgeType: "data" },
+    { id: "m3", from: "silver", to: "gold", label: "Curate & Model", subtitle: "Aggregate, star schema", step: 6, edgeType: "data" },
+
+    // ── Quality gates on medallion transitions ──
+    { id: "q1", from: "proc_quality", to: "bronze", label: "Quality Gate", step: 0, edgeType: "observe" },
+    { id: "q2", from: "proc_quality", to: "silver", label: "Quality Gate", step: 0, edgeType: "observe" },
+    { id: "q3", from: "proc_pii", to: "bronze", label: "PII Scan", step: 0, edgeType: "observe" },
+    { id: "q4", from: "proc_enrich", to: "silver", label: "Enrich", step: 0, edgeType: "data" },
+
+    // ── Gold → Serving ──
+    { id: "d8", from: "gold", to: "serve_semantic", label: "Metrics", step: 7, edgeType: "data" },
+    { id: "d9", from: "gold", to: "serve_api", label: "API", step: 7, edgeType: "data" },
+    { id: "d10", from: "gold", to: "serve_market", label: "Publish", step: 7, edgeType: "data" },
+    { id: "d11", from: "gold", to: "serve_retl", label: "Sync", step: 7, edgeType: "data" },
+
+    // ── Serving → Consumers (crossing trust boundary) ──
+    { id: "c1", from: "serve_semantic", to: "con_bi", label: "Dashboards", step: 8, crossesBoundary: true, edgeType: "data" },
+    { id: "c2", from: "serve_semantic", to: "con_self", label: "Explore", step: 8, crossesBoundary: true, edgeType: "data" },
+    { id: "c3", from: "serve_api", to: "con_embed", label: "Embed", step: 8, crossesBoundary: true, edgeType: "data" },
+    { id: "c4", from: "serve_api", to: "con_apps", label: "Consume", step: 8, crossesBoundary: true, edgeType: "data" },
+    { id: "c5", from: "serve_market", to: "con_ds", label: "Discover", step: 8, crossesBoundary: true, edgeType: "data" },
+    { id: "c6", from: "serve_retl", to: "con_apps", label: "Writeback", step: 8, crossesBoundary: true, edgeType: "data" },
+
+    // ── Crosscutting pillar connections (control/observe) ──
+    { id: "p1", from: "pillar_orch", to: "proc_elt", label: "Orchestrate", step: 0, edgeType: "control" },
+    { id: "p2", from: "pillar_orch", to: "proc_stream", label: "Schedule", step: 0, edgeType: "control" },
+    { id: "p3", from: "pillar_obs", to: "proc_elt", label: "Monitor", step: 0, edgeType: "observe" },
+    { id: "p4", from: "pillar_obs", to: "gold", label: "SLA Track", step: 0, edgeType: "observe" },
+    { id: "p5", from: "pillar_gov", to: "bronze", label: "Catalog", step: 0, edgeType: "observe" },
+    { id: "p6", from: "pillar_gov", to: "silver", label: "Lineage", step: 0, edgeType: "observe" },
+    { id: "p7", from: "pillar_sec", to: "ing_batch", label: "IAM", step: 0, edgeType: "control" },
+    { id: "p8", from: "pillar_sec", to: "gold", label: "Encrypt", step: 0, edgeType: "control" },
+  ],
+
+  threats: [
+    { id: "t1", target: "ing_batch", stride: "Spoofing", severity: "high", title: "Source Credential Compromise", description: "Stolen service account keys used to impersonate source extraction", impact: "Unauthorized data extraction, data exfiltration", mitigation: "Workload Identity Federation, short-lived tokens, IP allowlisting", compliance: "SOC2 CC6.1" },
+    { id: "t2", target: "raw_landing", stride: "Tampering", severity: "critical", title: "Raw Data Modification", description: "Unauthorized modification of immutable raw landing zone", impact: "Audit trail compromised, data integrity lost", mitigation: "Object versioning, write-once policies, access logging, immutable retention", compliance: "SOC2 CC8.1" },
+    { id: "t3", target: "gold", stride: "Information Disclosure", severity: "high", title: "PII Exposure in Gold Layer", description: "Unmasked PII flowing through to consumption-ready datasets", impact: "Privacy violation, regulatory fines, customer trust loss", mitigation: "DLP scanning at Bronze→Silver transition, column-level masking, access controls", compliance: "GDPR Art. 5, CCPA, HIPAA" },
+    { id: "t4", target: "serve_api", stride: "Denial of Service", severity: "medium", title: "API Rate Abuse", description: "Excessive API calls exhausting platform resources", impact: "Service degradation for all consumers", mitigation: "Rate limiting, quotas per consumer, auto-scaling, circuit breakers" },
+    { id: "t5", target: "pillar_orch", stride: "Elevation of Privilege", severity: "high", title: "Orchestrator Privilege Escalation", description: "Compromised orchestrator service account with broad permissions", impact: "Full pipeline control, data manipulation", mitigation: "Least-privilege SA per DAG, Workload Identity, audit logging, approval workflows", compliance: "SOC2 CC6.3" },
+  ],
+};
+
 // ═══ REGISTRY ═════════════════════════════════════
 export const TEMPLATES: Template[] = [
+  { id: "blueprint-analytics", name: "Enterprise Data Analytics Blueprint", icon: "🏗️", description: "Platform-agnostic capability map with all non-negotiable layers: medallion storage, governance, security, observability, orchestration",
+    tags: ["blueprint", "enterprise", "data analytics", "analytics platform", "data platform", "capability map", "capability", "medallion", "bronze", "silver", "gold", "data lake", "lakehouse", "data warehouse", "platform", "reference architecture", "data engineering", "non-negotiable", "governance", "security", "observability", "orchestration", "end-to-end", "full stack", "complete", "all layers"],
+    diagram: BLUEPRINT },
   { id: "streaming-analytics", name: "Enterprise Streaming Analytics", icon: "📊", description: "Production-ready streaming platform with comprehensive security, governance, disaster recovery, and cost management",
     tags: ["streaming", "stream", "real-time", "realtime", "event-driven", "pub/sub", "pubsub", "dataflow", "clickstream", "iot", "sensor", "kafka", "ingest", "medallion", "bronze", "silver", "gold", "data quality", "lineage"],
     diagram: STREAMING },
