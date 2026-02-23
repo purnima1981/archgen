@@ -12,13 +12,15 @@ export interface Template { id: string; name: string; icon: string; description:
 
 export function matchTemplate(input: string): Template | null {
   const q = input.toLowerCase();
-  let best: Template | null = null, bestScore = 0;
+  let best: Template | null = null, bestScore = 0, bestHits = 0;
   for (const t of TEMPLATES) {
-    let score = 0;
-    for (const tag of t.tags) { if (q.includes(tag)) score += tag.length; }
-    if (score > bestScore) { bestScore = score; best = t; }
+    let score = 0, hits = 0;
+    for (const tag of t.tags) { if (q.includes(tag)) { score += tag.length; hits++; } }
+    if (score > bestScore) { bestScore = score; best = t; bestHits = hits; }
   }
-  return bestScore >= 4 ? best : null;
+  // Require at least 3 distinct tag matches AND score >= 12 to use a template
+  // Otherwise fall through to LLM for custom generation
+  return (bestScore >= 12 && bestHits >= 3) ? best : null;
 }
 
 // ═══ TEMPLATE 1: STREAMING ANALYTICS (DIAMOND LAYOUT) ══════════════
@@ -409,10 +411,10 @@ const RAG_GENAI: Diagram = {
 // ═══ REGISTRY ═════════════════════════════════════
 export const TEMPLATES: Template[] = [
   { id: "streaming-analytics", name: "Enterprise Streaming Analytics", icon: "📊", description: "Production-ready streaming platform with comprehensive security, governance, disaster recovery, and cost management",
-    tags: ["streaming", "stream", "real-time", "realtime", "event", "pub/sub", "pubsub", "dataflow", "analytics", "clickstream", "iot", "sensor", "event-driven", "kafka", "pipeline", "ingest", "enterprise", "production", "security", "governance", "disaster recovery", "compliance", "cost management", "observability", "foundation", "vpc", "iam", "kms", "data quality", "lineage", "bronze", "silver", "gold", "medallion"],
+    tags: ["streaming", "stream", "real-time", "realtime", "event-driven", "pub/sub", "pubsub", "dataflow", "clickstream", "iot", "sensor", "kafka", "ingest", "medallion", "bronze", "silver", "gold", "data quality", "lineage"],
     diagram: STREAMING },
   { id: "cdc-migration", name: "CDC Migration", icon: "🔄", description: "Cross-cloud CDC from AWS/Oracle to GCP BigQuery",
-    tags: ["cdc", "migration", "migrate", "replicate", "replication", "datastream", "aws to gcp", "aws", "cross-cloud", "rds", "oracle", "postgresql", "database migration", "hybrid", "vpn", "interconnect", "transfer"],
+    tags: ["cdc", "change data capture", "migration", "migrate", "replicate", "replication", "datastream", "aws to gcp", "cross-cloud", "rds", "oracle", "database migration", "hybrid cloud"],
     diagram: CDC_MIGRATION },
   { id: "rag-genai", name: "RAG / GenAI", icon: "🤖", description: "Document RAG chatbot with Vertex AI Gemini",
     tags: ["rag", "genai", "gen ai", "generative", "chatbot", "assistant", "copilot", "llm", "gemini", "gpt", "embedding", "vector", "pgvector", "document", "knowledge base", "ai assistant", "question answering"],
