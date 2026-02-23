@@ -3,7 +3,7 @@
     {
       "id": "compute_engine",
       "name": "Compute Engine",
-      "path": "/icons/composed/compute_engine.svg",
+      "path": "/icons/gcp/compute_engine.svg",
       "aliases": [
         "gce",
         "vm",
@@ -13,7 +13,7 @@
     {
       "id": "cloud_run",
       "name": "Cloud Run",
-      "path": "/icons/composed/cloud_run.svg",
+      "path": "/icons/gcp/cloud_run.svg",
       "aliases": [
         "cloudrun",
         "container service",
@@ -23,7 +23,7 @@
     {
       "id": "cloud_functions",
       "name": "Cloud Functions",
-      "path": "/icons/composed/cloud_functions.svg",
+      "path": "/icons/gcp/cloud_functions.svg",
       "aliases": [
         "gcf",
         "serverless",
@@ -34,7 +34,7 @@
     {
       "id": "app_engine",
       "name": "App Engine",
-      "path": "/icons/composed/app_engine.svg",
+      "path": "/icons/gcp/app_engine.svg",
       "aliases": [
         "gae",
         "paas"
@@ -43,7 +43,7 @@
     {
       "id": "google_kubernetes_engine",
       "name": "GKE",
-      "path": "/icons/composed/google_kubernetes_engine.svg",
+      "path": "/icons/gcp/google_kubernetes_engine.svg",
       "aliases": [
         "gke",
         "kubernetes",
@@ -53,7 +53,7 @@
     {
       "id": "cloud_gpu",
       "name": "Cloud GPU",
-      "path": "/icons/composed/cloud_gpu.svg",
+      "path": "/icons/gcp/cloud_gpu.svg",
       "aliases": [
         "gpu"
       ]
@@ -61,7 +61,7 @@
     {
       "id": "cloud_tpu",
       "name": "Cloud TPU",
-      "path": "/icons/composed/cloud_tpu.svg",
+      "path": "/icons/gcp/cloud_tpu.svg",
       "aliases": [
         "tpu"
       ]
@@ -69,7 +69,7 @@
     {
       "id": "batch",
       "name": "Batch",
-      "path": "/icons/composed/batch.svg",
+      "path": "/icons/gcp/batch.svg",
       "aliases": [
         "batch processing"
       ]
@@ -77,7 +77,7 @@
     {
       "id": "cloud_storage",
       "name": "Cloud Storage",
-      "path": "/icons/composed/cloud_storage.svg",
+      "path": "/icons/gcp/cloud_storage.svg",
       "aliases": [
         "gcs",
         "bucket",
@@ -88,7 +88,7 @@
     {
       "id": "bigquery",
       "name": "BigQuery",
-      "path": "/icons/composed/bigquery.svg",
+      "path": "/icons/gcp/bigquery.svg",
       "aliases": [
         "bq",
         "data warehouse",
@@ -98,7 +98,7 @@
     {
       "id": "cloud_sql",
       "name": "Cloud SQL",
-      "path": "/icons/composed/cloud_sql.svg",
+      "path": "/icons/gcp/cloud_sql.svg",
       "aliases": [
         "sql",
         "postgres",
@@ -108,7 +108,7 @@
     {
       "id": "cloud_spanner",
       "name": "Cloud Spanner",
-      "path": "/icons/composed/cloud_spanner.svg",
+      "path": "/icons/gcp/cloud_spanner.svg",
       "aliases": [
         "spanner",
         "global database"
@@ -117,7 +117,7 @@
     {
       "id": "firestore",
       "name": "Firestore",
-      "path": "/icons/composed/firestore.svg",
+      "path": "/icons/gcp/firestore.svg",
       "aliases": [
         "document db",
         "nosql"
@@ -126,7 +126,7 @@
     {
       "id": "bigtable",
       "name": "Bigtable",
-      "path": "/icons/composed/bigtable.svg",
+      "path": "/icons/gcp/bigtable.svg",
       "aliases": [
         "wide column",
         "hbase"
@@ -135,7 +135,7 @@
     {
       "id": "datastore",
       "name": "Datastore",
-      "path": "/icons/composed/datastore.svg",
+      "path": "/icons/gcp/datastore.svg",
       "aliases": [
         "nosql store"
       ]
@@ -143,7 +143,7 @@
     {
       "id": "memorystore",
       "name": "Memorystore",
-      "path": "/icons/composed/memorystore.svg",
+      "path": "/icons/gcp/memorystore.svg",
       "aliases": [
         "cache",
         "memcached"
@@ -152,7 +152,7 @@
     {
       "id": "filestore",
       "name": "Filestore",
-      "path": "/icons/composed/filestore.svg",
+      "path": "/icons/gcp/filestore.svg",
       "aliases": [
         "nfs",
         "file storage"
@@ -161,7 +161,7 @@
     {
       "id": "persistent_disk",
       "name": "Persistent Disk",
-      "path": "/icons/composed/persistent_disk.svg",
+      "path": "/icons/gcp/persistent_disk.svg",
       "aliases": [
         "pd",
         "block storage",
@@ -171,7 +171,7 @@
     {
       "id": "dataflow",
       "name": "Dataflow",
-      "path": "/icons/composed/dataflow.svg",
+      "path": "/icons/gcp/dataflow.svg",
       "aliases": [
         "beam",
         "stream processing",
@@ -181,7 +181,7 @@
     {
       "id": "dataproc",
       "name": "Dataproc",
-      "path": "/icons/composed/dataproc.svg",
+      "path": "/icons/gcp/dataproc.svg",
       "aliases": [
         "spark",
         "hadoop",
@@ -191,7 +191,7 @@
     {
       "id": "pubsub",
       "name": "Pub/Sub",
-      "path": "/icons/composed/pubsub.svg",
+      "path": "/icons/gcp/pubsub.svg",
       "aliases": [
         "pub sub",
         "messaging",
@@ -202,7 +202,7 @@
     {
       "id": "data_catalog",
       "name": "Data Catalog",
-      "path": "/icons/composed/data_catalog.svg",
+      "path": "/icons/gcp/data_catalog.svg",
       "aliases": [
         "metadata",
         "data discovery"
@@ -211,7 +211,7 @@
     {
       "id": "dataprep",
       "name": "Dataprep",
-      "path": "/icons/composed/dataprep.svg",
+      "path": "/icons/gcp/dataprep.svg",
       "aliases": [
         "data wrangling",
         "data prep"
@@ -220,7 +220,7 @@
     {
       "id": "dataplex",
       "name": "Dataplex",
-      "path": "/icons/composed/dataplex.svg",
+      "path": "/icons/gcp/dataplex.svg",
       "aliases": [
         "data lake",
         "data mesh",
@@ -230,7 +230,7 @@
     {
       "id": "datastream",
       "name": "Datastream",
-      "path": "/icons/composed/datastream.svg",
+      "path": "/icons/gcp/datastream.svg",
       "aliases": [
         "cdc",
         "change data capture",
@@ -240,7 +240,7 @@
     {
       "id": "analytics_hub",
       "name": "Analytics Hub",
-      "path": "/icons/composed/analytics_hub.svg",
+      "path": "/icons/gcp/analytics_hub.svg",
       "aliases": [
         "data exchange",
         "data sharing"
@@ -249,7 +249,7 @@
     {
       "id": "data_studio",
       "name": "Looker Studio",
-      "path": "/icons/composed/data_studio.svg",
+      "path": "/icons/gcp/data_studio.svg",
       "aliases": [
         "data studio",
         "dashboard",
@@ -260,7 +260,7 @@
     {
       "id": "looker",
       "name": "Looker",
-      "path": "/icons/composed/looker.svg",
+      "path": "/icons/gcp/looker.svg",
       "aliases": [
         "bi platform",
         "business intelligence"
@@ -269,7 +269,7 @@
     {
       "id": "vertexai",
       "name": "Vertex AI",
-      "path": "/icons/composed/vertexai.svg",
+      "path": "/icons/gcp/vertexai.svg",
       "aliases": [
         "vertex",
         "ml platform",
@@ -279,7 +279,7 @@
     {
       "id": "ai_platform",
       "name": "AI Platform",
-      "path": "/icons/composed/ai_platform.svg",
+      "path": "/icons/gcp/ai_platform.svg",
       "aliases": [
         "ml engine"
       ]
@@ -287,7 +287,7 @@
     {
       "id": "automl",
       "name": "AutoML",
-      "path": "/icons/composed/automl.svg",
+      "path": "/icons/gcp/automl.svg",
       "aliases": [
         "auto ml",
         "automated ml"
@@ -296,7 +296,7 @@
     {
       "id": "cloud_natural_language_api",
       "name": "Natural Language",
-      "path": "/icons/composed/cloud_natural_language_api.svg",
+      "path": "/icons/gcp/cloud_natural_language_api.svg",
       "aliases": [
         "nlp",
         "text analysis",
@@ -306,7 +306,7 @@
     {
       "id": "cloud_vision_api",
       "name": "Vision AI",
-      "path": "/icons/composed/cloud_vision_api.svg",
+      "path": "/icons/gcp/cloud_vision_api.svg",
       "aliases": [
         "vision",
         "image recognition",
@@ -316,7 +316,7 @@
     {
       "id": "cloud_translation_api",
       "name": "Translation",
-      "path": "/icons/composed/cloud_translation_api.svg",
+      "path": "/icons/gcp/cloud_translation_api.svg",
       "aliases": [
         "translate"
       ]
@@ -324,7 +324,7 @@
     {
       "id": "speech-to-text",
       "name": "Speech-to-Text",
-      "path": "/icons/composed/speech-to-text.svg",
+      "path": "/icons/gcp/speech-to-text.svg",
       "aliases": [
         "stt",
         "speech recognition"
@@ -333,7 +333,7 @@
     {
       "id": "text-to-speech",
       "name": "Text-to-Speech",
-      "path": "/icons/composed/text-to-speech.svg",
+      "path": "/icons/gcp/text-to-speech.svg",
       "aliases": [
         "tts",
         "voice synthesis"
@@ -342,7 +342,7 @@
     {
       "id": "dialogflow",
       "name": "Dialogflow",
-      "path": "/icons/composed/dialogflow.svg",
+      "path": "/icons/gcp/dialogflow.svg",
       "aliases": [
         "chatbot",
         "conversational ai"
@@ -351,7 +351,7 @@
     {
       "id": "document_ai",
       "name": "Document AI",
-      "path": "/icons/composed/document_ai.svg",
+      "path": "/icons/gcp/document_ai.svg",
       "aliases": [
         "doc ai",
         "document processing"
@@ -360,7 +360,7 @@
     {
       "id": "recommendations_ai",
       "name": "Recommendations AI",
-      "path": "/icons/composed/recommendations_ai.svg",
+      "path": "/icons/gcp/recommendations_ai.svg",
       "aliases": [
         "recommendation engine"
       ]
@@ -368,7 +368,7 @@
     {
       "id": "tensorflow_enterprise",
       "name": "TensorFlow",
-      "path": "/icons/composed/tensorflow_enterprise.svg",
+      "path": "/icons/gcp/tensorflow_enterprise.svg",
       "aliases": [
         "tf",
         "tensorflow"
@@ -377,7 +377,7 @@
     {
       "id": "cloud_load_balancing",
       "name": "Load Balancer",
-      "path": "/icons/composed/cloud_load_balancing.svg",
+      "path": "/icons/gcp/cloud_load_balancing.svg",
       "aliases": [
         "lb",
         "load balancing",
@@ -387,7 +387,7 @@
     {
       "id": "cloud_cdn",
       "name": "Cloud CDN",
-      "path": "/icons/composed/cloud_cdn.svg",
+      "path": "/icons/gcp/cloud_cdn.svg",
       "aliases": [
         "cdn",
         "content delivery"
@@ -396,7 +396,7 @@
     {
       "id": "cloud_dns",
       "name": "Cloud DNS",
-      "path": "/icons/composed/cloud_dns.svg",
+      "path": "/icons/gcp/cloud_dns.svg",
       "aliases": [
         "dns"
       ]
@@ -404,7 +404,7 @@
     {
       "id": "cloud_vpn",
       "name": "Cloud VPN",
-      "path": "/icons/composed/cloud_vpn.svg",
+      "path": "/icons/gcp/cloud_vpn.svg",
       "aliases": [
         "vpn"
       ]
@@ -412,7 +412,7 @@
     {
       "id": "cloud_nat",
       "name": "Cloud NAT",
-      "path": "/icons/composed/cloud_nat.svg",
+      "path": "/icons/gcp/cloud_nat.svg",
       "aliases": [
         "nat"
       ]
@@ -420,7 +420,7 @@
     {
       "id": "cloud_armor",
       "name": "Cloud Armor",
-      "path": "/icons/composed/cloud_armor.svg",
+      "path": "/icons/gcp/cloud_armor.svg",
       "aliases": [
         "waf",
         "ddos protection",
@@ -430,7 +430,7 @@
     {
       "id": "cloud_interconnect",
       "name": "Interconnect",
-      "path": "/icons/composed/cloud_interconnect.svg",
+      "path": "/icons/gcp/cloud_interconnect.svg",
       "aliases": [
         "dedicated interconnect",
         "partner interconnect"
@@ -439,7 +439,7 @@
     {
       "id": "virtual_private_cloud",
       "name": "VPC",
-      "path": "/icons/composed/virtual_private_cloud.svg",
+      "path": "/icons/gcp/virtual_private_cloud.svg",
       "aliases": [
         "vpc",
         "network"
@@ -448,7 +448,7 @@
     {
       "id": "traffic_director",
       "name": "Traffic Director",
-      "path": "/icons/composed/traffic_director.svg",
+      "path": "/icons/gcp/traffic_director.svg",
       "aliases": [
         "service mesh",
         "envoy"
@@ -457,7 +457,7 @@
     {
       "id": "identity_and_access_management",
       "name": "Cloud IAM",
-      "path": "/icons/composed/identity_and_access_management.svg",
+      "path": "/icons/gcp/identity_and_access_management.svg",
       "aliases": [
         "iam",
         "access control",
@@ -467,7 +467,7 @@
     {
       "id": "security_command_center",
       "name": "Security Center",
-      "path": "/icons/composed/security_command_center.svg",
+      "path": "/icons/gcp/security_command_center.svg",
       "aliases": [
         "scc",
         "security monitoring"
@@ -476,7 +476,7 @@
     {
       "id": "secret_manager",
       "name": "Secret Manager",
-      "path": "/icons/composed/secret_manager.svg",
+      "path": "/icons/gcp/secret_manager.svg",
       "aliases": [
         "secrets",
         "vault"
@@ -485,7 +485,7 @@
     {
       "id": "key_management_service",
       "name": "Cloud KMS",
-      "path": "/icons/composed/key_management_service.svg",
+      "path": "/icons/gcp/key_management_service.svg",
       "aliases": [
         "kms",
         "encryption keys"
@@ -494,7 +494,7 @@
     {
       "id": "binary_authorization",
       "name": "Binary Auth",
-      "path": "/icons/composed/binary_authorization.svg",
+      "path": "/icons/gcp/binary_authorization.svg",
       "aliases": [
         "binary authorization"
       ]
@@ -502,7 +502,7 @@
     {
       "id": "identity_platform",
       "name": "Identity Platform",
-      "path": "/icons/composed/identity_platform.svg",
+      "path": "/icons/gcp/identity_platform.svg",
       "aliases": [
         "auth",
         "authentication",
@@ -512,7 +512,7 @@
     {
       "id": "cloud_audit_logs",
       "name": "Audit Logs",
-      "path": "/icons/composed/cloud_audit_logs.svg",
+      "path": "/icons/gcp/cloud_audit_logs.svg",
       "aliases": [
         "audit",
         "compliance logging"
@@ -521,7 +521,7 @@
     {
       "id": "cloud_build",
       "name": "Cloud Build",
-      "path": "/icons/composed/cloud_build.svg",
+      "path": "/icons/gcp/cloud_build.svg",
       "aliases": [
         "ci",
         "build",
@@ -531,7 +531,7 @@
     {
       "id": "artifact_registry",
       "name": "Artifact Registry",
-      "path": "/icons/composed/artifact_registry.svg",
+      "path": "/icons/gcp/artifact_registry.svg",
       "aliases": [
         "container registry",
         "docker registry",
@@ -541,7 +541,7 @@
     {
       "id": "cloud_deploy",
       "name": "Cloud Deploy",
-      "path": "/icons/composed/cloud_deploy.svg",
+      "path": "/icons/gcp/cloud_deploy.svg",
       "aliases": [
         "cd",
         "deployment",
@@ -551,7 +551,7 @@
     {
       "id": "cloud_monitoring",
       "name": "Cloud Monitoring",
-      "path": "/icons/composed/cloud_monitoring.svg",
+      "path": "/icons/gcp/cloud_monitoring.svg",
       "aliases": [
         "monitoring",
         "stackdriver",
@@ -561,7 +561,7 @@
     {
       "id": "cloud_logging",
       "name": "Cloud Logging",
-      "path": "/icons/composed/cloud_logging.svg",
+      "path": "/icons/gcp/cloud_logging.svg",
       "aliases": [
         "logging",
         "logs",
@@ -571,7 +571,7 @@
     {
       "id": "error_reporting",
       "name": "Error Reporting",
-      "path": "/icons/composed/error_reporting.svg",
+      "path": "/icons/gcp/error_reporting.svg",
       "aliases": [
         "errors",
         "crash reporting"
@@ -580,7 +580,7 @@
     {
       "id": "trace",
       "name": "Cloud Trace",
-      "path": "/icons/composed/trace.svg",
+      "path": "/icons/gcp/trace.svg",
       "aliases": [
         "tracing",
         "distributed tracing"
@@ -589,7 +589,7 @@
     {
       "id": "cloud_scheduler",
       "name": "Cloud Scheduler",
-      "path": "/icons/composed/cloud_scheduler.svg",
+      "path": "/icons/gcp/cloud_scheduler.svg",
       "aliases": [
         "scheduler",
         "cron",
@@ -599,7 +599,7 @@
     {
       "id": "cloud_tasks",
       "name": "Cloud Tasks",
-      "path": "/icons/composed/cloud_tasks.svg",
+      "path": "/icons/gcp/cloud_tasks.svg",
       "aliases": [
         "task queue",
         "async tasks"
@@ -608,7 +608,7 @@
     {
       "id": "apigee_api_platform",
       "name": "Apigee",
-      "path": "/icons/composed/apigee_api_platform.svg",
+      "path": "/icons/gcp/apigee_api_platform.svg",
       "aliases": [
         "apigee",
         "api management"
@@ -617,7 +617,7 @@
     {
       "id": "cloud_api_gateway",
       "name": "API Gateway",
-      "path": "/icons/composed/cloud_api_gateway.svg",
+      "path": "/icons/gcp/cloud_api_gateway.svg",
       "aliases": [
         "api gw",
         "gateway"
@@ -626,7 +626,7 @@
     {
       "id": "cloud_endpoints",
       "name": "Cloud Endpoints",
-      "path": "/icons/composed/cloud_endpoints.svg",
+      "path": "/icons/gcp/cloud_endpoints.svg",
       "aliases": [
         "endpoints",
         "api endpoints"
@@ -635,7 +635,7 @@
     {
       "id": "eventarc",
       "name": "Eventarc",
-      "path": "/icons/composed/eventarc.svg",
+      "path": "/icons/gcp/eventarc.svg",
       "aliases": [
         "event routing",
         "event driven"
@@ -644,7 +644,7 @@
     {
       "id": "workflows",
       "name": "Workflows",
-      "path": "/icons/composed/workflows.svg",
+      "path": "/icons/gcp/workflows.svg",
       "aliases": [
         "orchestration",
         "workflow engine"
@@ -653,7 +653,7 @@
     {
       "id": "connectors",
       "name": "Connectors",
-      "path": "/icons/composed/connectors.svg",
+      "path": "/icons/gcp/connectors.svg",
       "aliases": [
         "integration connectors"
       ]
