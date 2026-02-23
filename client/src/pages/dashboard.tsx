@@ -443,10 +443,11 @@ export default function Dashboard({ user }: { user: User }) {
   
   useEffect(() => { loadIcons() }, []);
 
-  const generate = useCallback(async () => {
-    if (!prompt.trim()) return; setLoading(true); setError(""); setDiag(null); setPopover(null); setSource(null); setTab("diagram");
+  const generate = useCallback(async (directPrompt?: string) => {
+    const p = directPrompt || prompt;
+    if (!p.trim()) return; setLoading(true); setError(""); setDiag(null); setPopover(null); setSource(null); setTab("diagram");
     try {
-      const res = await fetch("/api/diagrams/generate", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ prompt }) });
+      const res = await fetch("/api/diagrams/generate", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ prompt: p }) });
       if (!res.ok) throw new Error((await res.json()).error || "Failed");
       const data = await res.json();
       setDiag(data.diagram as Diagram); 
@@ -614,7 +615,7 @@ export default function Dashboard({ user }: { user: User }) {
         </div>
         <div style={{ padding: "14px 16px", borderBottom: "1px solid #f0f0f0" }}>
           <textarea value={prompt} onChange={e => setPrompt(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generate(); } }} placeholder="Describe your architecture..." rows={3} style={{ width: "100%", padding: "10px 12px", border: "1px solid #e5e5e5", borderRadius: 10, fontSize: 12, outline: "none", resize: "none", lineHeight: 1.5, background: "#fafafa", boxSizing: "border-box", transition: "all .15s" }} />
-          <button onClick={generate} disabled={!prompt.trim() || loading} style={{ width: "100%", marginTop: 8, padding: "9px 0", background: prompt.trim() ? "linear-gradient(135deg,#1a73e8,#4285f4)" : "#e0e0e0", color: "#fff", border: "none", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: prompt.trim() ? "pointer" : "default", transition: "all .15s" }}>
+          <button onClick={() => generate()} disabled={!prompt.trim() || loading} style={{ width: "100%", marginTop: 8, padding: "9px 0", background: prompt.trim() ? "linear-gradient(135deg,#1a73e8,#4285f4)" : "#e0e0e0", color: "#fff", border: "none", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: prompt.trim() ? "pointer" : "default", transition: "all .15s" }}>
             {loading ? "Generating..." : "Generate Architecture"}</button>
           {error && <div style={{ marginTop: 6, padding: 8, borderRadius: 6, background: "#fff5f5", border: "1px solid #fecaca", color: "#dc2626", fontSize: 10 }}>{error}</div>}
         </div>
@@ -624,7 +625,7 @@ export default function Dashboard({ user }: { user: User }) {
             {[{ icon: "📊", name: "Enterprise Streaming", p: "enterprise streaming analytics platform with comprehensive security governance disaster recovery and cost management" },
               { icon: "🔄", name: "CDC Migration", p: "migrate from AWS RDS to BigQuery CDC" },
               { icon: "🤖", name: "RAG / GenAI", p: "RAG chatbot with Gemini and vector search" },
-            ].map((t, i) => (<button key={i} onClick={() => { setPrompt(t.p); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#fafafa", border: "1px solid #eee", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all .12s" }} onMouseEnter={e => { e.currentTarget.style.background = "#f0f7ff"; e.currentTarget.style.borderColor = "#4285f4"; }} onMouseLeave={e => { e.currentTarget.style.background = "#fafafa"; e.currentTarget.style.borderColor = "#eee"; }}>
+            ].map((t, i) => (<button key={i} onClick={() => { setPrompt(t.p); generate(t.p); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#fafafa", border: "1px solid #eee", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all .12s" }} onMouseEnter={e => { e.currentTarget.style.background = "#f0f7ff"; e.currentTarget.style.borderColor = "#4285f4"; }} onMouseLeave={e => { e.currentTarget.style.background = "#fafafa"; e.currentTarget.style.borderColor = "#eee"; }}>
               <span style={{ fontSize: 22 }}>{t.icon}</span>
               <div><div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{t.name}</div></div>
             </button>))}
