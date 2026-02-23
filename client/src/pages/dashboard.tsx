@@ -335,11 +335,13 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
   };
 
   const FlowArrow = () => (
-    <div style={{ display: "flex", justifyContent: "center", padding: "5px 0" }}>
-      <svg width="2" height="22" viewBox="0 0 2 22" style={{ overflow: "visible" }}>
-        <line x1="1" y1="22" x2="1" y2="6" stroke="#94a3b8" strokeWidth="1.5" />
-        <polygon points="1,0 -3.5,8 5.5,8" fill="#94a3b8" />
-      </svg>
+    <div style={{ display: "flex", justifyContent: "center", gap: 24, padding: "5px 0" }}>
+      {[0,1,2].map(i => (
+        <svg key={i} width="2" height="22" viewBox="0 0 2 22" style={{ overflow: "visible" }}>
+          <line x1="1" y1="22" x2="1" y2="6" stroke="#94a3b8" strokeWidth="1.5" />
+          <polygon points="1,0 -3.5,8 5.5,8" fill="#94a3b8" />
+        </svg>
+      ))}
     </div>
   );
 
@@ -418,15 +420,15 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
             <svg ref={svgRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", overflow: "visible" }} />
           </div>
 
-          {/* Pillars — 2×2 grid */}
-          <div style={{ width: 380, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, flexShrink: 0, alignContent: "stretch" }}>
+          {/* Pillars */}
+          <div style={{ width: 190, display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
             {BP_PILLARS.map(p => {
               const node = getNode(p.id);
               const items = parsePillarItems(p.id);
               return (
                 <div key={p.id} ref={el => { pillarRefs.current[p.id] = el; }} style={{ flex: 1, borderRadius: 10, padding: "12px 14px", borderLeft: `4px solid ${p.color}`, background: p.bg, display: "flex", flexDirection: "column" }}>
                   <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase" as const, marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid rgba(0,0,0,0.06)", color: p.descC }}>{node?.name || p.id}</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, flex: 1 }}>
                     {items.map((item, i) => (
                       <div key={i} style={{ padding: "5px 9px", borderRadius: 6, background: p.itemBg, color: p.itemC, display: "flex", flexDirection: "column", gap: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -472,11 +474,13 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
             </div>
 
             {/* Flow arrow */}
-            <div style={{ display: "flex", justifyContent: "center", padding: "5px 0" }}>
-              <svg width="2" height="22" viewBox="0 0 2 22" style={{ overflow: "visible" }}>
-                <line x1="1" y1="22" x2="1" y2="6" stroke="#94a3b8" strokeWidth="1.5" />
-                <polygon points="1,0 -3.5,8 5.5,8" fill="#94a3b8" />
-              </svg>
+            <div style={{ display: "flex", justifyContent: "center", gap: 24, padding: "5px 0" }}>
+              {[0,1,2].map(i => (
+                <svg key={i} width="2" height="22" viewBox="0 0 2 22" style={{ overflow: "visible" }}>
+                  <line x1="1" y1="22" x2="1" y2="6" stroke="#94a3b8" strokeWidth="1.5" />
+                  <polygon points="1,0 -3.5,8 5.5,8" fill="#94a3b8" />
+                </svg>
+              ))}
             </div>
 
             {/* Sources (external) */}
@@ -495,7 +499,7 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
             </div>
           </div>
           {/* Spacer to match connector + pillar width */}
-          <div style={{ width: 424, flexShrink: 0 }} />
+          <div style={{ width: 234, flexShrink: 0 }} />
         </div>
       </div>
 
