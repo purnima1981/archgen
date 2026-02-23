@@ -1086,6 +1086,17 @@
         "azure cloud",
         "microsoft cloud"
       ]
+    },
+    {
+      "id": "cloud_composer",
+      "name": "Cloud Composer",
+      "path": "/icons/gcp/cloud_composer.svg",
+      "aliases": [
+        "composer",
+        "airflow",
+        "dag orchestration",
+        "workflow orchestration"
+      ]
     }
   ]
 }

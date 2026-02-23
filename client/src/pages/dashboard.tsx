@@ -9,10 +9,20 @@ let IC: IconEntry[] = [];
 async function loadIcons() { if (IC.length) return; try { IC = (await (await fetch("/icons/registry.json")).json()).icons || []; } catch {} }
 function iconUrl(n: string, h?: string): string | null {
   const l = (h || n).toLowerCase().trim();
-  const m = IC.find(i => i.id === l) || IC.find(i => i.name.toLowerCase() === l) || IC.find(i => i.aliases.some(a => a === l || l.includes(a) || a.includes(l)));
-  if (!m) return null;
-  if (m.path.includes('/vendor/')) return `/icons/vendor/${m.id}.svg`;
-  return `/icons/gcp/${m.id}.svg`;
+  // 1. Exact ID match (most reliable — templates set icon: "bigquery" etc)
+  const byId = IC.find(i => i.id === l);
+  if (byId) return byId.path.includes('/vendor/') ? `/icons/vendor/${byId.id}.svg` : `/icons/gcp/${byId.id}.svg`;
+  // 2. Exact name match
+  const byName = IC.find(i => i.name.toLowerCase() === l);
+  if (byName) return byName.path.includes('/vendor/') ? `/icons/vendor/${byName.id}.svg` : `/icons/gcp/${byName.id}.svg`;
+  // 3. Exact alias match only (no substring — prevents redis→memorystore, kafka→pubsub)
+  const byAlias = IC.find(i => i.aliases.some(a => a === l));
+  if (byAlias) return byAlias.path.includes('/vendor/') ? `/icons/vendor/${byAlias.id}.svg` : `/icons/gcp/${byAlias.id}.svg`;
+  // 4. Normalized: strip "cloud_" prefix, underscores, spaces
+  const norm = l.replace(/[-_\s]/g, "").replace(/^cloud/, "");
+  const byNorm = IC.find(i => i.id.replace(/[-_\s]/g, "").replace(/^cloud/, "") === norm);
+  if (byNorm) return byNorm.path.includes('/vendor/') ? `/icons/vendor/${byNorm.id}.svg` : `/icons/gcp/${byNorm.id}.svg`;
+  return null;
 }
 
 /* ── Category Colors ──────────────────────────────── */
