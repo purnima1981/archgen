@@ -663,6 +663,435 @@
       "aliases": [
         "integration connectors"
       ]
+    },
+    {
+      "id": "postgresql",
+      "name": "PostgreSQL",
+      "path": "/icons/vendor/postgresql.svg",
+      "aliases": [
+        "postgres",
+        "pg",
+        "psql"
+      ]
+    },
+    {
+      "id": "mysql",
+      "name": "MySQL",
+      "path": "/icons/vendor/mysql.svg",
+      "aliases": [
+        "mariadb"
+      ]
+    },
+    {
+      "id": "oracle",
+      "name": "Oracle Database",
+      "path": "/icons/vendor/oracle.svg",
+      "aliases": [
+        "oracle db",
+        "ora"
+      ]
+    },
+    {
+      "id": "sqlserver",
+      "name": "SQL Server",
+      "path": "/icons/vendor/sqlserver.svg",
+      "aliases": [
+        "mssql",
+        "sql server",
+        "microsoft sql"
+      ]
+    },
+    {
+      "id": "mongodb",
+      "name": "MongoDB",
+      "path": "/icons/vendor/mongodb.svg",
+      "aliases": [
+        "mongo",
+        "nosql"
+      ]
+    },
+    {
+      "id": "snowflake",
+      "name": "Snowflake",
+      "path": "/icons/vendor/snowflake.svg",
+      "aliases": [
+        "snowflake db"
+      ]
+    },
+    {
+      "id": "teradata",
+      "name": "Teradata",
+      "path": "/icons/vendor/teradata.svg",
+      "aliases": [
+        "tera"
+      ]
+    },
+    {
+      "id": "redis",
+      "name": "Redis",
+      "path": "/icons/vendor/redis.svg",
+      "aliases": [
+        "redis cache",
+        "elasticache"
+      ]
+    },
+    {
+      "id": "alloydb",
+      "name": "AlloyDB",
+      "path": "/icons/vendor/alloydb.svg",
+      "aliases": [
+        "alloy db",
+        "alloy"
+      ]
+    },
+    {
+      "id": "salesforce",
+      "name": "Salesforce",
+      "path": "/icons/vendor/salesforce.svg",
+      "aliases": [
+        "sfdc",
+        "sales cloud",
+        "service cloud",
+        "salesforce crm"
+      ]
+    },
+    {
+      "id": "servicenow",
+      "name": "ServiceNow",
+      "path": "/icons/vendor/servicenow.svg",
+      "aliases": [
+        "snow",
+        "itsm"
+      ]
+    },
+    {
+      "id": "workday",
+      "name": "Workday",
+      "path": "/icons/vendor/workday.svg",
+      "aliases": [
+        "hcm",
+        "hr system"
+      ]
+    },
+    {
+      "id": "sap",
+      "name": "SAP",
+      "path": "/icons/vendor/sap.svg",
+      "aliases": [
+        "sap erp",
+        "sap hana",
+        "s4hana",
+        "sap s/4"
+      ]
+    },
+    {
+      "id": "atlassian",
+      "name": "Atlassian",
+      "path": "/icons/vendor/atlassian.svg",
+      "aliases": [
+        "jira",
+        "confluence",
+        "bitbucket"
+      ]
+    },
+    {
+      "id": "kafka",
+      "name": "Apache Kafka",
+      "path": "/icons/vendor/kafka.svg",
+      "aliases": [
+        "kafka",
+        "msk",
+        "kafka cluster"
+      ]
+    },
+    {
+      "id": "confluent",
+      "name": "Confluent",
+      "path": "/icons/vendor/confluent.svg",
+      "aliases": [
+        "confluent cloud",
+        "confluent kafka"
+      ]
+    },
+    {
+      "id": "cyberark",
+      "name": "CyberArk",
+      "path": "/icons/vendor/cyberark.svg",
+      "aliases": [
+        "pam",
+        "privileged access"
+      ]
+    },
+    {
+      "id": "wiz",
+      "name": "Wiz",
+      "path": "/icons/vendor/wiz.svg",
+      "aliases": [
+        "wiz security",
+        "cspm",
+        "cnapp"
+      ]
+    },
+    {
+      "id": "keeper",
+      "name": "Keeper",
+      "path": "/icons/vendor/keeper.svg",
+      "aliases": [
+        "keeper security",
+        "password vault"
+      ]
+    },
+    {
+      "id": "entra_id",
+      "name": "Entra ID",
+      "path": "/icons/vendor/entra_id.svg",
+      "aliases": [
+        "azure ad",
+        "azure active directory",
+        "microsoft entra",
+        "entra"
+      ]
+    },
+    {
+      "id": "splunk",
+      "name": "Splunk",
+      "path": "/icons/vendor/splunk.svg",
+      "aliases": [
+        "siem",
+        "splunk enterprise"
+      ]
+    },
+    {
+      "id": "dynatrace",
+      "name": "Dynatrace",
+      "path": "/icons/vendor/dynatrace.svg",
+      "aliases": [
+        "apm",
+        "application performance"
+      ]
+    },
+    {
+      "id": "datadog",
+      "name": "Datadog",
+      "path": "/icons/vendor/datadog.svg",
+      "aliases": [
+        "dd",
+        "datadog apm"
+      ]
+    },
+    {
+      "id": "grafana",
+      "name": "Grafana",
+      "path": "/icons/vendor/grafana.svg",
+      "aliases": [
+        "grafana cloud",
+        "prometheus"
+      ]
+    },
+    {
+      "id": "pagerduty",
+      "name": "PagerDuty",
+      "path": "/icons/vendor/pagerduty.svg",
+      "aliases": [
+        "pager duty",
+        "incident management"
+      ]
+    },
+    {
+      "id": "aws_s3",
+      "name": "AWS S3",
+      "path": "/icons/vendor/aws_s3.svg",
+      "aliases": [
+        "s3",
+        "amazon s3",
+        "s3 bucket"
+      ]
+    },
+    {
+      "id": "aws_rds",
+      "name": "AWS RDS",
+      "path": "/icons/vendor/aws_rds.svg",
+      "aliases": [
+        "rds",
+        "amazon rds"
+      ]
+    },
+    {
+      "id": "aws_kinesis",
+      "name": "AWS Kinesis",
+      "path": "/icons/vendor/aws_kinesis.svg",
+      "aliases": [
+        "kinesis",
+        "kinesis data streams"
+      ]
+    },
+    {
+      "id": "aws_redshift",
+      "name": "AWS Redshift",
+      "path": "/icons/vendor/aws_redshift.svg",
+      "aliases": [
+        "redshift",
+        "amazon redshift"
+      ]
+    },
+    {
+      "id": "aws_lambda",
+      "name": "AWS Lambda",
+      "path": "/icons/vendor/aws_lambda.svg",
+      "aliases": [
+        "lambda",
+        "serverless function"
+      ]
+    },
+    {
+      "id": "external_users",
+      "name": "External Users",
+      "path": "/icons/vendor/external_users.svg",
+      "aliases": [
+        "external user",
+        "end users",
+        "customers",
+        "public users"
+      ]
+    },
+    {
+      "id": "internal_users",
+      "name": "Internal Users",
+      "path": "/icons/vendor/internal_users.svg",
+      "aliases": [
+        "internal user",
+        "employees",
+        "staff",
+        "corporate users"
+      ]
+    },
+    {
+      "id": "admin_user",
+      "name": "Admin",
+      "path": "/icons/vendor/admin_user.svg",
+      "aliases": [
+        "administrator",
+        "platform admin",
+        "ops admin"
+      ]
+    },
+    {
+      "id": "developer",
+      "name": "Developer",
+      "path": "/icons/vendor/developer.svg",
+      "aliases": [
+        "dev",
+        "engineer",
+        "software engineer"
+      ]
+    },
+    {
+      "id": "analyst",
+      "name": "Analyst",
+      "path": "/icons/vendor/analyst.svg",
+      "aliases": [
+        "data analyst",
+        "business analyst",
+        "bi analyst"
+      ]
+    },
+    {
+      "id": "sftp_server",
+      "name": "SFTP Server",
+      "path": "/icons/vendor/sftp_server.svg",
+      "aliases": [
+        "sftp",
+        "ftp",
+        "file server"
+      ]
+    },
+    {
+      "id": "rest_api",
+      "name": "REST API",
+      "path": "/icons/vendor/rest_api.svg",
+      "aliases": [
+        "api endpoint",
+        "http api",
+        "graphql"
+      ]
+    },
+    {
+      "id": "onprem_server",
+      "name": "On-Prem Server",
+      "path": "/icons/vendor/onprem_server.svg",
+      "aliases": [
+        "on-premises",
+        "data center",
+        "on-prem",
+        "bare metal"
+      ]
+    },
+    {
+      "id": "mainframe",
+      "name": "Mainframe",
+      "path": "/icons/vendor/mainframe.svg",
+      "aliases": [
+        "ibm mainframe",
+        "as400",
+        "db2",
+        "iseries"
+      ]
+    },
+    {
+      "id": "webhook",
+      "name": "Webhook",
+      "path": "/icons/vendor/webhook.svg",
+      "aliases": [
+        "webhooks",
+        "callback",
+        "event hook"
+      ]
+    },
+    {
+      "id": "slack",
+      "name": "Slack",
+      "path": "/icons/vendor/slack.svg",
+      "aliases": [
+        "slack channel",
+        "slack bot"
+      ]
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "path": "/icons/vendor/github.svg",
+      "aliases": [
+        "git",
+        "source control",
+        "vcs"
+      ]
+    },
+    {
+      "id": "fivetran",
+      "name": "Fivetran",
+      "path": "/icons/vendor/fivetran.svg",
+      "aliases": [
+        "fivetran connector"
+      ]
+    },
+    {
+      "id": "dbt",
+      "name": "dbt",
+      "path": "/icons/vendor/dbt.svg",
+      "aliases": [
+        "dbt core",
+        "dbt cloud",
+        "data build tool"
+      ]
+    },
+    {
+      "id": "azure",
+      "name": "Microsoft Azure",
+      "path": "/icons/vendor/azure.svg",
+      "aliases": [
+        "azure cloud",
+        "microsoft cloud"
+      ]
     }
   ]
 }

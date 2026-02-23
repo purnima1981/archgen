@@ -10,11 +10,14 @@ async function loadIcons() { if (IC.length) return; try { IC = (await (await fet
 function iconUrl(n: string, h?: string): string | null {
   const l = (h || n).toLowerCase().trim();
   const m = IC.find(i => i.id === l) || IC.find(i => i.name.toLowerCase() === l) || IC.find(i => i.aliases.some(a => a === l || l.includes(a) || a.includes(l)));
-  return m ? `/icons/gcp/${m.id}.svg` : null;
+  if (!m) return null;
+  if (m.path.includes('/vendor/')) return `/icons/vendor/${m.id}.svg`;
+  return `/icons/gcp/${m.id}.svg`;
 }
 
 /* ── Category Colors ──────────────────────────────── */
 const CAT: Record<string, { bg: string; border: string }> = {
+  // GCP
   apigee_api_platform: { bg: "#e8eaf6", border: "#5c6bc0" }, pubsub: { bg: "#e3f2fd", border: "#1e88e5" },
   dataflow: { bg: "#e3f2fd", border: "#1565c0" }, bigquery: { bg: "#e3f2fd", border: "#1565c0" },
   cloud_run: { bg: "#e0f2f1", border: "#00897b" }, cloud_functions: { bg: "#e0f2f1", border: "#00897b" },
@@ -26,6 +29,39 @@ const CAT: Record<string, { bg: string; border: string }> = {
   document_ai: { bg: "#f3e5f5", border: "#8e24aa" }, cloud_monitoring: { bg: "#eceff1", border: "#546e7a" },
   cloud_logging: { bg: "#eceff1", border: "#546e7a" }, cloud_scheduler: { bg: "#eceff1", border: "#546e7a" },
   identity_platform: { bg: "#fff8e1", border: "#f9a825" },
+  // Databases
+  postgresql: { bg: "#e3f2fd", border: "#336791" }, mysql: { bg: "#e0f7fa", border: "#00758f" },
+  oracle: { bg: "#fbe9e7", border: "#c74634" }, sqlserver: { bg: "#ffebee", border: "#cc2927" },
+  mongodb: { bg: "#e8f5e9", border: "#001e2b" }, snowflake: { bg: "#e0f7fa", border: "#29b5e8" },
+  teradata: { bg: "#fff3e0", border: "#f37440" }, redis: { bg: "#ffebee", border: "#dc382d" },
+  alloydb: { bg: "#e3f2fd", border: "#1a73e8" },
+  // SaaS
+  salesforce: { bg: "#e0f2f1", border: "#00a1e0" }, servicenow: { bg: "#e8f5e9", border: "#81b5a1" },
+  workday: { bg: "#fff3e0", border: "#f5820d" }, sap: { bg: "#e3f2fd", border: "#0070f2" },
+  atlassian: { bg: "#e3f2fd", border: "#0052cc" },
+  // Streaming
+  kafka: { bg: "#eceff1", border: "#231f20" }, confluent: { bg: "#e8eaf6", border: "#173361" },
+  // Security
+  cyberark: { bg: "#e3f2fd", border: "#00467f" }, wiz: { bg: "#e8eaf6", border: "#2462e4" },
+  keeper: { bg: "#e3f2fd", border: "#0d47a1" }, entra_id: { bg: "#e3f2fd", border: "#0078d4" },
+  // Observability
+  splunk: { bg: "#e8f5e9", border: "#65a637" }, dynatrace: { bg: "#e3f2fd", border: "#1496ff" },
+  datadog: { bg: "#ede7f6", border: "#632ca6" }, grafana: { bg: "#fff3e0", border: "#f46800" },
+  pagerduty: { bg: "#e8f5e9", border: "#06ac38" },
+  // AWS
+  aws_s3: { bg: "#e8f5e9", border: "#3f8624" }, aws_rds: { bg: "#e3f2fd", border: "#2e73b8" },
+  aws_kinesis: { bg: "#ede7f6", border: "#8c4fff" }, aws_redshift: { bg: "#ede7f6", border: "#8c4fff" },
+  aws_lambda: { bg: "#fff3e0", border: "#ff9900" },
+  // People
+  external_users: { bg: "#e3f2fd", border: "#1565c0" }, internal_users: { bg: "#eceff1", border: "#546e7a" },
+  admin_user: { bg: "#ffebee", border: "#b71c1c" }, developer: { bg: "#e0f2f1", border: "#37474f" },
+  analyst: { bg: "#e0f2f1", border: "#00695c" },
+  // Infrastructure
+  sftp_server: { bg: "#eceff1", border: "#455a64" }, rest_api: { bg: "#fff3e0", border: "#ff6f00" },
+  onprem_server: { bg: "#eceff1", border: "#78909c" }, mainframe: { bg: "#eceff1", border: "#263238" },
+  webhook: { bg: "#ffebee", border: "#c62828" }, slack: { bg: "#fff3e0", border: "#ecb22e" },
+  github: { bg: "#eceff1", border: "#24292f" }, fivetran: { bg: "#e3f2fd", border: "#0073ff" },
+  dbt: { bg: "#fbe9e7", border: "#ff694b" }, azure: { bg: "#e3f2fd", border: "#0078d4" },
 };
 const DEF_CAT = { bg: "#f5f5f5", border: "#bdbdbd" };
 function getCat(ic?: string | null) { return (ic && CAT[ic]) || DEF_CAT; }
