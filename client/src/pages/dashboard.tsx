@@ -757,7 +757,8 @@ export default function Dashboard({ user }: { user: User }) {
         <div style={{ padding: "14px 16px", borderBottom: "1px solid #f0f0f0" }}>
           <div style={{ fontSize: 9, fontWeight: 800, color: "#bbb", letterSpacing: 1, marginBottom: 10 }}>TEMPLATES</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {[{ icon: "📊", name: "Enterprise Streaming", id: "streaming-analytics", p: "enterprise streaming analytics platform with comprehensive security governance disaster recovery and cost management" },
+            {[{ icon: "🏗️", name: "Data Analytics Blueprint", id: "blueprint-analytics", p: "enterprise data analytics platform blueprint with all layers" },
+              { icon: "📊", name: "Enterprise Streaming", id: "streaming-analytics", p: "enterprise streaming analytics platform with comprehensive security governance disaster recovery and cost management" },
               { icon: "🔄", name: "CDC Migration", id: "cdc-migration", p: "migrate from AWS RDS to BigQuery CDC" },
               { icon: "🤖", name: "RAG / GenAI", id: "rag-genai", p: "RAG chatbot with Gemini and vector search" },
             ].map((t, i) => (<button key={i} onClick={() => { setPrompt(t.p); loadTemplate(t.id); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#fafafa", border: "1px solid #eee", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all .12s" }} onMouseEnter={e => { e.currentTarget.style.background = "#f0f7ff"; e.currentTarget.style.borderColor = "#4285f4"; }} onMouseLeave={e => { e.currentTarget.style.background = "#fafafa"; e.currentTarget.style.borderColor = "#eee"; }}>
