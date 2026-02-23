@@ -101,9 +101,7 @@
       "path": "/icons/composed/cloud_sql.svg",
       "aliases": [
         "sql",
-        "mysql",
         "postgres",
-        "postgresql",
         "rdbms"
       ]
     },
@@ -147,7 +145,6 @@
       "name": "Memorystore",
       "path": "/icons/composed/memorystore.svg",
       "aliases": [
-        "redis",
         "cache",
         "memcached"
       ]
@@ -199,8 +196,7 @@
         "pub sub",
         "messaging",
         "event stream",
-        "message queue",
-        "kafka"
+        "message queue"
       ]
     },
     {
@@ -277,7 +273,6 @@
       "aliases": [
         "vertex",
         "ml platform",
-        "ai platform",
         "mlops"
       ]
     },
@@ -616,8 +611,7 @@
       "path": "/icons/composed/apigee_api_platform.svg",
       "aliases": [
         "apigee",
-        "api management",
-        "api gateway"
+        "api management"
       ]
     },
     {
