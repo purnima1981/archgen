@@ -334,7 +334,14 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
     );
   };
 
-  const FlowArrow = () => <div style={{ textAlign: "center", padding: "1px 0", fontSize: 10, color: "#d0d0d0", letterSpacing: 5, lineHeight: 1 }}>▲ ▲ ▲</div>;
+  const FlowArrow = () => (
+    <div style={{ display: "flex", justifyContent: "center", padding: "5px 0" }}>
+      <svg width="2" height="22" viewBox="0 0 2 22" style={{ overflow: "visible" }}>
+        <line x1="1" y1="22" x2="1" y2="6" stroke="#94a3b8" strokeWidth="1.5" />
+        <polygon points="1,0 -3.5,8 5.5,8" fill="#94a3b8" />
+      </svg>
+    </div>
+  );
 
   const srcNodes = nodesByPrefix("src_");
   const connNodes = nodesByPrefix("conn_");
@@ -356,9 +363,8 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
   return (
     <div style={{ flex: 1, overflow: "auto", background: "#fff", padding: "24px 32px 20px", fontFamily: "Inter, -apple-system, sans-serif" }}>
       {/* Title */}
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 18 }}>
+      <div style={{ marginBottom: 18 }}>
         <h1 style={{ fontSize: 18, fontWeight: 900, color: "#111", letterSpacing: -0.3, margin: 0 }}>{diag.title}</h1>
-        <div style={{ fontSize: 10, color: "#aaa", fontWeight: 500 }}>{diag.subtitle}</div>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
@@ -412,8 +418,8 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
             <svg ref={svgRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", overflow: "visible" }} />
           </div>
 
-          {/* Pillars */}
-          <div style={{ width: 190, display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+          {/* Pillars — 2×2 grid */}
+          <div style={{ width: 380, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, flexShrink: 0, alignContent: "stretch" }}>
             {BP_PILLARS.map(p => {
               const node = getNode(p.id);
               const items = parsePillarItems(p.id);
@@ -466,7 +472,12 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
             </div>
 
             {/* Flow arrow */}
-            <div style={{ textAlign: "center", padding: "4px 0", fontSize: 11, color: "#d0d0d0", letterSpacing: 5 }}>▲ ▲ ▲</div>
+            <div style={{ display: "flex", justifyContent: "center", padding: "5px 0" }}>
+              <svg width="2" height="22" viewBox="0 0 2 22" style={{ overflow: "visible" }}>
+                <line x1="1" y1="22" x2="1" y2="6" stroke="#94a3b8" strokeWidth="1.5" />
+                <polygon points="1,0 -3.5,8 5.5,8" fill="#94a3b8" />
+              </svg>
+            </div>
 
             {/* Sources (external) */}
             <div style={{ border: "2px dashed #d1d5db", borderRadius: 12, padding: "10px 14px", background: "#f9fafb", position: "relative" }}>
@@ -484,19 +495,10 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
             </div>
           </div>
           {/* Spacer to match connector + pillar width */}
-          <div style={{ width: 234, flexShrink: 0 }} />
+          <div style={{ width: 424, flexShrink: 0 }} />
         </div>
       </div>
 
-      {/* Legend */}
-      <div style={{ display: "flex", gap: 14, justifyContent: "center", marginTop: 14, flexWrap: "wrap" }}>
-        {[["#4b5563","Sources (ext)"],["#be185d","Connectivity"],["#1d4ed8","Ingestion"],["#047857","Data Lake"],["#6d28d9","Processing"],["#d97706","Medallion"],["#c2410c","Serving"],["#0e7490","Consumers"]].map(([c, l]) => (
-          <div key={l} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 8.5, color: "#999", fontWeight: 500 }}>
-            <div style={{ width: 8, height: 8, borderRadius: 2, background: c }} />{l}
-          </div>
-        ))}
-      </div>
-      <div style={{ textAlign: "center", marginTop: 6, fontSize: 8.5, color: "#ccc", fontWeight: 500 }}>Platform agnostic · Sources external · Connectivity is the trust boundary · Pillars span internal layers only</div>
     </div>
   );
 }
@@ -1058,7 +1060,7 @@ export default function Dashboard({ user }: { user: User }) {
           {TABS.map(t => (<button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "8px 16px", background: tab === t.id ? "#f0f7ff" : "none", border: tab === t.id ? "1px solid #4285f4" : "1px solid transparent", borderRadius: 8, fontSize: 12, fontWeight: tab === t.id ? 700 : 500, color: tab === t.id ? "#1a73e8" : "#888", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, transition: "all .12s" }}>
             <span>{t.icon}</span>{t.l}</button>))}
           <div style={{ flex: 1 }} />
-          {source && <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 14, background: source === "template" ? "#e8f5e9" : "#fff3e0", color: source === "template" ? "#2e7d32" : "#e65100", fontWeight: 700 }}>{source === "template" ? "⚡ Template — instant, $0" : "🤖 AI Generated"}</span>}
+          {source && diag?.layout !== "blueprint" && <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 14, background: source === "template" ? "#e8f5e9" : "#fff3e0", color: source === "template" ? "#2e7d32" : "#e65100", fontWeight: 700 }}>{source === "template" ? "⚡ Template — instant, $0" : "🤖 AI Generated"}</span>}
         </div>}
         {!diag && !loading && (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: THEMES[theme]?.bg || "#f8f9fa" }}>
