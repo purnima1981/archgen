@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import type { User } from "@shared/models/auth";
-import { ServicePalette, EnhancedNodePopover, EditingToolbar, GCP_SERVICES } from "../components/diagram-editor-components";
+import { ServicePalette, EnhancedNodePopover, EdgeEditPop, EditingToolbar, GCP_SERVICES } from "../components/diagram-editor-components";
 
 /* ── Icons ─────────────────────────────────────────── */
 interface IconEntry { id: string; name: string; path: string; aliases: string[] }
@@ -231,7 +231,7 @@ function FlowTab({ diag }: { diag: Diagram }) {
 }
 
 /* ═══ SVG CANVAS ═══════════════════════════════════ */
-function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Diagram; setDiag: (d: Diagram) => void; popover: any; setPopover: (p: any) => void; theme: string }) {
+function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, connectMode, connectSource, onConnectClick }: { diag: Diagram; setDiag: (d: Diagram) => void; popover: any; setPopover: (p: any) => void; theme: string; onDragEnd?: (d: Diagram) => void; connectMode?: boolean; connectSource?: string | null; onConnectClick?: (nodeId: string) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -281,9 +281,15 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
 
   const onUp = useCallback(() => {
     isPan.current = false;
-    if (drag) { setDrag(null); setTimeout(() => { wasDrag.current = false; }, 50); }
-    if (groupDrag) { setGroupDrag(null); setTimeout(() => { wasDrag.current = false; }, 50); }
-  }, [drag, groupDrag]);
+    if (drag) {
+      if (wasDrag.current && onDragEnd) onDragEnd(diagRef.current);
+      setDrag(null); setTimeout(() => { wasDrag.current = false; }, 50);
+    }
+    if (groupDrag) {
+      if (wasDrag.current && onDragEnd) onDragEnd(diagRef.current);
+      setGroupDrag(null); setTimeout(() => { wasDrag.current = false; }, 50);
+    }
+  }, [drag, groupDrag, onDragEnd]);
 
   const startDrag = (id: string, e: React.MouseEvent) => { e.stopPropagation(); const n = diag.nodes.find(x => x.id === id); if (!n) return; wasDrag.current = false; setDrag(id); dragS.current = { x: e.clientX, y: e.clientY, nx: n.x, ny: n.y }; };
 
@@ -300,7 +306,7 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
   const updateNode = (id: string, patch: Partial<DiagNode>) => { setDiag({ ...diag, nodes: diag.nodes.map(n => n.id === id ? { ...n, ...patch } : n) }); };
 
   const byZone = (z: string) => diag.nodes.filter(n => n.zone === z);
-  const zBounds = (ns: DiagNode[], px: number, py: number, minW?: number) => { if (!ns.length) return null; const xs = ns.map(n => n.x), ys = ns.map(n => n.y); return { x: Math.min(...xs) - px - 10, y: Math.min(...ys) - py, w: Math.max(Math.max(...xs) - Math.min(...xs) + px * 2 + 80, minW || 0), h: Math.max(...ys) - Math.min(...ys) + py * 2 + 100 }; };
+  const zBounds = (ns: DiagNode[], px: number, py: number, minW?: number) => { if (!ns.length) return null; const xs = ns.map(n => n.x), ys = ns.map(n => n.y); return { x: Math.min(...xs) - px, y: Math.min(...ys) - py, w: Math.max(Math.max(...xs) - Math.min(...xs) + px * 2 + 80, minW || 0), h: Math.max(...ys) - Math.min(...ys) + py * 2 + 80 }; };
   // Smart edge routing: exits/enters correct side of node based on relative position
   const R = 38; // half node + small gap (BG=68 → 34 + 4)
   const edgePath = (fx: number, fy: number, tx: number, ty: number): { path: string; mx: number; my: number } => {
@@ -323,9 +329,9 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
   };
 
   const BG = 68, ICO = 50;
-  const srcB = zBounds(byZone("sources"), 65, 65, 170);
-  const cloudB = zBounds(byZone("cloud"), 65, 55);
-  const conB = zBounds(byZone("consumers"), 65, 65, 170);
+  const srcB = zBounds(byZone("sources"), 85, 80, 200);
+  const cloudB = zBounds(byZone("cloud"), 80, 75);
+  const conB = zBounds(byZone("consumers"), 85, 80, 200);
   const allXs = diag.nodes.map(n => n.x);
   const cx = allXs.length ? (Math.min(...allXs) + Math.max(...allXs)) / 2 : 600;
   const topY = Math.min(...diag.nodes.map(n => n.y)) - 100;
@@ -335,7 +341,7 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
     const ns = p.nodeIds.map(id => diag.nodes.find(n => n.id === id)).filter(Boolean) as DiagNode[];
     if (!ns.length) return null;
     const xs = ns.map(n => n.x), ys = ns.map(n => n.y);
-    return { ...p, x: Math.min(...xs) - 50, y: Math.min(...ys) - 45, w: Math.max(...xs) - Math.min(...xs) + 140, h: Math.max(...ys) - Math.min(...ys) + 140 };
+    return { ...p, x: Math.min(...xs) - 55, y: Math.min(...ys) - 60, w: Math.max(...xs) - Math.min(...xs) + 150, h: Math.max(...ys) - Math.min(...ys) + 160 };
   }).filter(Boolean) as (Phase & { x: number; y: number; w: number; h: number })[];
 
   // Ops group bounds
@@ -390,8 +396,8 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
 
         {/* Phase groups — draggable */}
         {phaseBounds.map((p, i) => (<g key={p.id} onMouseDown={e => startGroupDrag(p.nodeIds, e)} style={{ cursor: "move" }}>
-          <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={10} fill={isDark ? "rgba(66,133,244,0.06)" : "rgba(66,133,244,0.04)"} stroke={isDark ? "rgba(66,133,244,0.2)" : "rgba(66,133,244,0.15)"} strokeWidth={1} strokeDasharray="5 3" />
-          <text x={p.x + p.w / 2} y={p.y + 14} textAnchor="middle" style={{ fontSize: 9, fontWeight: 700, fill: isDark ? "#5a8ac0" : "#90a4ae", letterSpacing: 1, pointerEvents: "none" }}>PHASE {i + 1}: {p.name.toUpperCase()}</text>
+          <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={10} fill={isDark ? "rgba(66,133,244,0.06)" : "rgba(66,133,244,0.03)"} stroke={isDark ? "rgba(66,133,244,0.2)" : "rgba(66,133,244,0.12)"} strokeWidth={1} strokeDasharray="5 3" />
+          <text x={p.x + p.w / 2} y={p.y - 6} textAnchor="middle" style={{ fontSize: 8, fontWeight: 700, fill: isDark ? "#5a8ac0" : "#b0bec5", letterSpacing: 1, pointerEvents: "none" }}>PHASE {i + 1}: {p.name.toUpperCase()}</text>
         </g>))}
 
         {/* Ops group — draggable */}
@@ -422,7 +428,17 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
               <rect x={mx - 15} y={my - 15} width={30} height={30} rx={8} fill={sel ? "#1a73e8" : edge.crossesBoundary ? "#e65100" : "#5c6bc0"} filter="url(#sh)" onDoubleClick={e => dblClick("edge", edge.id, e)} style={{ cursor: "pointer" }} />
               <text x={mx} y={my + 5.5} textAnchor="middle" style={{ fontSize: 15, fontWeight: 900, fill: "#fff", pointerEvents: "none" }}>{edge.step}</text>
             </>}
-            {isOps && edge.label && <text x={mx + 14} y={my - 6} textAnchor="middle" style={{ fontSize: 8, fill: isAlert ? "#e53935" : "#7986cb", fontStyle: "italic", fontWeight: 600, pointerEvents: "none" }}>{edge.label}</text>}
+            {isOps && edge.label && (() => {
+              // Position label offset from path to avoid node overlap
+              const dx = tn.x - fn.x, dy = tn.y - fn.y;
+              const isVert = Math.abs(dy) > Math.abs(dx);
+              const lx = isVert ? mx + 18 : mx;
+              const ly = isVert ? my : my - 12;
+              return (<g>
+                <rect x={lx - 24} y={ly - 8} width={48} height={12} rx={3} fill={isDark ? "#1e1e1e" : "#fff"} fillOpacity={0.85} />
+                <text x={lx} y={ly + 1} textAnchor="middle" style={{ fontSize: 7, fill: isAlert ? "#e53935" : isCtrl ? "#7986cb" : "#78909c", fontWeight: 600, pointerEvents: "none" }}>{edge.label}</text>
+              </g>);
+            })()}
           </g>);
         })}
 
@@ -445,11 +461,16 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme }: { diag: Di
         {diag.nodes.map(node => {
           const ip = iconUrl(node.name, node.icon || undefined);
           const sel = popover?.type === "node" && popover.id === node.id;
+          const isConnSrc = connectMode && connectSource === node.id;
           const th2 = (diag.threats || []).filter(t => t.target === node.id);
           const cat = getCat(node.icon);
-          return (<g key={node.id} onMouseDown={e => startDrag(node.id, e)} onDoubleClick={e => dblClick("node", node.id, e)} style={{ cursor: drag === node.id ? "grabbing" : "pointer" }}>
-            {sel && <rect x={node.x - BG / 2 - 6} y={node.y - BG / 2 - 6} width={BG + 12} height={BG + 12} rx={18} fill="none" stroke="#1a73e8" strokeWidth={2.5} strokeDasharray="5 3" />}
-            <rect x={node.x - BG / 2} y={node.y - BG / 2} width={BG} height={BG} rx={14} fill={ip ? (isDark ? cat.border + "20" : cat.bg) : (isDark ? "#2a2a2a" : "#f5f5f5")} stroke={ip ? cat.border : (isDark ? "#444" : "#e0e0e0")} strokeWidth={sel ? 2.5 : 1.8} filter="url(#sh)" />
+          return (<g key={node.id}
+            onMouseDown={e => { if (connectMode) return; startDrag(node.id, e); }}
+            onClick={e => { if (connectMode && onConnectClick) { e.stopPropagation(); onConnectClick(node.id); } }}
+            onDoubleClick={e => { if (!connectMode) dblClick("node", node.id, e); }}
+            style={{ cursor: connectMode ? "crosshair" : drag === node.id ? "grabbing" : "pointer" }}>
+            {(sel || isConnSrc) && <rect x={node.x - BG / 2 - 6} y={node.y - BG / 2 - 6} width={BG + 12} height={BG + 12} rx={18} fill="none" stroke={isConnSrc ? "#e65100" : "#1a73e8"} strokeWidth={2.5} strokeDasharray="5 3" />}
+            <rect x={node.x - BG / 2} y={node.y - BG / 2} width={BG} height={BG} rx={14} fill={ip ? (isDark ? cat.border + "20" : cat.bg) : (isDark ? "#2a2a2a" : "#f5f5f5")} stroke={isConnSrc ? "#e65100" : ip ? cat.border : (isDark ? "#444" : "#e0e0e0")} strokeWidth={sel || isConnSrc ? 2.5 : 1.8} filter="url(#sh)" />
             {ip ? <image href={ip} x={node.x - ICO / 2} y={node.y - ICO / 2} width={ICO} height={ICO} /> : <text x={node.x} y={node.y + 7} textAnchor="middle" style={{ fontSize: 24, fill: isDark ? "#9fa8da" : "#5c6bc0" }}>☁</text>}
             <text x={node.x} y={node.y + BG / 2 + 16} textAnchor="middle" style={{ fontSize: 11, fontWeight: 700, fill: isDark ? "#ccc" : "#222", pointerEvents: "none" }}>{node.name}</text>
             {node.subtitle && <text x={node.x} y={node.y + BG / 2 + 29} textAnchor="middle" style={{ fontSize: 9, fill: isDark ? "#666" : "#888", pointerEvents: "none" }}>{node.subtitle}</text>}
@@ -492,6 +513,9 @@ export default function Dashboard({ user }: { user: User }) {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isDirty, setIsDirty] = useState(false);
   const [originalDiagram, setOriginalDiagram] = useState<Diagram | null>(null);
+  const [connectMode, setConnectMode] = useState(false);
+  const [connectSource, setConnectSource] = useState<string | null>(null);
+  const diagAreaRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => { loadIcons() }, []);
 
@@ -619,6 +643,43 @@ export default function Dashboard({ user }: { user: User }) {
     updateDiagram(newDiagram);
   }, [diag, updateDiagram]);
 
+  // Update edge function
+  const updateEdge = useCallback((edgeId: string, patch: Partial<DiagEdge>) => {
+    if (!diag) return;
+    const newDiagram = { ...diag, edges: diag.edges.map(e => e.id === edgeId ? { ...e, ...patch } : e) };
+    updateDiagram(newDiagram);
+    setPopover(null);
+  }, [diag, updateDiagram]);
+
+  // Delete edge function
+  const deleteEdge = useCallback((edgeId: string) => {
+    if (!diag) return;
+    const newDiagram = { ...diag, edges: diag.edges.filter(e => e.id !== edgeId) };
+    updateDiagram(newDiagram);
+    setPopover(null);
+  }, [diag, updateDiagram]);
+
+  // Connect mode: handle node click to create edge
+  const handleConnectClick = useCallback((nodeId: string) => {
+    if (!diag || !connectMode) return;
+    if (!connectSource) {
+      setConnectSource(nodeId);
+      return;
+    }
+    if (connectSource === nodeId) { setConnectSource(null); return; }
+    const fromNode = diag.nodes.find(n => n.id === connectSource);
+    const toNode = diag.nodes.find(n => n.id === nodeId);
+    const crosses = fromNode && toNode ? fromNode.zone !== toNode.zone : false;
+    const maxStep = Math.max(0, ...diag.edges.filter(e => !e.edgeType || e.edgeType === "data").map(e => e.step));
+    const newEdge: DiagEdge = {
+      id: `edge_${Date.now()}`, from: connectSource, to: nodeId,
+      label: "", step: maxStep + 1, edgeType: "data", crossesBoundary: crosses,
+    };
+    updateDiagram({ ...diag, edges: [...diag.edges, newEdge] });
+    setConnectSource(null);
+    setConnectMode(false);
+  }, [diag, connectMode, connectSource, updateDiagram]);
+
   // Save changes to database
   const saveChanges = useCallback(async () => {
     if (!diag || !saved || !isDirty) return;
@@ -656,8 +717,9 @@ export default function Dashboard({ user }: { user: User }) {
     let id = 2; const cells: string[] = [], nm: Record<string, number> = {};
     const zones = [{ l: "SOURCES", ns: diag.nodes.filter(n => n.zone === "sources"), c: "#fafafa", s: "#bdbdbd", d: true }, { l: "Google Cloud", ns: diag.nodes.filter(n => n.zone === "cloud"), c: "#f0f7ff", s: "#4285f4", d: false }, { l: "CONSUMERS", ns: diag.nodes.filter(n => n.zone === "consumers"), c: "#fafafa", s: "#bdbdbd", d: true }];
     const zm: Record<string, number> = {};
-    for (const z of zones) { if (!z.ns.length) continue; const xs = z.ns.map(n => n.x), ys = z.ns.map(n => n.y), p = 80; const zId = id++; cells.push(`<mxCell id="${zId}" value="${esc(z.l)}" style="rounded=1;whiteSpace=wrap;fillColor=${z.c};strokeColor=${z.s};${z.d ? "dashed=1;" : ""}fontStyle=1;fontSize=14;verticalAlign=top;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="${Math.min(...xs) - p}" y="${Math.min(...ys) - p}" width="${Math.max(...xs) - Math.min(...xs) + p * 2 + 80}" height="${Math.max(...ys) - Math.min(...ys) + p * 2 + 80}" as="geometry"/></mxCell>`); z.ns.forEach(n => { zm[n.id] = zId; }); }
-    for (const n of diag.nodes) { const nId = id++; nm[n.id] = nId; const cat = getCat(n.icon); cells.push(`<mxCell id="${nId}" value="${esc(n.name)}${n.subtitle ? '<br><font style=&quot;font-size:9px&quot;>' + esc(n.subtitle) + '</font>' : ''}" style="rounded=1;whiteSpace=wrap;fillColor=${cat.bg};strokeColor=${cat.border};fontStyle=1;fontSize=11;" vertex="1" parent="${zm[n.id] || 1}"><mxGeometry x="${n.x - 60}" y="${n.y - 40}" width="120" height="80" as="geometry"/></mxCell>`); }
+    const zo: Record<string, { x: number; y: number }> = {}; // zone origins per node
+    for (const z of zones) { if (!z.ns.length) continue; const xs = z.ns.map(n => n.x), ys = z.ns.map(n => n.y), p = 80; const zx = Math.min(...xs) - p, zy = Math.min(...ys) - p; const zId = id++; cells.push(`<mxCell id="${zId}" value="${esc(z.l)}" style="rounded=1;whiteSpace=wrap;fillColor=${z.c};strokeColor=${z.s};${z.d ? "dashed=1;" : ""}fontStyle=1;fontSize=14;verticalAlign=top;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="${zx}" y="${zy}" width="${Math.max(...xs) - Math.min(...xs) + p * 2 + 80}" height="${Math.max(...ys) - Math.min(...ys) + p * 2 + 80}" as="geometry"/></mxCell>`); z.ns.forEach(n => { zm[n.id] = zId; zo[n.id] = { x: zx, y: zy }; }); }
+    for (const n of diag.nodes) { const nId = id++; nm[n.id] = nId; const cat = getCat(n.icon); const origin = zo[n.id] || { x: 0, y: 0 }; cells.push(`<mxCell id="${nId}" value="${esc(n.name)}${n.subtitle ? '<br><font style=&quot;font-size:9px&quot;>' + esc(n.subtitle) + '</font>' : ''}" style="rounded=1;whiteSpace=wrap;fillColor=${cat.bg};strokeColor=${cat.border};fontStyle=1;fontSize=11;" vertex="1" parent="${zm[n.id] || 1}"><mxGeometry x="${n.x - 60 - origin.x}" y="${n.y - 40 - origin.y}" width="120" height="80" as="geometry"/></mxCell>`); }
     for (const e of diag.edges) { const eId = id++, src = nm[e.from], tgt = nm[e.to]; if (!src || !tgt) continue; const isP = e.security?.private; const col = e.edgeType === "alert" ? "#e53935" : e.edgeType === "control" ? "#7986cb" : isP ? "#43a047" : "#e65100"; cells.push(`<mxCell id="${eId}" value="${e.step > 0 ? '(' + e.step + ') ' : ''}${esc(e.label || '')}" style="edgeStyle=orthogonalEdgeStyle;rounded=1;strokeColor=${col};strokeWidth=2;${!isP ? 'dashed=1;' : ''}fontSize=9;" edge="1" source="${src}" target="${tgt}" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>`); }
     const xml = `<?xml version="1.0"?><mxfile><diagram name="${esc(diag.title)}" id="e"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/>${cells.join("")}</root></mxGraphModel></diagram></mxfile>`;
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([xml], { type: "application/xml" })); a.download = `${diag.title.replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}.drawio`; a.click();
@@ -740,7 +802,7 @@ export default function Dashboard({ user }: { user: User }) {
           </div>
         )}
         {diag && tab === "diagram" && (
-          <div style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", background: THEMES[theme]?.bg || "#f8f9fa", overflow: "hidden" }}>
+          <div ref={diagAreaRef} style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", background: THEMES[theme]?.bg || "#f8f9fa", overflow: "hidden" }}>
             
             {/* Edit Mode Toggle Button */}
             {!editMode && diag && (
@@ -780,6 +842,8 @@ export default function Dashboard({ user }: { user: User }) {
                     setHistory([]);
                     setHistoryIndex(-1);
                     setOriginalDiagram(null);
+                    setConnectMode(false);
+                    setConnectSource(null);
                   }}
                   style={{
                     background: isDirty ? "#dc2626" : "#666",
@@ -802,6 +866,8 @@ export default function Dashboard({ user }: { user: User }) {
               <EditingToolbar
                 onAddNode={() => setShowServicePalette(true)}
                 onSave={saveChanges}
+                connectMode={connectMode}
+                onToggleConnect={() => { setConnectMode(!connectMode); setConnectSource(null); }}
                 onUndo={() => {
                   if (historyIndex > 0) {
                     const prevIndex = historyIndex - 1;
@@ -827,10 +893,14 @@ export default function Dashboard({ user }: { user: User }) {
             {/* Enhanced Diagram Canvas */}
             <DiagramCanvas 
               diag={diag} 
-              setDiag={editMode ? updateDiagram : setDiag}
+              setDiag={setDiag}
               popover={popover} 
               setPopover={setPopover} 
               theme={theme}
+              onDragEnd={editMode ? (d: Diagram) => { setIsDirty(true); saveToHistory(d); } : undefined}
+              connectMode={connectMode}
+              connectSource={connectSource}
+              onConnectClick={editMode ? handleConnectClick : undefined}
             />
 
             {/* Enhanced popover for editing */}
@@ -838,8 +908,9 @@ export default function Dashboard({ user }: { user: User }) {
               const node = diag.nodes.find(n => n.id === popover.id);
               if (!node) return null;
               const threats = (diag.threats || []).filter(t => t.target === node.id);
-              const cw = 800, ch = 600; // ref.current?.clientWidth || 800, ch = ref.current?.clientHeight || 600;
-              const px = Math.min(popover.px + 10, cw - 450), py = Math.min(Math.max(popover.py - 60, 10), ch - 420);
+              const rc = diagAreaRef.current?.getBoundingClientRect();
+              const cw = rc?.width || 1200, ch = rc?.height || 800;
+              const px = Math.min(popover.px + 10, cw - 470), py = Math.min(Math.max(popover.py - 60, 10), ch - 440);
               return (
                 <div style={{ position: "absolute", left: px, top: py, zIndex: 200 }}>
                   <EnhancedNodePopover
@@ -853,29 +924,50 @@ export default function Dashboard({ user }: { user: User }) {
               );
             })()}
 
-            {/* Edge and Gate Popovers */}
+            {/* Edge Popover — editable */}
             {popover && popover.type === "edge" && (() => {
               const edge = diag.edges.find(e => e.id === popover.id);
               if (!edge) return null;
-              const threats = (diag.threats || []).filter(t => t.target === edge.id);
-              const cw = 800, ch = 600;
-              const px = Math.min(popover.px + 10, cw - 350), py = Math.min(Math.max(popover.py - 60, 10), ch - 300);
+              const rc = diagAreaRef.current?.getBoundingClientRect();
+              const cw = rc?.width || 1200, ch = rc?.height || 800;
+              const px = Math.min(popover.px + 10, cw - 420), py = Math.min(Math.max(popover.py - 60, 10), ch - 450);
               return (
                 <div style={{ position: "absolute", left: px, top: py, zIndex: 200 }}>
-                  <EdgePop
+                  <EdgeEditPop
                     edge={edge}
-                    fn={diag.nodes.find(n => n.id === edge.from)}
-                    tn={diag.nodes.find(n => n.id === edge.to)}
-                    threats={threats}
+                    nodes={diag.nodes}
                     onClose={() => setPopover(null)}
+                    onUpdate={updateEdge}
+                    onDelete={deleteEdge}
                   />
                 </div>
               );
             })()}
 
             {popover && popover.type === "gate" && (() => {
-              // Note: gates logic would need to be reconstructed here if needed
-              return null;
+              // Compute gates from diagram data
+              const cloudNodes = diag.nodes.filter(n => n.zone === "cloud");
+              if (!cloudNodes.length) return null;
+              const cxs = cloudNodes.map(n => n.x), cys = cloudNodes.map(n => n.y);
+              const cB = { x: Math.min(...cxs) - 80, y: Math.min(...cys) - 75, w: Math.max(...cxs) - Math.min(...cxs) + 240, h: Math.max(...cys) - Math.min(...cys) + 230 };
+              const allGates: Gate[] = [];
+              diag.edges.filter(e => e.crossesBoundary && e.security).forEach(edge => {
+                const fn = diag.nodes.find(n => n.id === edge.from), tn = diag.nodes.find(n => n.id === edge.to);
+                if (!fn || !tn || !edge.security) return;
+                if (fn.zone === "sources" && tn.zone === "cloud") allGates.push({ id: `gate-${edge.id}`, edgeId: edge.id, x: cB.x, y: fn.y, direction: "in", security: edge.security, fromName: fn.name, toName: tn.name, label: edge.label || "" });
+                if (fn.zone === "cloud" && tn.zone === "consumers") allGates.push({ id: `gate-${edge.id}`, edgeId: edge.id, x: cB.x + cB.w, y: fn.y, direction: "out", security: edge.security, fromName: fn.name, toName: tn.name, label: edge.label || "" });
+              });
+              const gate = allGates.find(g => g.id === popover.id);
+              if (!gate) return null;
+              const threats = (diag.threats || []).filter(t => t.target === gate.edgeId);
+              const rc = diagAreaRef.current?.getBoundingClientRect();
+              const cw = rc?.width || 1200, ch = rc?.height || 800;
+              const px = Math.min(popover.px + 10, cw - 390), py = Math.min(Math.max(popover.py - 60, 10), ch - 450);
+              return (
+                <div style={{ position: "absolute", left: px, top: py, zIndex: 200 }}>
+                  <GatePop gate={gate} threats={threats} onClose={() => setPopover(null)} />
+                </div>
+              );
             })()}
 
             {/* Service Palette */}
@@ -883,6 +975,7 @@ export default function Dashboard({ user }: { user: User }) {
               visible={showServicePalette}
               onClose={() => setShowServicePalette(false)}
               onAddNode={addNode}
+              resolveIcon={iconUrl}
             />
           </div>
         )}
