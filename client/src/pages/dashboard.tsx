@@ -677,7 +677,7 @@ export default function Dashboard({ user }: { user: User }) {
           </div>
         )}
         {diag && tab === "diagram" && (
-          <div style={{ position: "relative", flex: 1, background: THEMES[theme]?.bg || "#f8f9fa", overflow: "hidden" }}>
+          <div style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", background: THEMES[theme]?.bg || "#f8f9fa", overflow: "hidden" }}>
             
             {/* Edit Mode Toggle Button */}
             {!editMode && diag && (
