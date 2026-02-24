@@ -291,8 +291,8 @@ const CDC_MIGRATION: Diagram = {
   opsGroup: { name: "Operations", nodeIds: ["composer", "catalog", "monitoring"] },
   nodes: [
     { id: "src_rds", name: "AWS RDS", icon: "aws_rds", subtitle: "PostgreSQL", zone: "sources", x: 100, y: 250, details: { notes: "Logical replication enabled (wal_level=logical)" } },
-    { id: "src_s3", name: "AWS S3", icon: "aws_s3", subtitle: "Historical Files", zone: "sources", x: 100, y: 420, details: { notes: "CSV/Parquet batch backfill exports" } },
-    { id: "src_oracle", name: "On-Prem Oracle", icon: "oracle", subtitle: "Legacy DB", zone: "sources", x: 100, y: 580, details: { notes: "Oracle 12c+ with LogMiner for CDC" } },
+    { id: "src_s3", name: "AWS S3", icon: "aws_s3", subtitle: "Historical Files", zone: "sources", x: 750, y: 400, details: { notes: "CSV/Parquet batch backfill exports" } },
+    { id: "src_oracle", name: "On-Prem Oracle", icon: "oracle", subtitle: "Legacy DB", zone: "sources", x: 750, y: 200, details: { notes: "Oracle 12c+ with LogMiner for CDC" } },
     { id: "vpn", name: "Cloud VPN", icon: "cloud_vpn", subtitle: "Encrypted Tunnel", zone: "cloud", x: 350, y: 250,
       details: { encryption: "IPSec IKEv2, AES-256-GCM", monitoring: "Tunnel status, bandwidth, packet loss", alerting: "Tunnel down → PagerDuty P1", cost: "~$0.075/hr + egress", compliance: "SOC2" } },
     { id: "sts", name: "Transfer Service", icon: "cloud_storage", subtitle: "S3 Batch Transfer", zone: "cloud", x: 350, y: 420,
@@ -569,7 +569,7 @@ const SOURCES_LAYER: Diagram = {
 
   nodes: [
     // ── SaaS / ERP (row 1) ──
-    { id: "src_salesforce", name: "Salesforce", icon: "salesforce", subtitle: "CRM · REST/Bulk API · CDC", zone: "sources", x: 100, y: 150, details: {
+    { id: "src_salesforce", name: "Salesforce", icon: "salesforce", subtitle: "CRM · REST/Bulk API · CDC", zone: "sources", x: 100, y: 200, details: {
       notes: "Cloud CRM platform exposing accounts, contacts, opportunities, cases, and custom objects via REST/Bulk APIs and Change Data Capture streams.\n\nUse when: CRM data (sales, support, customer 360) needs to land in the warehouse.",
       encryption: "In transit: TLS 1.3 | At rest: Salesforce Shield AES-256 (if licensed) | Auth: OAuth 2.0",
       monitoring: "API call count vs 100K/day limit, CDC event lag, Bulk API job status",
@@ -578,7 +578,7 @@ const SOURCES_LAYER: Diagram = {
       guardrails: "OAuth 2.0 tokens in Secret Manager, respect rate limits (100K/day), incremental sync via SystemModstamp",
       compliance: "SOC2, GDPR (PII in CRM data)"
     }},
-    { id: "src_workday", name: "Workday", icon: "workday", subtitle: "HCM/Finance · SOAP/REST · RaaS", zone: "sources", x: 250, y: 150, details: {
+    { id: "src_workday", name: "Workday", icon: "workday", subtitle: "HCM/Finance · SOAP/REST · RaaS", zone: "sources", x: 250, y: 200, details: {
       notes: "Cloud HCM/Finance platform exposing employees, payroll, benefits, org structure, and financials via SOAP/REST APIs and RaaS reports.\n\nUse when: HR, payroll, or financial data needs to land in the warehouse.",
       encryption: "In transit: TLS 1.2+ | At rest: AES-256 (Workday-managed) | Auth: WS-Security (SOAP), OAuth 2.0 (REST)",
       monitoring: "RaaS report execution time, API response latency, data freshness",
@@ -587,7 +587,7 @@ const SOURCES_LAYER: Diagram = {
       guardrails: "OAuth 2.0 tokens in Secret Manager, concurrent request limits, ISU (Integration System User) with minimal scope",
       compliance: "SOC2, GDPR, HIPAA (payroll/benefits data)"
     }},
-    { id: "src_servicenow", name: "ServiceNow", icon: "servicenow", subtitle: "ITSM · Table API · Import Sets", zone: "sources", x: 400, y: 150, details: {
+    { id: "src_servicenow", name: "ServiceNow", icon: "servicenow", subtitle: "ITSM · Table API · Import Sets", zone: "sources", x: 400, y: 200, details: {
       notes: "Cloud ITSM platform exposing incidents, changes, CMDB CIs, requests, and knowledge articles via REST Table API and Import Sets.\n\nUse when: IT operations data (incidents, CMDB, change history) needs to land in the warehouse.",
       encryption: "In transit: TLS 1.2+ | At rest: AES-256 (ServiceNow-managed) | Auth: OAuth 2.0 or basic auth",
       monitoring: "Table API pagination count, Import Set job status, record counts per sync",
@@ -596,7 +596,7 @@ const SOURCES_LAYER: Diagram = {
       guardrails: "OAuth 2.0 in Secret Manager, sysparm_query filters for incremental pulls, ACL-scoped integration user",
       compliance: "SOC2"
     }},
-    { id: "src_sap", name: "SAP", icon: "sap", subtitle: "ERP · OData/BAPI/IDoc/SLT", zone: "sources", x: 550, y: 150, details: {
+    { id: "src_sap", name: "SAP", icon: "sap", subtitle: "ERP · OData/BAPI/IDoc/SLT", zone: "sources", x: 550, y: 200, details: {
       notes: "ERP system exposing finance, supply chain, procurement, and HR data via OData APIs, BAPIs, IDocs, or SLT replication.\n\nUse when: ERP transactional data (GL, AP, AR, inventory) needs to land in the warehouse.",
       encryption: "In transit: TLS 1.2+, SNC for RFC connections | At rest: SAP HANA data volume encryption (AES-256) | Auth: OAuth 2.0, X.509, or SAML",
       monitoring: "SLT replication lag, OData batch job duration, IDoc queue depth",
@@ -616,7 +616,7 @@ const SOURCES_LAYER: Diagram = {
       guardrails: "Dedicated extraction user with SELECT + LOGMINING grants only, VPN/Interconnect required, supplemental logging enabled",
       compliance: "SOC2, HIPAA, PCI-DSS"
     }},
-    { id: "src_sqlserver", name: "SQL Server", icon: "sqlserver", subtitle: "RDBMS · CT/CDC · Always On", zone: "sources", x: 250, y: 300, details: {
+    { id: "src_sqlserver", name: "SQL Server", icon: "sqlserver", subtitle: "RDBMS · CT/CDC · Always On", zone: "sources", x: 900, y: 200, details: {
       notes: "Microsoft RDBMS running on-prem, Azure, or VMs, exposing tables via JDBC/ODBC, Change Tracking (CT), CDC, or Always On replicas.\n\nUse when: SQL Server data needs CDC replication or bulk extraction to GCP.",
       encryption: "In transit: TLS 1.2+ | At rest: TDE (AES-256), Always Encrypted for column-level | Auth: Windows Auth, SQL Auth, Azure AD",
       monitoring: "CT version cleanup lag, CDC capture job latency, AG replica sync status",
@@ -625,7 +625,7 @@ const SOURCES_LAYER: Diagram = {
       guardrails: "Read from AG secondary replica to avoid prod impact, CT/CDC enabled per table, dedicated login with db_datareader + CT permissions",
       compliance: "SOC2, HIPAA"
     }},
-    { id: "src_postgresql", name: "PostgreSQL", icon: "postgresql", subtitle: "RDBMS · WAL · Logical Replication", zone: "sources", x: 400, y: 300, details: {
+    { id: "src_postgresql", name: "PostgreSQL", icon: "postgresql", subtitle: "RDBMS · WAL · Logical Replication", zone: "sources", x: 1050, y: 200, details: {
       notes: "Open-source RDBMS running on-prem, VMs, or managed services, exposing tables via JDBC and logical replication slots.\n\nUse when: PostgreSQL data needs CDC or bulk extraction to GCP.",
       encryption: "In transit: SSL/TLS | At rest: pgcrypto or filesystem-level; managed services use provider encryption | Auth: SCRAM-SHA-256, LDAP, or cert-based",
       monitoring: "Replication slot lag (bytes), WAL file count, logical decoding throughput",
@@ -634,7 +634,7 @@ const SOURCES_LAYER: Diagram = {
       guardrails: "wal_level=logical, dedicated replication user, monitor replication slot to prevent WAL disk bloat",
       compliance: "SOC2"
     }},
-    { id: "src_mongodb", name: "MongoDB", icon: "mongodb", subtitle: "NoSQL · Change Streams · mongodump", zone: "sources", x: 550, y: 300, details: {
+    { id: "src_mongodb", name: "MongoDB", icon: "mongodb", subtitle: "NoSQL · Change Streams · mongodump", zone: "sources", x: 1200, y: 200, details: {
       notes: "Document database exposing collections via Change Streams for CDC or mongodump/mongoexport for bulk extraction.\n\nUse when: NoSQL document data needs to land in the warehouse.",
       encryption: "In transit: TLS | At rest: WiredTiger AES-256; Atlas supports AWS KMS / GCP KMS | Auth: SCRAM-SHA-256, X.509, LDAP",
       monitoring: "Change Stream resume token lag, oplog window size, cursor idle time",
@@ -643,7 +643,7 @@ const SOURCES_LAYER: Diagram = {
       guardrails: "Replica set required for Change Streams, resume token persisted to GCS for crash recovery, read from secondary preferred",
       compliance: "SOC2"
     }},
-    { id: "src_cloud_sql", name: "Cloud SQL", icon: "cloud_sql", subtitle: "Managed MySQL/PG/SS · HA · PITR", zone: "sources", x: 700, y: 300, details: {
+    { id: "src_cloud_sql", name: "Cloud SQL", icon: "cloud_sql", subtitle: "Managed MySQL/PG/SS · HA · PITR", zone: "sources", x: 1350, y: 200, details: {
       notes: "Managed MySQL, PostgreSQL, or SQL Server on GCP with automated backups, patching, and HA.\n\nUse when: GCP-native relational data (app backends) needs to land in the warehouse.",
       encryption: "In transit: TLS 1.2+ (enforced) | At rest: CMEK via Cloud KMS (AES-256) | Auth: IAM database authentication, Cloud SQL Auth Proxy",
       monitoring: "CPU/memory utilization, replication lag, connection count, storage auto-resize events",
@@ -652,7 +652,7 @@ const SOURCES_LAYER: Diagram = {
       guardrails: "Private IP only (no public), IAM-based auth via Auth Proxy, automated backups with PITR, cross-region read replicas for DR",
       compliance: "SOC2, HIPAA, PCI-DSS"
     }},
-    { id: "src_cloud_spanner", name: "Cloud Spanner", icon: "cloud_spanner", subtitle: "Global DB · 99.999% SLA · Zero RPO", zone: "sources", x: 850, y: 300, details: {
+    { id: "src_cloud_spanner", name: "Cloud Spanner", icon: "cloud_spanner", subtitle: "Global DB · 99.999% SLA · Zero RPO", zone: "sources", x: 1500, y: 200, details: {
       notes: "Globally distributed, strongly consistent relational DB with 99.999% SLA for multi-region configurations.\n\nUse when: Globally distributed transactional data needs to land in the warehouse.",
       encryption: "In transit: TLS (Google-managed) | At rest: Google default AES-256 or CMEK via Cloud KMS | Auth: IAM + fine-grained access control (row/column)",
       monitoring: "Node CPU utilization (target < 65%), request latency P99, storage utilization",
@@ -663,7 +663,7 @@ const SOURCES_LAYER: Diagram = {
     }},
 
     // ── Event Streams (row 3, left) ──
-    { id: "src_kafka", name: "Apache Kafka", icon: "kafka", subtitle: "Self-Managed · Pub-Sub · MirrorMaker", zone: "sources", x: 100, y: 450, details: {
+    { id: "src_kafka", name: "Apache Kafka", icon: "kafka", subtitle: "Self-Managed · Pub-Sub · MirrorMaker", zone: "sources", x: 100, y: 400, details: {
       notes: "Distributed event streaming platform for high-throughput, low-latency publish-subscribe messaging and event sourcing.\n\nUse when: Real-time event streams need to be ingested into GCP (clickstream, IoT, transactions).",
       encryption: "In transit: TLS for inter-broker and client | At rest: depends on underlying storage | Auth: SASL/PLAIN, SASL/SCRAM, mTLS, OAUTHBEARER",
       monitoring: "Consumer group lag, broker under-replicated partitions, request latency, ISR shrink events",
@@ -672,7 +672,7 @@ const SOURCES_LAYER: Diagram = {
       guardrails: "acks=all for durability, min.insync.replicas=2, MirrorMaker 2 for cross-DC replication, mTLS for producer auth",
       compliance: "SOC2"
     }},
-    { id: "src_confluent", name: "Confluent Cloud", icon: "confluent", subtitle: "Managed Kafka · Schema Registry · ksqlDB", zone: "sources", x: 250, y: 450, details: {
+    { id: "src_confluent", name: "Confluent Cloud", icon: "confluent", subtitle: "Managed Kafka · Schema Registry · ksqlDB", zone: "sources", x: 250, y: 400, details: {
       notes: "Managed Kafka service with Schema Registry, ksqlDB, connectors, and multi-cloud support.\n\nUse when: Managed Kafka streams need ingestion into GCP without self-managing brokers.",
       encryption: "In transit: TLS 1.2+ | At rest: AES-256 (Confluent-managed) | Auth: RBAC + ACLs, API keys, or OAuth",
       monitoring: "Cluster throughput (MB/s), consumer lag, Schema Registry compatibility checks",
@@ -681,7 +681,7 @@ const SOURCES_LAYER: Diagram = {
       guardrails: "Cluster Linking for cross-region DR, Schema Registry enforced (BACKWARD compatibility), RBAC per topic",
       compliance: "SOC2, HIPAA, PCI-DSS, ISO 27001"
     }},
-    { id: "src_kinesis", name: "AWS Kinesis", icon: "aws_kinesis", subtitle: "Cross-Cloud · Data Streams · Firehose", zone: "sources", x: 400, y: 450, details: {
+    { id: "src_kinesis", name: "AWS Kinesis", icon: "aws_kinesis", subtitle: "Cross-Cloud · Data Streams · Firehose", zone: "sources", x: 400, y: 400, details: {
       notes: "AWS managed streaming service for real-time data ingestion at scale (Data Streams + Firehose).\n\nUse when: Cross-cloud streaming data from AWS needs to land in GCP.",
       encryption: "In transit: TLS | At rest: AWS KMS SSE (AES-256) | Auth: AWS IAM policies, KMS key policies",
       monitoring: "GetRecords latency, iterator age, shard count, Firehose delivery lag",
@@ -692,7 +692,7 @@ const SOURCES_LAYER: Diagram = {
     }},
 
     // ── File / Object (row 3, middle) ──
-    { id: "src_sftp", name: "SFTP Server", icon: "sftp_server", subtitle: "Partner File Drops · Batch", zone: "sources", x: 600, y: 450, details: {
+    { id: "src_sftp", name: "SFTP Server", icon: "sftp_server", subtitle: "Partner File Drops · Batch", zone: "sources", x: 600, y: 400, details: {
       notes: "Secure file transfer endpoint for batch file drops (CSV, JSON, XML, flat files) from partners or legacy systems.\n\nUse when: Partners or legacy systems push files on a schedule for batch ingestion.",
       encryption: "In transit: SSH/SFTP (encrypted channel) | At rest: PGP/GPG for file-level encryption if required | Auth: SSH key pairs, password, or certificate",
       monitoring: "File arrival time vs SLA, file size anomalies, transfer success/failure count",
@@ -712,7 +712,7 @@ const SOURCES_LAYER: Diagram = {
     }},
 
     // ── APIs (row 3, right) ──
-    { id: "src_rest_api", name: "REST API", icon: "rest_api", subtitle: "Generic HTTP/JSON · Scheduled Pull", zone: "sources", x: 900, y: 450, details: {
+    { id: "src_rest_api", name: "REST API", icon: "rest_api", subtitle: "Generic HTTP/JSON · Scheduled Pull", zone: "sources", x: 950, y: 400, details: {
       notes: "Any HTTP/REST endpoint exposing data via JSON/XML payloads. Covers custom APIs, SaaS APIs not listed elsewhere.\n\nUse when: A custom or niche SaaS API needs to be pulled into GCP on a schedule.",
       encryption: "In transit: TLS 1.2+ | Auth: varies — OAuth 2.0, API key, bearer token, mTLS",
       monitoring: "API response codes, response time, records per pull, rate limit remaining",
@@ -721,7 +721,7 @@ const SOURCES_LAYER: Diagram = {
       guardrails: "All credentials in Secret Manager, exponential backoff on retry, pagination handling, idempotent writes",
       compliance: "SOC2"
     }},
-    { id: "src_webhook", name: "Webhook", icon: "webhook", subtitle: "Push-Based Events · HMAC · Real-Time", zone: "sources", x: 1050, y: 450, details: {
+    { id: "src_webhook", name: "Webhook", icon: "webhook", subtitle: "Push-Based Events · HMAC · Real-Time", zone: "sources", x: 1100, y: 400, details: {
       notes: "Push-based HTTP callback that sends event payloads when something happens in the source system.\n\nUse when: Real-time event notifications (payment completed, ticket created) need immediate ingestion.",
       encryption: "In transit: TLS | Auth: HMAC signature verification for payload integrity, source-specific auth",
       monitoring: "Webhook delivery rate, signature validation failures, Pub/Sub backlog depth",
@@ -732,7 +732,7 @@ const SOURCES_LAYER: Diagram = {
     }},
 
     // ── Legacy (row 4) ──
-    { id: "src_onprem", name: "On-Prem Server", icon: "onprem_server", subtitle: "Hybrid Connectivity · VPN · Interconnect", zone: "sources", x: 100, y: 600, details: {
+    { id: "src_onprem", name: "On-Prem Server", icon: "onprem_server", subtitle: "Hybrid Connectivity · VPN · Interconnect", zone: "sources", x: 1300, y: 400, details: {
       notes: "On-premises application or database server requiring hybrid connectivity to GCP for data extraction.\n\nUse when: Legacy on-prem systems need connectivity to GCP via VPN or Interconnect.",
       encryption: "In transit: IPsec (VPN) or MACsec (Interconnect) | At rest: varies by on-prem system | Auth: on-prem credentials in CyberArk → Secret Manager",
       monitoring: "VPN tunnel status, Interconnect link utilization, extraction job success",
@@ -741,7 +741,7 @@ const SOURCES_LAYER: Diagram = {
       guardrails: "Redundant VPN tunnels or Interconnect attachments, VPC Service Controls, no direct public IP exposure",
       compliance: "SOC2, ISO 27001"
     }},
-    { id: "src_mainframe", name: "Mainframe", icon: "mainframe", subtitle: "z/OS · DB2 · VSAM · COBOL · EBCDIC", zone: "sources", x: 250, y: 600, details: {
+    { id: "src_mainframe", name: "Mainframe", icon: "mainframe", subtitle: "z/OS · DB2 · VSAM · COBOL · EBCDIC", zone: "sources", x: 1450, y: 400, details: {
       notes: "Legacy IBM z/OS or AS/400 systems exposing data via VSAM, DB2, IMS, or batch file extracts (EBCDIC).\n\nUse when: Mainframe data (COBOL copybooks, DB2 tables, VSAM files) needs to land in GCP.",
       encryption: "In transit: z/OS dataset encryption (DFSMS), TLS for network, SNA encryption for legacy protocols | Auth: RACF/ACF2 credentials in CyberArk → Secret Manager",
       monitoring: "Batch job completion (JES2), MIPS consumption during extraction, file transfer byte counts",
@@ -752,7 +752,7 @@ const SOURCES_LAYER: Diagram = {
     }},
 
     // ── CONNECTIVITY BOUNDARY (next layer) ──
-    { id: "boundary_conn", name: "🔒 Layer 2: Connectivity", icon: null, subtitle: "VPN · Auth · Secrets · Firewall · mTLS · Rate Limiting", zone: "connectivity", x: 600, y: 750, details: {
+    { id: "boundary_conn", name: "🔒 Layer 2: Connectivity", icon: null, subtitle: "VPN · Auth · Secrets · Firewall · mTLS · Rate Limiting", zone: "connectivity", x: 800, y: 600, details: {
       notes: "★ TRUST BOUNDARY\n\nAll sources must pass through connectivity controls before entering the platform.\n\n• VPN / Interconnect (on-prem, cross-cloud)\n• Authentication (OAuth, SAML, API keys)\n• Secrets Manager (CyberArk → Secret Manager chain)\n• Firewall Rules (IP allowlist, port control)\n• mTLS (certificate-based mutual auth)\n• Rate Limiting (throttle, backoff, quotas)",
       encryption: "IPsec (VPN) | TLS 1.3 | mTLS for high-security",
       compliance: "SOC2, ISO 27001"
