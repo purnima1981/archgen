@@ -75,17 +75,20 @@ const CAT: Record<string, { bg: string; border: string }> = {
 };
 const DEF_CAT = { bg: "#f5f5f5", border: "#bdbdbd" };
 // Layer colors for blueprint/capability-map nodes (no icons)
+// Matched to BlueprintView (BP_LAYERS, MEDAL_ZONES, connectivity)
 const LAYER_CAT: Record<string, { bg: string; border: string }> = {
-  src_: { bg: "#eceff1", border: "#546e7a" },     // slate gray
-  ing_: { bg: "#e3f2fd", border: "#1565c0" },     // blue
-  proc_: { bg: "#f3e5f5", border: "#7b1fa2" },    // purple
-  raw_landing: { bg: "#e8f5e9", border: "#2e7d32" },  // green
-  bronze: { bg: "#fff8e1", border: "#f9a825" },    // amber
-  silver: { bg: "#eceff1", border: "#78909c" },    // cool gray
-  gold: { bg: "#fff8e1", border: "#ff8f00" },      // gold
-  serve_: { bg: "#fff3e0", border: "#e65100" },    // orange
-  pillar_: { bg: "#fce4ec", border: "#ad1457" },   // dark pink
-  con_: { bg: "#e0f7fa", border: "#00838f" },      // teal
+  src_: { bg: "#eceff1", border: "#546e7a" },     // slate gray (Layer 1)
+  conn_: { bg: "#fdf2f8", border: "#be185d" },    // pink/rose (Layer 2 — connectivity)
+  ing_: { bg: "#eff6ff", border: "#1d4ed8" },     // blue (Layer 3)
+  lake_: { bg: "#ecfdf5", border: "#047857" },    // emerald (Layer 4)
+  raw_landing: { bg: "#ecfdf5", border: "#047857" },  // emerald (Layer 4)
+  proc_: { bg: "#f5f3ff", border: "#6d28d9" },    // purple (Layer 5)
+  bronze: { bg: "#fef3c7", border: "#f59e0b" },   // amber (Layer 6)
+  silver: { bg: "#f9fafb", border: "#9ca3af" },   // cool gray (Layer 6)
+  gold: { bg: "#fef9c3", border: "#eab308" },     // gold (Layer 6)
+  serve_: { bg: "#fff7ed", border: "#c2410c" },   // burnt orange (Layer 7)
+  pillar_: { bg: "#fce4ec", border: "#ad1457" },   // dark pink (crosscutting)
+  con_: { bg: "#ecfeff", border: "#0e7490" },     // teal (Layer 8)
 };
 function getCat(ic?: string | null, nodeId?: string) {
   if (ic && CAT[ic]) return CAT[ic];
