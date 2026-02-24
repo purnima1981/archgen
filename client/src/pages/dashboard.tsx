@@ -333,9 +333,12 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
     if (!n) return null;
     const isSel = selectedCap === nodeId;
     return (
-      <div onClick={() => capClick(nodeId)} style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 7, cursor: "pointer", transition: "all 0.12s", outline: isSel ? "2px solid #1a73e8" : "none", outlineOffset: 1, ...style }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 3px 8px rgba(0,0,0,0.06)"; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ""; (e.currentTarget as HTMLDivElement).style.boxShadow = ""; }}>
-        <div style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.2 }}>{n.name}</div>
-        {n.subtitle && <div style={{ fontSize: 8, opacity: 0.5, marginTop: 1 }}>{n.subtitle}</div>}
+      <div onClick={() => capClick(nodeId)} style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 7, cursor: "pointer", transition: "all 0.12s", outline: isSel ? "2px solid #1a73e8" : "none", outlineOffset: 1, display: "flex", alignItems: "center", gap: 8, ...style }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 3px 8px rgba(0,0,0,0.06)"; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ""; (e.currentTarget as HTMLDivElement).style.boxShadow = ""; }}>
+        {n.icon && (() => { const src = iconUrl(n.name, n.icon); return src ? <img src={src} alt="" style={{ width: 22, height: 22, flexShrink: 0 }} /> : null; })()}
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.2 }}>{n.name}</div>
+          {n.subtitle && <div style={{ fontSize: 8, opacity: 0.5, marginTop: 1 }}>{n.subtitle}</div>}
+        </div>
       </div>
     );
   };
