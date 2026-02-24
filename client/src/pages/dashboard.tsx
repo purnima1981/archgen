@@ -322,9 +322,11 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
     const n = getNode(nodeId);
     if (!n) return null;
     const isSel = selectedCap === nodeId;
+    const ic = n.icon ? iconUrl(n.name, n.icon) : null;
     return (
-      <div onClick={() => capClick(nodeId)} style={{ background: `${color}10`, border: `1px solid ${color}30`, borderRadius: 5, padding: "4px 8px", fontSize: 8.5, fontWeight: 600, color, whiteSpace: "nowrap", textAlign: "center", cursor: "pointer", outline: isSel ? "2px solid #1a73e8" : "none", outlineOffset: 1 }}>
-        {n.name}{n.subtitle ? ` (${n.subtitle.split("·")[0].trim()})` : ""}
+      <div onClick={() => capClick(nodeId)} style={{ background: `${color}10`, border: `1px solid ${color}30`, borderRadius: 5, padding: "4px 8px", fontSize: 8.5, fontWeight: 600, color, whiteSpace: "nowrap", cursor: "pointer", outline: isSel ? "2px solid #1a73e8" : "none", outlineOffset: 1, display: "flex", alignItems: "center", gap: 4 }}>
+        {ic && <img src={ic} alt="" style={{ width: 16, height: 16 }} />}
+        {n.name}
       </div>
     );
   };
@@ -333,9 +335,10 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
   const VChip = ({ nodeId }: { nodeId: string }) => {
     const n = getNode(nodeId);
     if (!n) return null;
+    const ic = n.icon ? iconUrl(n.name, n.icon) : null;
     return (
-      <div onClick={() => capClick(nodeId)} style={{ background: "#FFF8E1", border: `1.5px dashed ${c.vendor}50`, borderRadius: 5, padding: "4px 8px", fontSize: 8.5, fontWeight: 700, color: c.vendor, whiteSpace: "nowrap", textAlign: "center", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
-        <span style={{ fontSize: 7, opacity: 0.7 }}>⬡</span>{n.name}
+      <div onClick={() => capClick(nodeId)} style={{ background: "#FFF8E1", border: `1.5px dashed ${c.vendor}50`, borderRadius: 5, padding: "4px 8px", fontSize: 8.5, fontWeight: 700, color: c.vendor, whiteSpace: "nowrap", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+        {ic ? <img src={ic} alt="" style={{ width: 16, height: 16 }} /> : <span style={{ fontSize: 7, opacity: 0.7 }}>⬡</span>}{n.name}
       </div>
     );
   };
@@ -363,8 +366,10 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
   const SrcCard = ({ nodeId }: { nodeId: string }) => {
     const n = getNode(nodeId);
     if (!n) return null;
+    const ic = n.icon ? iconUrl(n.name, n.icon) : null;
     return (
-      <div onClick={() => capClick(nodeId)} style={{ background: c.white, borderRadius: 4, padding: "3px 5px", fontSize: 7, fontWeight: 600, color: c.sources, textAlign: "center", border: `1px solid ${c.sources}15`, lineHeight: 1.2, cursor: "pointer" }}>
+      <div onClick={() => capClick(nodeId)} style={{ background: c.white, borderRadius: 4, padding: "4px 5px", fontSize: 7, fontWeight: 600, color: c.sources, textAlign: "center", border: `1px solid ${c.sources}15`, lineHeight: 1.2, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+        {ic && <img src={ic} alt="" style={{ width: 16, height: 16 }} />}
         {n.name}
         {n.subtitle && <div style={{ fontSize: 5.5, opacity: 0.6, fontWeight: 500 }}>{n.subtitle}</div>}
       </div>
@@ -375,10 +380,15 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
   const ConnCard = ({ nodeId, isVendor }: { nodeId: string; isVendor?: boolean }) => {
     const n = getNode(nodeId);
     if (!n) return null;
+    const ic = n.icon ? iconUrl(n.name, n.icon) : null;
     return isVendor ? (
-      <div onClick={() => capClick(nodeId)} style={{ background: "#FFF8E1", borderRadius: 4, padding: "3px 5px", fontSize: 6.5, fontWeight: 700, color: c.vendor, textAlign: "center", border: `1.5px dashed ${c.vendor}30`, cursor: "pointer" }}>⬡ {n.name}</div>
+      <div onClick={() => capClick(nodeId)} style={{ background: "#FFF8E1", borderRadius: 4, padding: "3px 5px", fontSize: 6.5, fontWeight: 700, color: c.vendor, textAlign: "center", border: `1.5px dashed ${c.vendor}30`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}>
+        {ic ? <img src={ic} alt="" style={{ width: 16, height: 16 }} /> : <span style={{ fontSize: 7 }}>⬡</span>} {n.name}
+      </div>
     ) : (
-      <div onClick={() => capClick(nodeId)} style={{ background: c.white, borderRadius: 4, padding: "3px 5px", fontSize: 7, fontWeight: 600, color: c.connectivity, textAlign: "center", border: `1px solid ${c.connectivity}15`, cursor: "pointer" }}>{n.name}</div>
+      <div onClick={() => capClick(nodeId)} style={{ background: c.white, borderRadius: 4, padding: "3px 5px", fontSize: 7, fontWeight: 600, color: c.connectivity, textAlign: "center", border: `1px solid ${c.connectivity}15`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}>
+        {ic && <img src={ic} alt="" style={{ width: 16, height: 16 }} />}{n.name}
+      </div>
     );
   };
 
