@@ -290,217 +290,234 @@ const MEDAL_ZONES = [
 ];
 
 function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: any; setPopover: (p: any) => void }) {
-  const connRef = useRef<HTMLDivElement>(null);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const pillarRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [selectedCap, setSelectedCap] = useState<string | null>(null);
-
   const getNode = (id: string) => diag.nodes.find(n => n.id === id);
   const nodesByPrefix = (pfx: string) => diag.nodes.filter(n => n.id.startsWith(pfx));
-
-  // Draw connector arrows from platform box edge to pillars
-  useEffect(() => {
-    const draw = () => {
-      const svg = svgRef.current;
-      const col = connRef.current;
-      if (!svg || !col) return;
-      const colRect = col.getBoundingClientRect();
-      let paths = "";
-      BP_PILLARS.forEach(p => {
-        const el = pillarRefs.current[p.id];
-        if (!el) return;
-        const pRect = el.getBoundingClientRect();
-        const pY = pRect.top + pRect.height / 2 - colRect.top;
-        const endX = colRect.width;
-        paths += `<circle cx="1" cy="${pY}" r="3.5" fill="${p.color}" opacity="0.7"/>`;
-        paths += `<line x1="5" y1="${pY}" x2="${endX - 7}" y2="${pY}" stroke="${p.color}" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.45"/>`;
-        paths += `<polygon points="${endX - 1},${pY} ${endX - 8},${pY - 4} ${endX - 8},${pY + 4}" fill="${p.color}" opacity="0.6"/>`;
-      });
-      svg.innerHTML = paths;
-    };
-    setTimeout(draw, 100);
-    window.addEventListener("resize", draw);
-    return () => window.removeEventListener("resize", draw);
-  }, [diag]);
 
   const capClick = (nodeId: string) => {
     if (selectedCap === nodeId) { setSelectedCap(null); setPopover(null); }
     else { setSelectedCap(nodeId); setPopover({ type: "node", id: nodeId }); }
   };
 
-  const CapBox = ({ nodeId, style }: { nodeId: string; style: React.CSSProperties }) => {
-    const n = getNode(nodeId);
-    if (!n) return null;
-    const isSel = selectedCap === nodeId;
-    return (
-      <div onClick={() => capClick(nodeId)} style={{ flex: "0 0 auto", minWidth: 80, padding: "8px 10px", borderRadius: 7, cursor: "pointer", transition: "all 0.12s", outline: isSel ? "2px solid #1a73e8" : "none", outlineOffset: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 4, ...style }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 3px 8px rgba(0,0,0,0.06)"; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ""; (e.currentTarget as HTMLDivElement).style.boxShadow = ""; }}>
-        {(() => { const src = n.icon ? iconUrl(n.name, n.icon) : null; return src ? <img src={src} alt="" style={{ width: 32, height: 32 }} /> : null; })()}
-        <div style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.2 }}>{n.name}</div>
-        {n.subtitle && <div style={{ fontSize: 8, opacity: 0.5 }}>{n.subtitle}</div>}
-      </div>
-    );
-  };
-
-  const FlowArrow = () => (
-    <div style={{ display: "flex", justifyContent: "center", gap: 24, padding: "5px 0" }}>
-      {[0,1,2].map(i => (
-        <svg key={i} width="2" height="22" viewBox="0 0 2 22" style={{ overflow: "visible" }}>
-          <line x1="1" y1="22" x2="1" y2="6" stroke="#94a3b8" strokeWidth="1.5" />
-          <polygon points="1,0 -3.5,8 5.5,8" fill="#94a3b8" />
-        </svg>
-      ))}
-    </div>
-  );
-
-  const srcNodes = nodesByPrefix("src_");
-  const connNodes = nodesByPrefix("conn_");
-  const pillarNodes = BP_PILLARS.map(p => getNode(p.id)).filter(Boolean);
-
-  // Get pillar sub-capabilities from details.notes
-  const parsePillarItems = (nodeId: string): { name: string; desc: string }[] => {
+  const parsePillarItems = (nodeId: string): { name: string; desc: string; vendor: boolean }[] => {
     const n = getNode(nodeId);
     if (!n?.details?.notes) return [];
     const lines = n.details.notes.split("\n").filter(l => l.trim().startsWith("•"));
     return lines.map(l => {
       const clean = l.replace(/^[•\s]+/, "").trim();
+      const isVendor = clean.toLowerCase().includes("vendor") || clean.includes("—");
       const paren = clean.match(/^([^(]+)\(([^)]+)\)/);
-      if (paren) return { name: paren[1].trim(), desc: paren[2].trim() };
-      return { name: clean, desc: "" };
+      if (paren) return { name: paren[1].trim(), desc: paren[2].trim(), vendor: isVendor };
+      return { name: clean, desc: "", vendor: isVendor };
     });
   };
 
-  return (
-    <div style={{ flex: 1, overflow: "auto", background: "#fff", padding: "24px 32px 20px", fontFamily: "Inter, -apple-system, sans-serif" }}>
-      {/* Title */}
-      <div style={{ marginBottom: 18 }}>
-        <h1 style={{ fontSize: 18, fontWeight: 900, color: "#111", letterSpacing: -0.3, margin: 0 }}>{diag.title}</h1>
+  const c = { gcpBlue: "#4285F4", gcpBg: "#F0F6FF", sources: "#6B7280", connectivity: "#7C3AED", ingestion: "#0369A1", datalake: "#047857", processing: "#6D28D9", medallion: "#D97706", serving: "#C2410C", consumers: "#0E7490", vendor: "#334155", userBg: "#EDE9FE", userColor: "#5B21B6", white: "#FFFFFF", gray200: "#E5E7EB", gray500: "#6B7280", gray800: "#1F2937" };
+
+  const srcNodes = nodesByPrefix("src_");
+  const connNodes = nodesByPrefix("conn_");
+
+  /* ── Chip: GCP service ── */
+  const Chip = ({ nodeId, color }: { nodeId: string; color: string }) => {
+    const n = getNode(nodeId);
+    if (!n) return null;
+    const isSel = selectedCap === nodeId;
+    return (
+      <div onClick={() => capClick(nodeId)} style={{ background: `${color}10`, border: `1px solid ${color}30`, borderRadius: 5, padding: "4px 8px", fontSize: 8.5, fontWeight: 600, color, whiteSpace: "nowrap", textAlign: "center", cursor: "pointer", outline: isSel ? "2px solid #1a73e8" : "none", outlineOffset: 1 }}>
+        {n.name}{n.subtitle ? ` (${n.subtitle.split("·")[0].trim()})` : ""}
       </div>
+    );
+  };
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-        {/* ═══ MAIN ROW: Sources | Connectivity → Platform + Pillars ═══ */}
-        <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
+  /* ── VendorChip: non-GCP vendor ── */
+  const VChip = ({ nodeId }: { nodeId: string }) => {
+    const n = getNode(nodeId);
+    if (!n) return null;
+    return (
+      <div onClick={() => capClick(nodeId)} style={{ background: "#FFF8E1", border: `1.5px dashed ${c.vendor}50`, borderRadius: 5, padding: "4px 8px", fontSize: 8.5, fontWeight: 700, color: c.vendor, whiteSpace: "nowrap", textAlign: "center", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
+        <span style={{ fontSize: 7, opacity: 0.7 }}>⬡</span>{n.name}
+      </div>
+    );
+  };
 
-          {/* === LEFT: Sources (vertical box, 2 cols) === */}
-          <div style={{ width: 200, minWidth: 200, flexShrink: 0, border: "2px dashed #d1d5db", borderRadius: 12, padding: "10px 12px", background: "#f9fafb", position: "relative" }}>
-            <div style={{ position: "absolute", top: -9, left: 14, background: "#fff", padding: "0 8px", fontSize: 8, fontWeight: 800, color: "#6b7280", letterSpacing: 1, textTransform: "uppercase" as const }}>EXTERNAL SOURCES</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 8, paddingTop: 4 }}>
-              <div style={{ width: 16, height: 16, borderRadius: 4, background: "#4b5563", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 900, color: "#fff", flexShrink: 0 }}>①</div>
-              <div style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase" as const, color: "#4b5563" }}>Source Systems</div>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
-              {srcNodes.map(n => (
-                <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #e5e7eb", color: "#374151", minWidth: 0 }} />
-              ))}
-            </div>
-          </div>
-
-          {/* === MIDDLE: Connectivity + Platform === */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 0 }}>
-
-            {/* Platform Group Box (Layers 3-8) */}
-            <div style={{ flex: 1, border: "2px solid #94a3b8", borderRadius: 14, padding: 14, background: "#f8fafc", position: "relative" }}>
-              <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#64748b", letterSpacing: 1.5, textTransform: "uppercase" as const }}>YOUR DATA PLATFORM</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {BP_LAYERS.map((layer, li) => {
-                  const isLast = li === BP_LAYERS.length - 1;
-                  const isMedallion = layer.prefix === "medal_";
-                  return (
-                    <div key={layer.prefix}>
-                      <div style={{ borderRadius: 10, padding: "10px 14px", border: `1.5px solid ${layer.border}`, background: layer.bg }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
-                          <div style={{ width: 18, height: 18, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", background: layer.numBg, flexShrink: 0 }}>{layer.num}</div>
-                          <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: layer.nameC }}>{layer.name}</div>
-                          <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, letterSpacing: 0.4, textTransform: "uppercase" as const, background: layer.tagBg, color: layer.tagC }}>{layer.tag}</div>
-                        </div>
-                        {isMedallion ? (
-                          <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-                            {MEDAL_ZONES.map((mz, mi) => (
-                              <div key={mz.id} style={{ display: "flex", alignItems: "center", gap: 5, flex: 1 }}>
-                                <div onClick={() => capClick(mz.id)} style={{ flex: 1, padding: "12px 10px", borderRadius: 8, textAlign: "center", border: `2px solid ${mz.bd}`, background: mz.bg, cursor: "pointer", outline: selectedCap === mz.id ? "2px solid #1a73e8" : "none", outlineOffset: 1 }}>
-                                  <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: mz.lblC }}>{mz.id.toUpperCase()}</div>
-                                  <div style={{ fontSize: 8, opacity: 0.45, marginTop: 2 }}>{getNode(mz.id)?.subtitle || mz.desc}</div>
-                                </div>
-                                {mi < MEDAL_ZONES.length - 1 && <div style={{ fontSize: 16, color: "#d0d0d0", flexShrink: 0 }}>→</div>}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                            {nodesByPrefix(layer.prefix).map(n => (
-                              <CapBox key={n.id} nodeId={n.id} style={{ background: layer.capBg, border: `1px solid ${layer.capBd}`, color: layer.capC, ...(layer.prefix === "lake_" ? { flex: 2 } : {}) }} />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      {!isLast && <FlowArrow />}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Trust Boundary */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "4px 0" }}>
-              <div style={{ flex: 1, borderTop: "2px dashed #e11d48", opacity: 0.3 }} />
-              <div style={{ padding: "2px 14px", fontSize: 7.5, fontWeight: 800, color: "#e11d48", letterSpacing: 1.5, textTransform: "uppercase" as const, whiteSpace: "nowrap" }}>▲ Trust Boundary ▲</div>
-              <div style={{ flex: 1, borderTop: "2px dashed #e11d48", opacity: 0.3 }} />
-            </div>
-
-            {/* Connectivity Layer */}
-            <div style={{ border: "2px solid #f472b6", borderRadius: 12, padding: "10px 14px", background: "#fdf2f8", position: "relative" }}>
-              <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#be185d", letterSpacing: 1.2, textTransform: "uppercase" as const }}>CONNECTIVITY & ACCESS — HANDSHAKE LAYER</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
-                <div style={{ width: 18, height: 18, borderRadius: 5, background: "#be185d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", flexShrink: 0 }}>②</div>
-                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: "#be185d" }}>Connectivity & Access</div>
-                <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#fce7f3", color: "#9d174d", letterSpacing: 0.4, textTransform: "uppercase" as const }}>Trust Boundary</div>
-              </div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {connNodes.map(n => (
-                  <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #f9a8d4", color: "#831843" }} />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Connector Column */}
-          <div ref={connRef} style={{ width: 44, flexShrink: 0, position: "relative" }}>
-            <svg ref={svgRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", overflow: "visible" }} />
-          </div>
-
-          {/* Pillars */}
-          <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
-            {BP_PILLARS.map(p => {
-              const node = getNode(p.id);
-              const items = parsePillarItems(p.id);
-              return (
-                <div key={p.id} ref={el => { pillarRefs.current[p.id] = el; }} style={{ flex: 1, borderRadius: 10, padding: "12px 14px", borderLeft: `4px solid ${p.color}`, background: p.bg, display: "flex", flexDirection: "column" }}>
-                  <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase" as const, marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid rgba(0,0,0,0.06)", color: p.descC }}>{node?.name || p.id}</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, flex: 1 }}>
-                    {items.map((item, i) => (
-                      <div key={i} style={{ padding: "5px 9px", borderRadius: 6, background: p.itemBg, color: p.itemC, display: "flex", flexDirection: "column", gap: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                          <div style={{ width: 4, height: 4, borderRadius: "50%", background: p.color, flexShrink: 0 }} />
-                          <span style={{ fontSize: 9, fontWeight: 700 }}>{item.name}</span>
-                        </div>
-                        {item.desc && <div style={{ fontSize: 7.5, opacity: 0.55, paddingLeft: 9, lineHeight: 1.3, color: p.descC }}>{item.desc}</div>}
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ marginTop: "auto", paddingTop: 8, borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", gap: 3, flexWrap: "wrap" }}>
-                    {p.badges.map(b => <span key={b} style={{ fontSize: 7, fontWeight: 700, padding: "2px 6px", borderRadius: 4, letterSpacing: 0.3, textTransform: "uppercase" as const, background: p.badgeBg, color: p.badgeC }}>{b}</span>)}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+  /* ── Layer Row (L3–L8) ── */
+  const LayerRow = ({ num, title, subtitle, color, nodes, bg }: { num: string; title: string; subtitle?: string; color: string; nodes: typeof srcNodes; bg?: string }) => {
+    const vendorIds = new Set(["fivetran","matillion","dbt"]);
+    const gcpNodes = nodes.filter(n => !vendorIds.has(n.icon || ""));
+    const vNodes = nodes.filter(n => vendorIds.has(n.icon || ""));
+    return (
+      <div style={{ background: bg || `${color}06`, borderRadius: 8, border: `1.5px solid ${color}30`, padding: "7px 10px", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ fontSize: 8, fontWeight: 800, color, minWidth: 105, textTransform: "uppercase", letterSpacing: 0.3, lineHeight: 1.3, flexShrink: 0 }}>
+          <span style={{ fontSize: 11 }}>{num}</span> {title}
+          {subtitle && <div style={{ fontSize: 7, fontWeight: 600, opacity: 0.7, textTransform: "none", letterSpacing: 0 }}>{subtitle}</div>}
+        </div>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", flex: 1 }}>
+          {gcpNodes.map(n => <Chip key={n.id} nodeId={n.id} color={color} />)}
+          {vNodes.map(n => <VChip key={n.id} nodeId={n.id} />)}
         </div>
       </div>
+    );
+  };
 
+  /* ── Source card ── */
+  const SrcCard = ({ nodeId }: { nodeId: string }) => {
+    const n = getNode(nodeId);
+    if (!n) return null;
+    return (
+      <div onClick={() => capClick(nodeId)} style={{ background: c.white, borderRadius: 4, padding: "3px 5px", fontSize: 7, fontWeight: 600, color: c.sources, textAlign: "center", border: `1px solid ${c.sources}15`, lineHeight: 1.2, cursor: "pointer" }}>
+        {n.name}
+        {n.subtitle && <div style={{ fontSize: 5.5, opacity: 0.6, fontWeight: 500 }}>{n.subtitle}</div>}
+      </div>
+    );
+  };
+
+  /* ── Connectivity card ── */
+  const ConnCard = ({ nodeId, isVendor }: { nodeId: string; isVendor?: boolean }) => {
+    const n = getNode(nodeId);
+    if (!n) return null;
+    return isVendor ? (
+      <div onClick={() => capClick(nodeId)} style={{ background: "#FFF8E1", borderRadius: 4, padding: "3px 5px", fontSize: 6.5, fontWeight: 700, color: c.vendor, textAlign: "center", border: `1.5px dashed ${c.vendor}30`, cursor: "pointer" }}>⬡ {n.name}</div>
+    ) : (
+      <div onClick={() => capClick(nodeId)} style={{ background: c.white, borderRadius: 4, padding: "3px 5px", fontSize: 7, fontWeight: 600, color: c.connectivity, textAlign: "center", border: `1px solid ${c.connectivity}15`, cursor: "pointer" }}>{n.name}</div>
+    );
+  };
+
+  /* ── Arrow ── */
+  const Arrow = ({ color = "#94A2B8" }: { color?: string }) => (
+    <div style={{ display: "flex", alignItems: "center", padding: "0 2px" }}>
+      <svg width="18" height="10"><line x1="0" y1="5" x2="12" y2="5" stroke={color} strokeWidth="1.5" strokeDasharray="3 2"/><polygon points="12,1.5 18,5 12,8.5" fill={color}/></svg>
+    </div>
+  );
+
+  /* ── Vendor identity IDs ── */
+  const vendorConnIds = new Set(["conn_entra_id", "conn_cyberark", "conn_keeper"]);
+  const identityIds = ["conn_cloud_identity", "conn_identity_platform", "conn_iam"];
+  const vendorIdentityIds = ["conn_entra_id", "conn_cyberark", "conn_keeper"];
+  const networkIds = connNodes.filter(n => !identityIds.includes(n.id) && !vendorIdentityIds.includes(n.id)).map(n => n.id);
+
+  /* ── Users (from con_ nodes) ── */
+  const users = [
+    { icon: "📋", label: "Data Stewards", sub: "Governance & Quality" },
+    { icon: "🔐", label: "Security Admins", sub: "Security & Identity" },
+    { icon: "📡", label: "Platform Engineers", sub: "Observability & Ops" },
+    { icon: "⚙️", label: "DataOps Engineers", sub: "Orchestration & Cost" },
+    { icon: "📊", label: "Analysts", sub: "Consumers" },
+    { icon: "🔬", label: "Data Scientists", sub: "Data Science" },
+    { icon: "🏢", label: "Business Users", sub: "BI & Self-Service" },
+  ];
+
+  return (
+    <div style={{ fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif", background: "#FAFAFD", flex: 1, overflow: "auto", padding: "18px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+      {/* Title */}
+      <div style={{ textAlign: "center", marginBottom: 12 }}>
+        <h1 style={{ fontSize: 19, fontWeight: 800, color: c.gray800, margin: 0, letterSpacing: -0.3 }}>{diag.title}</h1>
+        <p style={{ fontSize: 10, color: c.gray500, margin: "3px 0 0 0" }}>{diag.subtitle}</p>
+      </div>
+
+      <div style={{ width: "100%", maxWidth: 1100, display: "flex", flexDirection: "column", gap: 8 }}>
+
+        {/* ═══ USERS ROW ═══ */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 24, padding: "8px 14px", background: c.userBg, borderRadius: 10, border: `1.5px solid ${c.userColor}30` }}>
+          <div style={{ fontSize: 8, fontWeight: 800, color: c.userColor, textTransform: "uppercase", letterSpacing: 1, display: "flex", alignItems: "center", gap: 4 }}>👥 Users</div>
+          {users.map((u, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontSize: 14 }}>{u.icon}</span>
+              <div>
+                <div style={{ fontSize: 8.5, fontWeight: 700, color: c.userColor }}>{u.label}</div>
+                <div style={{ fontSize: 6.5, color: `${c.userColor}90` }}>{u.sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ═══ MAIN LAYOUT ═══ */}
+        <div style={{ display: "flex", gap: 6, alignItems: "stretch", overflow: "hidden" }}>
+
+          {/* === LAYER 1: SOURCES === */}
+          <div style={{ width: 105, minWidth: 105, borderRadius: 10, border: `2px solid ${c.sources}30`, background: `${c.sources}06`, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: c.sources, textAlign: "center", textTransform: "uppercase", letterSpacing: 0.8, paddingBottom: 4, borderBottom: `1.5px solid ${c.sources}20` }}>Layer 1<br/>Sources</div>
+            {srcNodes.map(n => <SrcCard key={n.id} nodeId={n.id} />)}
+          </div>
+
+          <Arrow color={c.sources} />
+
+          {/* === LAYER 2: CONNECTIVITY === */}
+          <div style={{ width: 105, minWidth: 105, borderRadius: 10, border: `2px dashed ${c.connectivity}40`, background: `${c.connectivity}05`, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: c.connectivity, textAlign: "center", textTransform: "uppercase", letterSpacing: 0.8, paddingBottom: 4, borderBottom: `1.5px solid ${c.connectivity}20` }}>Layer 2<br/>Connectivity</div>
+            <div style={{ fontSize: 6, fontWeight: 700, color: c.connectivity, opacity: 0.6, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 2 }}>Identity & Auth</div>
+            {identityIds.map(id => <ConnCard key={id} nodeId={id} />)}
+            {vendorIdentityIds.map(id => <ConnCard key={id} nodeId={id} isVendor />)}
+            <div style={{ fontSize: 6, fontWeight: 700, color: c.connectivity, opacity: 0.6, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 2 }}>Secrets & Network</div>
+            {networkIds.map(id => <ConnCard key={id} nodeId={id} />)}
+          </div>
+
+          <Arrow color={c.gcpBlue} />
+
+          {/* === GCP BOUNDARY (Layers 3–8) === */}
+          <div style={{ flex: 1, borderRadius: 14, border: `3px solid ${c.gcpBlue}`, background: c.gcpBg, padding: "16px 12px 12px 12px", position: "relative", display: "flex", gap: 6 }}>
+            <div style={{ position: "absolute", top: -12, left: 16, background: c.gcpBlue, color: c.white, fontSize: 9, fontWeight: 800, padding: "3px 12px", borderRadius: 16, letterSpacing: 0.8, display: "flex", alignItems: "center", gap: 4 }}>
+              ☁️ GOOGLE CLOUD PLATFORM — Layers 3–8
+            </div>
+
+            {/* Horizontal Layers */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5, marginTop: 4 }}>
+              <LayerRow num="L8" title="Consumption" color={c.consumers} nodes={nodesByPrefix("con_")} />
+              <LayerRow num="L7" title="Serving" subtitle="Delivery" color={c.serving} nodes={nodesByPrefix("serve_")} />
+              <LayerRow num="L6" title="Medallion" color={c.medallion} nodes={[getNode("bronze"), getNode("silver"), getNode("gold")].filter(Boolean) as any} bg="#FFFBEB" />
+              <LayerRow num="L5" title="Processing" subtitle="Transformation" color={c.processing} nodes={nodesByPrefix("proc_")} />
+              <LayerRow num="L4" title="Data Lake" subtitle="Raw landing zone" color={c.datalake} nodes={nodesByPrefix("lake_")} />
+              <LayerRow num="L3" title="Ingestion" color={c.ingestion} nodes={nodesByPrefix("ing_")} />
+            </div>
+
+            {/* 4 Vertical Pillars */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4, width: 150 }}>
+              {BP_PILLARS.map(p => {
+                const node = getNode(p.id);
+                const items = parsePillarItems(p.id);
+                const gcpItems = items.filter(it => !it.vendor);
+                const vendorItems = items.filter(it => it.vendor);
+                return (
+                  <div key={p.id} style={{ flex: 1, background: `${p.color}08`, borderRadius: 8, border: `1.5px solid ${p.color}35`, padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 3 }}>
+                    <div style={{ fontSize: 7.5, fontWeight: 800, color: p.color, letterSpacing: 0.3 }}>{node?.name || p.id}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                      {gcpItems.map((item, j) => (
+                        <div key={j} style={{ fontSize: 6.5, fontWeight: 600, color: `${p.color}BB`, lineHeight: 1.2 }}>• {item.name}{item.desc ? ` (${item.desc})` : ""}</div>
+                      ))}
+                    </div>
+                    {vendorItems.length > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 1, marginTop: 1 }}>
+                        {vendorItems.map((v, j) => (
+                          <div key={j} style={{ fontSize: 6, fontWeight: 700, color: c.vendor, background: "#FFF8E1", border: `1px dashed ${c.vendor}40`, borderRadius: 3, padding: "1.5px 4px" }}>⬡ {v.name}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ LEGEND ═══ */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 16, padding: "6px 0", borderTop: `1px solid ${c.gray200}` }}>
+          {[
+            { color: c.gcpBlue, label: "GCP (Layers 3–8)", border: "solid", w: 3 },
+            { color: c.sources, label: "L1 Sources (External)", border: "solid", w: 2 },
+            { color: c.connectivity, label: "L2 Connectivity (Boundary)", border: "dashed", w: 2 },
+            { color: c.vendor, label: "⬡ Vendor Tools (non-GCP)", border: "dashed", w: 1.5 },
+          ].map((item, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ width: 16, height: 8, borderRadius: 2, border: `${item.w}px ${item.border} ${item.color}`, background: item.border === "solid" ? `${item.color}12` : "transparent" }}/>
+              <span style={{ fontSize: 7.5, fontWeight: 600, color: c.gray500 }}>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
-/* ═══ SVG CANVAS ═══════════════════════════════════ */
+
 function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, connectMode, connectSource, onConnectClick }: { diag: Diagram; setDiag: (d: Diagram) => void; popover: any; setPopover: (p: any) => void; theme: string; onDragEnd?: (d: Diagram) => void; connectMode?: boolean; connectSource?: string | null; onConnectClick?: (nodeId: string) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
