@@ -291,8 +291,8 @@ const CDC_MIGRATION: Diagram = {
   opsGroup: { name: "Operations", nodeIds: ["composer", "catalog", "monitoring"] },
   nodes: [
     { id: "src_rds", name: "AWS RDS", icon: "aws_rds", subtitle: "PostgreSQL", zone: "sources", x: 100, y: 250, details: { notes: "Logical replication enabled (wal_level=logical)" } },
-    { id: "src_s3", name: "AWS S3", icon: "aws_s3", subtitle: "Historical Files", zone: "sources", x: 750, y: 400, details: { notes: "CSV/Parquet batch backfill exports" } },
-    { id: "src_oracle", name: "On-Prem Oracle", icon: "oracle", subtitle: "Legacy DB", zone: "sources", x: 750, y: 200, details: { notes: "Oracle 12c+ with LogMiner for CDC" } },
+    { id: "src_s3", name: "AWS S3", icon: "aws_s3", subtitle: "Historical Files", zone: "sources", x: 100, y: 1020, details: { notes: "CSV/Parquet batch backfill exports" } },
+    { id: "src_oracle", name: "On-Prem Oracle", icon: "oracle", subtitle: "Legacy DB", zone: "sources", x: 300, y: 100, details: { notes: "Oracle 12c+ with LogMiner for CDC" } },
     { id: "vpn", name: "Cloud VPN", icon: "cloud_vpn", subtitle: "Encrypted Tunnel", zone: "cloud", x: 350, y: 250,
       details: { encryption: "IPSec IKEv2, AES-256-GCM", monitoring: "Tunnel status, bandwidth, packet loss", alerting: "Tunnel down → PagerDuty P1", cost: "~$0.075/hr + egress", compliance: "SOC2" } },
     { id: "sts", name: "Transfer Service", icon: "cloud_storage", subtitle: "S3 Batch Transfer", zone: "cloud", x: 350, y: 420,
@@ -436,7 +436,7 @@ const BLUEPRINT: Diagram = {
     { id: "src_legacy", name: "Legacy", icon: null, subtitle: "COBOL · MQ · flat files", zone: "sources", x: 1150, y: 100, details: { notes: "Legacy systems with limited connectivity.\nRequires: custom connectors, file-based integration, MQ bridging." } },
 
     // ── CONNECTIVITY (Layer 2 — handshake / trust boundary) ──
-    { id: "conn_vpn", name: "VPN / Private Link", icon: null, subtitle: "Secure network tunnels", zone: "connectivity", x: 100, y: 250, details: { notes: "Site-to-site VPN or cloud Private Link for secure connectivity.\nSupports: IPsec, WireGuard, AWS PrivateLink, Azure Private Endpoint, GCP Private Service Connect." } },
+    { id: "conn_vpn", name: "VPN / Private Link", icon: null, subtitle: "Secure network tunnels", zone: "connectivity", x: 850, y: 100, details: { notes: "Site-to-site VPN or cloud Private Link for secure connectivity.\nSupports: IPsec, WireGuard, AWS PrivateLink, Azure Private Endpoint, GCP Private Service Connect." } },
     { id: "conn_peer", name: "Network Peering", icon: null, subtitle: "VPC / VNET cross-connect", zone: "connectivity", x: 250, y: 250, details: { notes: "Direct cloud network peering for low-latency source access.\nSupports: VPC peering, Transit Gateway, Azure VNET peering." } },
     { id: "conn_fw", name: "Firewall Rules", icon: null, subtitle: "IP allowlist, port control", zone: "connectivity", x: 400, y: 250, details: { notes: "Network-level access control for all source connections.\nCapabilities: IP allowlisting, port-level rules, egress filtering, WAF." } },
     { id: "conn_auth", name: "Authentication", icon: null, subtitle: "OAuth · SAML · API keys", zone: "connectivity", x: 550, y: 250, details: { notes: "Identity verification for source system access.\nSupports: OAuth 2.0, SAML SSO, API key management, LDAP, token exchange." } },
@@ -575,7 +575,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
 
   nodes: [
     // ── SaaS / ERP (row 1) ──
-    { id: "src_salesforce", name: "Salesforce", icon: "salesforce", subtitle: "CRM · REST/Bulk API · CDC", zone: "sources", x: 100, y: 200, details: {
+    { id: "src_salesforce", name: "Salesforce", icon: "salesforce", subtitle: "CRM · REST/Bulk API · CDC", zone: "sources", x: 100, y: 100, details: {
       notes: "Cloud CRM platform exposing accounts, contacts, opportunities, cases, and custom objects via REST/Bulk APIs and Change Data Capture streams.\n\nUse when: CRM data (sales, support, customer 360) needs to land in the warehouse.",
       encryption: "In transit: TLS 1.3 | At rest: Salesforce Shield AES-256 (if licensed) | Auth: OAuth 2.0",
       monitoring: "API call count vs 100K/day limit, CDC event lag, Bulk API job status",
@@ -584,7 +584,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "OAuth 2.0 tokens in Secret Manager, respect rate limits (100K/day), incremental sync via SystemModstamp",
       compliance: "SOC2, GDPR (PII in CRM data)"
     }},
-    { id: "src_workday", name: "Workday", icon: "workday", subtitle: "HCM/Finance · SOAP/REST · RaaS", zone: "sources", x: 250, y: 200, details: {
+    { id: "src_workday", name: "Workday", icon: "workday", subtitle: "HCM/Finance · SOAP/REST · RaaS", zone: "sources", x: 100, y: 220, details: {
       notes: "Cloud HCM/Finance platform exposing employees, payroll, benefits, org structure, and financials via SOAP/REST APIs and RaaS reports.\n\nUse when: HR, payroll, or financial data needs to land in the warehouse.",
       encryption: "In transit: TLS 1.2+ | At rest: AES-256 (Workday-managed) | Auth: WS-Security (SOAP), OAuth 2.0 (REST)",
       monitoring: "RaaS report execution time, API response latency, data freshness",
@@ -593,7 +593,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "OAuth 2.0 tokens in Secret Manager, concurrent request limits, ISU (Integration System User) with minimal scope",
       compliance: "SOC2, GDPR, HIPAA (payroll/benefits data)"
     }},
-    { id: "src_servicenow", name: "ServiceNow", icon: "servicenow", subtitle: "ITSM · Table API · Import Sets", zone: "sources", x: 400, y: 200, details: {
+    { id: "src_servicenow", name: "ServiceNow", icon: "servicenow", subtitle: "ITSM · Table API · Import Sets", zone: "sources", x: 100, y: 340, details: {
       notes: "Cloud ITSM platform exposing incidents, changes, CMDB CIs, requests, and knowledge articles via REST Table API and Import Sets.\n\nUse when: IT operations data (incidents, CMDB, change history) needs to land in the warehouse.",
       encryption: "In transit: TLS 1.2+ | At rest: AES-256 (ServiceNow-managed) | Auth: OAuth 2.0 or basic auth",
       monitoring: "Table API pagination count, Import Set job status, record counts per sync",
@@ -602,7 +602,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "OAuth 2.0 in Secret Manager, sysparm_query filters for incremental pulls, ACL-scoped integration user",
       compliance: "SOC2"
     }},
-    { id: "src_sap", name: "SAP", icon: "sap", subtitle: "ERP · OData/BAPI/IDoc/SLT", zone: "sources", x: 550, y: 200, details: {
+    { id: "src_sap", name: "SAP", icon: "sap", subtitle: "ERP · OData/BAPI/IDoc/SLT", zone: "sources", x: 100, y: 460, details: {
       notes: "ERP system exposing finance, supply chain, procurement, and HR data via OData APIs, BAPIs, IDocs, or SLT replication.\n\nUse when: ERP transactional data (GL, AP, AR, inventory) needs to land in the warehouse.",
       encryption: "In transit: TLS 1.2+, SNC for RFC connections | At rest: SAP HANA data volume encryption (AES-256) | Auth: OAuth 2.0, X.509, or SAML",
       monitoring: "SLT replication lag, OData batch job duration, IDoc queue depth",
@@ -622,7 +622,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "Dedicated extraction user with SELECT + LOGMINING grants only, VPN/Interconnect required, supplemental logging enabled",
       compliance: "SOC2, HIPAA, PCI-DSS"
     }},
-    { id: "src_sqlserver", name: "SQL Server", icon: "sqlserver", subtitle: "RDBMS · CT/CDC · Always On", zone: "sources", x: 900, y: 200, details: {
+    { id: "src_sqlserver", name: "SQL Server", icon: "sqlserver", subtitle: "RDBMS · CT/CDC · Always On", zone: "sources", x: 300, y: 220, details: {
       notes: "Microsoft RDBMS running on-prem, Azure, or VMs, exposing tables via JDBC/ODBC, Change Tracking (CT), CDC, or Always On replicas.\n\nUse when: SQL Server data needs CDC replication or bulk extraction to GCP.",
       encryption: "In transit: TLS 1.2+ | At rest: TDE (AES-256), Always Encrypted for column-level | Auth: Windows Auth, SQL Auth, Azure AD",
       monitoring: "CT version cleanup lag, CDC capture job latency, AG replica sync status",
@@ -631,7 +631,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "Read from AG secondary replica to avoid prod impact, CT/CDC enabled per table, dedicated login with db_datareader + CT permissions",
       compliance: "SOC2, HIPAA"
     }},
-    { id: "src_postgresql", name: "PostgreSQL", icon: "postgresql", subtitle: "RDBMS · WAL · Logical Replication", zone: "sources", x: 1050, y: 200, details: {
+    { id: "src_postgresql", name: "PostgreSQL", icon: "postgresql", subtitle: "RDBMS · WAL · Logical Replication", zone: "sources", x: 300, y: 340, details: {
       notes: "Open-source RDBMS running on-prem, VMs, or managed services, exposing tables via JDBC and logical replication slots.\n\nUse when: PostgreSQL data needs CDC or bulk extraction to GCP.",
       encryption: "In transit: SSL/TLS | At rest: pgcrypto or filesystem-level; managed services use provider encryption | Auth: SCRAM-SHA-256, LDAP, or cert-based",
       monitoring: "Replication slot lag (bytes), WAL file count, logical decoding throughput",
@@ -640,7 +640,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "wal_level=logical, dedicated replication user, monitor replication slot to prevent WAL disk bloat",
       compliance: "SOC2"
     }},
-    { id: "src_mongodb", name: "MongoDB", icon: "mongodb", subtitle: "NoSQL · Change Streams · mongodump", zone: "sources", x: 1200, y: 200, details: {
+    { id: "src_mongodb", name: "MongoDB", icon: "mongodb", subtitle: "NoSQL · Change Streams · mongodump", zone: "sources", x: 300, y: 460, details: {
       notes: "Document database exposing collections via Change Streams for CDC or mongodump/mongoexport for bulk extraction.\n\nUse when: NoSQL document data needs to land in the warehouse.",
       encryption: "In transit: TLS | At rest: WiredTiger AES-256; Atlas supports AWS KMS / GCP KMS | Auth: SCRAM-SHA-256, X.509, LDAP",
       monitoring: "Change Stream resume token lag, oplog window size, cursor idle time",
@@ -649,7 +649,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "Replica set required for Change Streams, resume token persisted to GCS for crash recovery, read from secondary preferred",
       compliance: "SOC2"
     }},
-    { id: "src_cloud_sql", name: "Cloud SQL", icon: "cloud_sql", subtitle: "Managed MySQL/PG/SS · HA · PITR", zone: "sources", x: 1350, y: 200, details: {
+    { id: "src_cloud_sql", name: "Cloud SQL", icon: "cloud_sql", subtitle: "Managed MySQL/PG/SS · HA · PITR", zone: "sources", x: 300, y: 620, details: {
       notes: "Managed MySQL, PostgreSQL, or SQL Server on GCP with automated backups, patching, and HA.\n\nUse when: GCP-native relational data (app backends) needs to land in the warehouse.",
       encryption: "In transit: TLS 1.2+ (enforced) | At rest: CMEK via Cloud KMS (AES-256) | Auth: IAM database authentication, Cloud SQL Auth Proxy",
       monitoring: "CPU/memory utilization, replication lag, connection count, storage auto-resize events",
@@ -658,7 +658,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "Private IP only (no public), IAM-based auth via Auth Proxy, automated backups with PITR, cross-region read replicas for DR",
       compliance: "SOC2, HIPAA, PCI-DSS"
     }},
-    { id: "src_cloud_spanner", name: "Cloud Spanner", icon: "cloud_spanner", subtitle: "Global DB · 99.999% SLA · Zero RPO", zone: "sources", x: 1500, y: 200, details: {
+    { id: "src_cloud_spanner", name: "Cloud Spanner", icon: "cloud_spanner", subtitle: "Global DB · 99.999% SLA · Zero RPO", zone: "sources", x: 300, y: 740, details: {
       notes: "Globally distributed, strongly consistent relational DB with 99.999% SLA for multi-region configurations.\n\nUse when: Globally distributed transactional data needs to land in the warehouse.",
       encryption: "In transit: TLS (Google-managed) | At rest: Google default AES-256 or CMEK via Cloud KMS | Auth: IAM + fine-grained access control (row/column)",
       monitoring: "Node CPU utilization (target < 65%), request latency P99, storage utilization",
@@ -669,7 +669,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     }},
 
     // ── Event Streams (row 3, left) ──
-    { id: "src_kafka", name: "Apache Kafka", icon: "kafka", subtitle: "Self-Managed · Pub-Sub · MirrorMaker", zone: "sources", x: 100, y: 400, details: {
+    { id: "src_kafka", name: "Apache Kafka", icon: "kafka", subtitle: "Self-Managed · Pub-Sub · MirrorMaker", zone: "sources", x: 100, y: 620, details: {
       notes: "Distributed event streaming platform for high-throughput, low-latency publish-subscribe messaging and event sourcing.\n\nUse when: Real-time event streams need to be ingested into GCP (clickstream, IoT, transactions).",
       encryption: "In transit: TLS for inter-broker and client | At rest: depends on underlying storage | Auth: SASL/PLAIN, SASL/SCRAM, mTLS, OAUTHBEARER",
       monitoring: "Consumer group lag, broker under-replicated partitions, request latency, ISR shrink events",
@@ -678,7 +678,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "acks=all for durability, min.insync.replicas=2, MirrorMaker 2 for cross-DC replication, mTLS for producer auth",
       compliance: "SOC2"
     }},
-    { id: "src_confluent", name: "Confluent Cloud", icon: "confluent", subtitle: "Managed Kafka · Schema Registry · ksqlDB", zone: "sources", x: 250, y: 400, details: {
+    { id: "src_confluent", name: "Confluent Cloud", icon: "confluent", subtitle: "Managed Kafka · Schema Registry · ksqlDB", zone: "sources", x: 100, y: 740, details: {
       notes: "Managed Kafka service with Schema Registry, ksqlDB, connectors, and multi-cloud support.\n\nUse when: Managed Kafka streams need ingestion into GCP without self-managing brokers.",
       encryption: "In transit: TLS 1.2+ | At rest: AES-256 (Confluent-managed) | Auth: RBAC + ACLs, API keys, or OAuth",
       monitoring: "Cluster throughput (MB/s), consumer lag, Schema Registry compatibility checks",
@@ -687,7 +687,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "Cluster Linking for cross-region DR, Schema Registry enforced (BACKWARD compatibility), RBAC per topic",
       compliance: "SOC2, HIPAA, PCI-DSS, ISO 27001"
     }},
-    { id: "src_kinesis", name: "AWS Kinesis", icon: "aws_kinesis", subtitle: "Cross-Cloud · Data Streams · Firehose", zone: "sources", x: 400, y: 400, details: {
+    { id: "src_kinesis", name: "AWS Kinesis", icon: "aws_kinesis", subtitle: "Cross-Cloud · Data Streams · Firehose", zone: "sources", x: 100, y: 860, details: {
       notes: "AWS managed streaming service for real-time data ingestion at scale (Data Streams + Firehose).\n\nUse when: Cross-cloud streaming data from AWS needs to land in GCP.",
       encryption: "In transit: TLS | At rest: AWS KMS SSE (AES-256) | Auth: AWS IAM policies, KMS key policies",
       monitoring: "GetRecords latency, iterator age, shard count, Firehose delivery lag",
@@ -698,7 +698,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     }},
 
     // ── File / Object (row 3, middle) ──
-    { id: "src_sftp", name: "SFTP Server", icon: "sftp_server", subtitle: "Partner File Drops · Batch", zone: "sources", x: 600, y: 400, details: {
+    { id: "src_sftp", name: "SFTP Server", icon: "sftp_server", subtitle: "Partner File Drops · Batch", zone: "sources", x: 300, y: 860, details: {
       notes: "Secure file transfer endpoint for batch file drops (CSV, JSON, XML, flat files) from partners or legacy systems.\n\nUse when: Partners or legacy systems push files on a schedule for batch ingestion.",
       encryption: "In transit: SSH/SFTP (encrypted channel) | At rest: PGP/GPG for file-level encryption if required | Auth: SSH key pairs, password, or certificate",
       monitoring: "File arrival time vs SLA, file size anomalies, transfer success/failure count",
@@ -718,7 +718,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     }},
 
     // ── APIs (row 3, right) ──
-    { id: "src_rest_api", name: "REST API", icon: "rest_api", subtitle: "Generic HTTP/JSON · Scheduled Pull", zone: "sources", x: 950, y: 400, details: {
+    { id: "src_rest_api", name: "REST API", icon: "rest_api", subtitle: "Generic HTTP/JSON · Scheduled Pull", zone: "sources", x: 300, y: 1020, details: {
       notes: "Any HTTP/REST endpoint exposing data via JSON/XML payloads. Covers custom APIs, SaaS APIs not listed elsewhere.\n\nUse when: A custom or niche SaaS API needs to be pulled into GCP on a schedule.",
       encryption: "In transit: TLS 1.2+ | Auth: varies — OAuth 2.0, API key, bearer token, mTLS",
       monitoring: "API response codes, response time, records per pull, rate limit remaining",
@@ -727,7 +727,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "All credentials in Secret Manager, exponential backoff on retry, pagination handling, idempotent writes",
       compliance: "SOC2"
     }},
-    { id: "src_webhook", name: "Webhook", icon: "webhook", subtitle: "Push-Based Events · HMAC · Real-Time", zone: "sources", x: 1100, y: 400, details: {
+    { id: "src_webhook", name: "Webhook", icon: "webhook", subtitle: "Push-Based Events · HMAC · Real-Time", zone: "sources", x: 100, y: 1140, details: {
       notes: "Push-based HTTP callback that sends event payloads when something happens in the source system.\n\nUse when: Real-time event notifications (payment completed, ticket created) need immediate ingestion.",
       encryption: "In transit: TLS | Auth: HMAC signature verification for payload integrity, source-specific auth",
       monitoring: "Webhook delivery rate, signature validation failures, Pub/Sub backlog depth",
@@ -738,7 +738,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     }},
 
     // ── Legacy (row 4) ──
-    { id: "src_onprem", name: "On-Prem Server", icon: "onprem_server", subtitle: "Hybrid Connectivity · VPN · Interconnect", zone: "sources", x: 1300, y: 400, details: {
+    { id: "src_onprem", name: "On-Prem Server", icon: "onprem_server", subtitle: "Hybrid Connectivity · VPN · Interconnect", zone: "sources", x: 300, y: 1140, details: {
       notes: "On-premises application or database server requiring hybrid connectivity to GCP for data extraction.\n\nUse when: Legacy on-prem systems need connectivity to GCP via VPN or Interconnect.",
       encryption: "In transit: IPsec (VPN) or MACsec (Interconnect) | At rest: varies by on-prem system | Auth: on-prem credentials in CyberArk → Secret Manager",
       monitoring: "VPN tunnel status, Interconnect link utilization, extraction job success",
@@ -747,7 +747,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "Redundant VPN tunnels or Interconnect attachments, VPC Service Controls, no direct public IP exposure",
       compliance: "SOC2, ISO 27001"
     }},
-    { id: "src_mainframe", name: "Mainframe", icon: "mainframe", subtitle: "z/OS · DB2 · VSAM · COBOL · EBCDIC", zone: "sources", x: 1450, y: 400, details: {
+    { id: "src_mainframe", name: "Mainframe", icon: "mainframe", subtitle: "z/OS · DB2 · VSAM · COBOL · EBCDIC", zone: "sources", x: 100, y: 1260, details: {
       notes: "Legacy IBM z/OS or AS/400 systems exposing data via VSAM, DB2, IMS, or batch file extracts (EBCDIC).\n\nUse when: Mainframe data (COBOL copybooks, DB2 tables, VSAM files) needs to land in GCP.",
       encryption: "In transit: z/OS dataset encryption (DFSMS), TLS for network, SNA encryption for legacy protocols | Auth: RACF/ACF2 credentials in CyberArk → Secret Manager",
       monitoring: "Batch job completion (JES2), MIPS consumption during extraction, file transfer byte counts",
@@ -762,7 +762,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     // ══════════════════════════════════════════════════
 
     // ── Identity & Auth (row 3) ──
-    { id: "conn_entra_id", name: "Entra ID", icon: "entra_id", subtitle: "Enterprise IdP · SSO · MFA · Conditional Access", zone: "connectivity", x: 100, y: 700, details: {
+    { id: "conn_entra_id", name: "Entra ID", icon: "entra_id", subtitle: "Enterprise IdP · SSO · MFA · Conditional Access", zone: "connectivity", x: 650, y: 100, details: {
       notes: "Microsoft cloud identity platform providing SSO, MFA, conditional access, and user/group directory. Federates into GCP Cloud Identity via SAML 2.0.\n\nUse when: Organization uses Microsoft 365 and needs SSO into GCP console, Looker, and SaaS tools.",
       encryption: "In transit: TLS 1.2+ | Tokens: SAML signed + encrypted | Auth: SAML 2.0 / OIDC",
       monitoring: "Sign-in failure rate, conditional access blocks, risky sign-in detections",
@@ -771,7 +771,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "Conditional access: require MFA + compliant device for GCP. Block legacy auth protocols.",
       compliance: "SOC2, ISO 27001, HIPAA"
     }},
-    { id: "conn_cloud_identity", name: "Cloud Identity", icon: "identity_and_access_management", subtitle: "GCP Identity Broker · SAML Federation · Group Sync", zone: "connectivity", x: 250, y: 700, details: {
+    { id: "conn_cloud_identity", name: "Cloud Identity", icon: "identity_and_access_management", subtitle: "GCP Identity Broker · SAML Federation · Group Sync", zone: "connectivity", x: 650, y: 220, details: {
       notes: "Google-managed identity service receiving SAML federation from Entra ID, mapping users/groups to GCP IAM roles.\n\nUse when: Required layer between enterprise IdP and GCP IAM. All GCP access flows through Cloud Identity.",
       encryption: "In transit: Google-managed TLS | Tokens: SAML encrypted",
       monitoring: "GCDS sync status, login audit events, admin activity logs",
@@ -780,7 +780,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "GCDS or SCIM provisioning. No local passwords — federated only.",
       compliance: "SOC2, ISO 27001"
     }},
-    { id: "conn_identity_platform", name: "Identity Platform", icon: "identity_platform", subtitle: "Customer Auth · OIDC · Social Login · Phone MFA", zone: "connectivity", x: 400, y: 700, details: {
+    { id: "conn_identity_platform", name: "Identity Platform", icon: "identity_platform", subtitle: "Customer Auth · OIDC · Social Login · Phone MFA", zone: "connectivity", x: 650, y: 340, details: {
       notes: "Customer-facing auth service supporting OIDC, SAML, social logins, email/password, and phone auth for app end-users.\n\nUse when: External users (patients, partners, customers) authenticate to consume data via apps or embedded BI.",
       encryption: "In transit: TLS | Tokens: JWT | At rest: Google-managed",
       monitoring: "Auth success/failure rate, sign-up volume, MFA enrollment",
@@ -791,7 +791,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     }},
 
     // ── Credential & Secrets (row 3, continued) ──
-    { id: "conn_cyberark", name: "CyberArk", icon: "cyberark", subtitle: "Enterprise PAM · Vault · Auto-Rotation · Secrets Hub", zone: "connectivity", x: 600, y: 700, details: {
+    { id: "conn_cyberark", name: "CyberArk", icon: "cyberark", subtitle: "Enterprise PAM · Vault · Auto-Rotation · Secrets Hub", zone: "connectivity", x: 650, y: 500, details: {
       notes: "Enterprise PAM platform: privileged credential vault, automated rotation, session recording, JIT access. Secrets Hub syncs secrets to GCP Secret Manager.\n\nUse when: Master vault for all privileged credentials (SA keys, DB passwords, API tokens). Source of truth; Secret Manager is runtime accessor.",
       encryption: "At rest: AES-256 vault | In transit: TLS 1.2+ | HSM for master key",
       monitoring: "Credential rotation success, vault access audit, session recordings",
@@ -800,7 +800,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "All privileged creds in CyberArk. Secrets Hub auto-syncs to Secret Manager. No manual secret management.",
       compliance: "SOC2, ISO 27001, PCI-DSS, HIPAA"
     }},
-    { id: "conn_keeper", name: "Keeper", icon: "keeper", subtitle: "Team Passwords · Zero-Knowledge · Sharing", zone: "connectivity", x: 750, y: 700, details: {
+    { id: "conn_keeper", name: "Keeper", icon: "keeper", subtitle: "Team Passwords · Zero-Knowledge · Sharing", zone: "connectivity", x: 650, y: 620, details: {
       notes: "Zero-knowledge password management for team/personal credential storage, sharing, and basic rotation.\n\nUse when: Team-level secrets and developer credentials not requiring full PAM.",
       encryption: "AES-256 + PBKDF2 client-side. Zero-knowledge: Keeper never sees plaintext. TLS in transit.",
       monitoring: "Vault access logs, sharing audit, password strength reports",
@@ -809,7 +809,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "SSO via Entra ID. Enforce password policies. No direct GCP integration — human-use only.",
       compliance: "SOC2, ISO 27001"
     }},
-    { id: "conn_secret_manager", name: "Secret Manager", icon: "secret_manager", subtitle: "Runtime Secrets · Versioning · IAM · CMEK", zone: "connectivity", x: 900, y: 700, details: {
+    { id: "conn_secret_manager", name: "Secret Manager", icon: "secret_manager", subtitle: "Runtime Secrets · Versioning · IAM · CMEK", zone: "connectivity", x: 650, y: 740, details: {
       notes: "GCP-native secret storage with versioning, automatic replication, and IAM-controlled access. Apps read secrets at runtime via API.\n\nUse when: Runtime secret access for Cloud Functions, Cloud Run, Composer DAGs. Receives synced secrets from CyberArk Secrets Hub.",
       encryption: "At rest: CMEK via Cloud KMS (AES-256) | In transit: TLS | Auth: IAM",
       monitoring: "Secret access audit logs, version count, replication lag",
@@ -829,7 +829,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "Always use HA VPN (2 tunnels). BGP via Cloud Router. No Classic VPN for production.",
       compliance: "SOC2"
     }},
-    { id: "conn_interconnect", name: "Cloud Interconnect", icon: "cloud_interconnect", subtitle: "Dedicated/Partner · 10-100 Gbps · MACsec", zone: "connectivity", x: 250, y: 900, details: {
+    { id: "conn_interconnect", name: "Cloud Interconnect", icon: "cloud_interconnect", subtitle: "Dedicated/Partner · 10-100 Gbps · MACsec", zone: "connectivity", x: 850, y: 220, details: {
       notes: "Dedicated (10/100 Gbps) or Partner (50 Mbps–50 Gbps) physical link between on-prem and GCP, bypassing public internet.\n\nUse when: High bandwidth (>1 Gbps), low latency, or data must not traverse public internet.",
       encryption: "MACsec (802.1AE) for Dedicated. IPsec over Interconnect also supported.",
       monitoring: "Link utilization, BGP session status, light levels (Dedicated)",
@@ -838,7 +838,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "Redundant attachments across 2 edge availability domains for 99.99% SLA.",
       compliance: "SOC2, ISO 27001"
     }},
-    { id: "conn_vpc", name: "VPC", icon: "virtual_private_cloud", subtitle: "Global Network · Subnets · Firewall Rules · Private Access", zone: "connectivity", x: 400, y: 900, details: {
+    { id: "conn_vpc", name: "VPC", icon: "virtual_private_cloud", subtitle: "Global Network · Subnets · Firewall Rules · Private Access", zone: "connectivity", x: 850, y: 340, details: {
       notes: "Global virtual network with regional subnets, firewall rules, Private Google Access, and VPC Peering.\n\nUse when: Foundation for all GCP networking. Every project needs at least one VPC.",
       encryption: "Google encrypts all VM-to-VM traffic within VPC automatically.",
       monitoring: "Firewall rule hit counts, VPC Flow Logs, Private Google Access usage",
@@ -847,7 +847,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "Shared VPC for central management. Private Google Access enabled. No default network.",
       compliance: "SOC2"
     }},
-    { id: "conn_vpc_sc", name: "VPC Service Controls", icon: "security_command_center", subtitle: "Data Exfiltration Prevention · Service Perimeter", zone: "connectivity", x: 550, y: 900, details: {
+    { id: "conn_vpc_sc", name: "VPC Service Controls", icon: "security_command_center", subtitle: "Data Exfiltration Prevention · Service Perimeter", zone: "connectivity", x: 850, y: 460, details: {
       notes: "Service perimeter preventing data exfiltration from GCP APIs (BQ, GCS, etc.) to unauthorized networks or projects.\n\nUse when: Required for sensitive data workloads (PHI, PII, financial). Prevents BQ data from being copied outside perimeter.",
       encryption: "Policy enforcement layer — works with CMEK on underlying services.",
       monitoring: "Perimeter violations (dry-run mode), access level evaluations",
@@ -856,7 +856,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "Dry-run before enforce. Perimeter around all data projects. Access levels for CI/CD.",
       compliance: "SOC2, HIPAA, PCI-DSS, FedRAMP"
     }},
-    { id: "conn_armor", name: "Cloud Armor", icon: "cloud_armor", subtitle: "WAF · DDoS Protection · Geo-Blocking", zone: "connectivity", x: 700, y: 900, details: {
+    { id: "conn_armor", name: "Cloud Armor", icon: "cloud_armor", subtitle: "WAF · DDoS Protection · Geo-Blocking", zone: "connectivity", x: 850, y: 580, details: {
       notes: "WAF and DDoS protection at Google's network edge, applied to external HTTP(S) load balancers.\n\nUse when: External-facing APIs or web apps need DDoS, SQLi, XSS, or geo-based blocking.",
       encryption: "TLS termination at load balancer. Policies applied before traffic reaches backends.",
       monitoring: "Request rate, blocked requests by rule, DDoS attack events",
@@ -865,7 +865,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "OWASP top-10 rules enabled. Geo-blocking for non-served regions. Rate limiting per IP.",
       compliance: "SOC2"
     }},
-    { id: "conn_dns", name: "Cloud DNS", icon: "cloud_dns", subtitle: "Managed DNS · Private Zones · DNSSEC · 100% SLA", zone: "connectivity", x: 850, y: 900, details: {
+    { id: "conn_dns", name: "Cloud DNS", icon: "cloud_dns", subtitle: "Managed DNS · Private Zones · DNSSEC · 100% SLA", zone: "connectivity", x: 850, y: 700, details: {
       notes: "Managed DNS with public zones, private zones, forwarding, and peering. 100% availability SLA.\n\nUse when: Name resolution for all GCP services, hybrid DNS with on-prem, private zones for internal service discovery.",
       encryption: "DNSSEC for public zones. Internal DNS over Google encrypted backbone.",
       monitoring: "Query rate, NXDOMAIN rate, DNSSEC validation failures",
@@ -876,7 +876,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     }},
 
     // ── API Management (row 4, continued) ──
-    { id: "conn_apigee", name: "Apigee", icon: "apigee_api_platform", subtitle: "Full API Lifecycle · Portal · Analytics · Monetization", zone: "connectivity", x: 1050, y: 900, details: {
+    { id: "conn_apigee", name: "Apigee", icon: "apigee_api_platform", subtitle: "Full API Lifecycle · Portal · Analytics · Monetization", zone: "connectivity", x: 850, y: 860, details: {
       notes: "Full-lifecycle API management: gateway, developer portal, analytics, monetization, rate limiting, and policy enforcement.\n\nUse when: Curated data exposed as managed, monetized APIs with developer portal and analytics.",
       encryption: "TLS 1.2+ at edge. CMEK for analytics. OAuth 2.0, API keys, JWT for auth.",
       monitoring: "API latency, error rate, traffic by consumer, quota usage",
@@ -885,7 +885,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "Rate limiting per consumer. OAuth enforcement. Threat protection policies. No API key in URL.",
       compliance: "SOC2, PCI-DSS"
     }},
-    { id: "conn_api_gateway", name: "API Gateway", icon: "cloud_api_gateway", subtitle: "Serverless Proxy · Cloud Functions / Cloud Run", zone: "connectivity", x: 1200, y: 900, details: {
+    { id: "conn_api_gateway", name: "API Gateway", icon: "cloud_api_gateway", subtitle: "Serverless Proxy · Cloud Functions / Cloud Run", zone: "connectivity", x: 850, y: 980, details: {
       notes: "Lightweight serverless API gateway for routing, auth, and rate limiting in front of Cloud Functions or Cloud Run.\n\nUse when: Simple API proxy when Apigee is overkill. Quick setup for internal or low-complexity APIs.",
       encryption: "TLS in transit. API keys, JWT, or Google ID tokens for auth.",
       monitoring: "Request count, latency, 4xx/5xx rates",
@@ -896,7 +896,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     }},
 
     // ── LAYER 3 BOUNDARY (next layer hint) ──
-    { id: "boundary_ingestion", name: "🔽 Layer 3: Ingestion", icon: null, subtitle: "Datastream · Pub/Sub · Dataflow · Cloud Functions · Fivetran", zone: "cloud", x: 600, y: 1100, details: {
+    { id: "boundary_ingestion", name: "🔽 Layer 3: Ingestion", icon: null, subtitle: "Datastream · Pub/Sub · Dataflow · Cloud Functions · Fivetran", zone: "cloud", x: 1150, y: 500, details: {
       notes: "★ NEXT LAYER\n\nData passes through connectivity controls and enters ingestion pipelines.\n\n• Batch Pull (BigQuery DTS, Cloud Functions)\n• CDC (Datastream)\n• Stream (Pub/Sub → Dataflow)\n• File Transfer (Storage Transfer Service)\n• Managed ETL (Fivetran)",
       encryption: "Google-managed encryption in transit and at rest across all ingestion services.",
       compliance: "SOC2, ISO 27001"
