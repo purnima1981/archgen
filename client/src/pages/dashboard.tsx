@@ -678,8 +678,8 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
           <g transform={`translate(${cloudB.x + cloudB.w / 2 - 60},${cloudB.y - 14})`}><rect width={120} height={28} rx={6} fill="#4285f4" /><text x={60} y={19} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: "#fff", letterSpacing: .5 }}>Google Cloud</text></g></g>}
         {conB && <g><rect x={conB.x} y={conB.y} width={conB.w} height={conB.h} rx={12} fill={isDark ? "#162032" : "#fafafa"} stroke={isDark ? "#2a4060" : "#bdbdbd"} strokeWidth={1.5} strokeDasharray="8 4" /><text x={conB.x + conB.w / 2} y={conB.y + 18} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: isDark ? "#5a7a9a" : "#78909c", letterSpacing: 2 }}>CONSUMERS</text></g>}
 
-        {/* Phase groups — for L1, L2, and Vendor (L3-L7 are shown as layer bands inside GCP) */}
-        {phaseBounds.filter(p => p.name.includes("L1") || p.name.includes("L2") || p.name.includes("Vendor")).map((p, i) => {
+        {/* Phase groups — L1, L2, Vendor Identity (L3-L7 = layer bands, Pillar/Vendor = colored columns) */}
+        {phaseBounds.filter(p => p.name.includes("L1") || p.name.includes("L2") || p.id === "vendor_identity").map((p, i) => {
           const isL2 = p.name.includes("L2");
           return (<g key={p.id} onMouseDown={e => startGroupDrag(p.nodeIds, e)} style={{ cursor: "move" }}>
             <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={10} fill={isL2 ? "rgba(244,114,182,0.06)" : "rgba(148,163,184,0.04)"} stroke={isL2 ? "rgba(244,114,182,0.3)" : "rgba(148,163,184,0.2)"} strokeWidth={1} strokeDasharray="5 3" />
@@ -765,13 +765,37 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
         })()}
 
         {/* Ops group — draggable */}
-        {opsBound && diag.opsGroup && <g onMouseDown={e => startGroupDrag(diag.opsGroup!.nodeIds, e)} style={{ cursor: "move" }}>
-          <rect x={opsBound.x} y={opsBound.y} width={opsBound.w} height={opsBound.h} rx={12} fill={isDark ? "rgba(84,110,122,0.1)" : "#f8fafc"} stroke={isDark ? "#37474f" : "#94a3b8"} strokeWidth={1.5} />
-          <g transform={`translate(${opsBound.x + 8},${opsBound.y - 14})`}>
-            <rect width={opsBound.w - 16} height={24} rx={6} fill="#64748b" />
-            <text x={(opsBound.w - 16) / 2} y={16} textAnchor="middle" style={{ fontSize: 9, fontWeight: 800, fill: "#fff", letterSpacing: 1.5 }}>{(diag.opsGroup?.name || "OPS").toUpperCase()}</text>
-          </g>
-        </g>}
+        {/* Crosscutting Pillar columns — colored per Enterprise Blueprint */}
+        {(() => {
+          const pillarDefs: { id: string; label: string; bg: string; border: string; text: string; badgeBg: string }[] = [
+            { id: "pillar_security", label: "SECURITY", bg: "#fef2f2", border: "#fca5a5", text: "#dc2626", badgeBg: "#dc2626" },
+            { id: "pillar_governance", label: "GOVERNANCE", bg: "#eff6ff", border: "#93c5fd", text: "#2563eb", badgeBg: "#2563eb" },
+            { id: "pillar_observability", label: "OBSERVABILITY", bg: "#fffbeb", border: "#fcd34d", text: "#d97706", badgeBg: "#d97706" },
+            { id: "pillar_orchestration", label: "ORCHESTRATION & COST", bg: "#f5f3ff", border: "#c4b5fd", text: "#7c3aed", badgeBg: "#7c3aed" },
+          ];
+          const vendorDefs: { id: string; label: string; bg: string; border: string; text: string; badgeBg: string }[] = [
+            { id: "vendor_obs", label: "OBSERVABILITY — VENDOR", bg: "#fffbeb", border: "#fcd34d", text: "#d97706", badgeBg: "#92400e" },
+            { id: "vendor_sec", label: "SECURITY — VENDOR", bg: "#fef2f2", border: "#fca5a5", text: "#dc2626", badgeBg: "#991b1b" },
+          ];
+          const allDefs = [...pillarDefs, ...vendorDefs];
+          return allDefs.map(pd => {
+            const phase = phaseBounds.find(p => p.id === pd.id);
+            if (!phase) return null;
+            const ns = phase.nodeIds.map(id => diag.nodes.find(n => n.id === id)).filter(Boolean) as DiagNode[];
+            if (!ns.length) return null;
+            const xs = ns.map(n => n.x), ys = ns.map(n => n.y);
+            const bx = Math.min(...xs) - 40, by = Math.min(...ys) - 50;
+            const bw = Math.max(...xs) - Math.min(...xs) + 120;
+            const bh = Math.max(...ys) - Math.min(...ys) + 140;
+            return (<g key={pd.id} onMouseDown={e => startGroupDrag(phase.nodeIds, e)} style={{ cursor: "move" }}>
+              <rect x={bx} y={by} width={bw} height={bh} rx={12} fill={pd.bg} stroke={pd.border} strokeWidth={1.5} />
+              <g transform={`translate(${bx + 6},${by - 12})`}>
+                <rect width={bw - 12} height={22} rx={5} fill={pd.badgeBg} />
+                <text x={(bw - 12) / 2} y={15} textAnchor="middle" style={{ fontSize: 8, fontWeight: 800, fill: "#fff", letterSpacing: 1.2 }}>{pd.label}</text>
+              </g>
+            </g>);
+          });
+        })()}
 
         {/* Edges */}
         {diag.edges.map(edge => {
