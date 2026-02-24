@@ -803,7 +803,7 @@ const SOURCES_LAYER: Diagram = {
 const GCP_TECHNICAL_BLUEPRINT: Diagram = {
   title: "GCP Enterprise Data Analytics Platform",
   subtitle: "8 Layers · 4 Pillars · GCP-Native Services · Vendor Integration · Users & Personas",
-  layout: "gcp_blueprint",
+  layout: "blueprint",
 
   phases: [
     { id: "connectivity", name: "Layer 2: Connectivity & Access", nodeIds: ["conn_cloud_identity","conn_identity_platform","conn_iam","conn_entra_id","conn_cyberark","conn_keeper","conn_secret_manager","conn_vpn","conn_interconnect","conn_vpc","conn_armor","conn_dns","conn_apigee","conn_api_gateway"] },
@@ -1129,7 +1129,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
 const CUSTOMER_DATA_PLATFORM: Diagram = {
   title: "Customer Data Platform",
   subtitle: "GCP-Native · 8 Layers · 4 Pillars · Vendor Integration · Users & Personas",
-  layout: "gcp_blueprint",
+  layout: "blueprint",
 
   phases: [
     { id: "connectivity", name: "Layer 2: Connectivity & Access", nodeIds: ["conn_cloud_identity","conn_identity_platform","conn_entra_id","conn_cyberark","conn_keeper","conn_secret_manager","conn_vpn","conn_interconnect","conn_vpc","conn_vpc_sc","conn_armor","conn_dns","conn_apigee","conn_api_gateway"] },
