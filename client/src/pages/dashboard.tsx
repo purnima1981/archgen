@@ -678,51 +678,47 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
           <g transform={`translate(${cloudB.x + cloudB.w / 2 - 60},${cloudB.y - 14})`}><rect width={120} height={28} rx={6} fill="#4285f4" /><text x={60} y={19} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: "#fff", letterSpacing: .5 }}>Google Cloud</text></g></g>}
         {conB && <g><rect x={conB.x} y={conB.y} width={conB.w} height={conB.h} rx={12} fill={isDark ? "#162032" : "#fafafa"} stroke={isDark ? "#2a4060" : "#bdbdbd"} strokeWidth={1.5} strokeDasharray="8 4" /><text x={conB.x + conB.w / 2} y={conB.y + 18} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: isDark ? "#5a7a9a" : "#78909c", letterSpacing: 2 }}>CONSUMERS</text></g>}
 
-        {/* Phase groups — colored per Enterprise Blueprint layer */}
-        {phaseBounds.map((p, i) => {
-          const lc: Record<string, { fill: string; stroke: string; text: string }> = {
-            "L1": { fill: "rgba(148,163,184,0.06)", stroke: "rgba(148,163,184,0.3)", text: "#78909c" },
-            "L2": { fill: "rgba(244,114,182,0.06)", stroke: "rgba(244,114,182,0.3)", text: "#be185d" },
-            "L3": { fill: "rgba(147,197,253,0.08)", stroke: "rgba(147,197,253,0.4)", text: "#1d4ed8" },
-            "L4": { fill: "rgba(110,231,183,0.08)", stroke: "rgba(110,231,183,0.4)", text: "#047857" },
-            "L5": { fill: "rgba(196,181,253,0.08)", stroke: "rgba(196,181,253,0.4)", text: "#6d28d9" },
-            "L6": { fill: "rgba(252,211,77,0.08)", stroke: "rgba(252,211,77,0.4)", text: "#d97706" },
-            "L7": { fill: "rgba(253,186,116,0.08)", stroke: "rgba(253,186,116,0.4)", text: "#c2410c" },
-            "Vendor": { fill: "rgba(148,163,184,0.04)", stroke: "rgba(148,163,184,0.2)", text: "#64748b" },
-          };
-          const key = p.name.startsWith("L") ? p.name.slice(0, 2) : p.name.includes("Vendor") ? "Vendor" : "L1";
-          const c = lc[key] || lc["L1"];
-          return (<g key={p.id} onMouseDown={e => startGroupDrag(p.nodeIds, e)} style={{ cursor: "move" }}>
-            <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={10} fill={c.fill} stroke={c.stroke} strokeWidth={1} strokeDasharray="5 3" />
-            <text x={p.x + p.w / 2} y={p.y - 6} textAnchor="middle" style={{ fontSize: 8, fontWeight: 700, fill: c.text, letterSpacing: 1, pointerEvents: "none" }}>PHASE {i + 1}: {p.name.toUpperCase()}</text>
-          </g>);
-        })}
+        {/* Phase groups — only for L1 and Vendor (L2-L7 are shown as layer bands) */}
+        {phaseBounds.filter(p => p.name.includes("L1") || p.name.includes("Vendor")).map((p, i) => (
+          <g key={p.id} onMouseDown={e => startGroupDrag(p.nodeIds, e)} style={{ cursor: "move" }}>
+            <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={10} fill="rgba(148,163,184,0.04)" stroke="rgba(148,163,184,0.2)" strokeWidth={1} strokeDasharray="5 3" />
+            <text x={p.x + p.w / 2} y={p.y - 6} textAnchor="middle" style={{ fontSize: 8, fontWeight: 700, fill: "#78909c", letterSpacing: 1, pointerEvents: "none" }}>{p.name.toUpperCase()}</text>
+          </g>
+        ))}
 
-        {/* Layer group boxes with arrows between them */}
+        {/* Layer bands matching Enterprise Blueprint BP_LAYERS colors exactly */}
         {(() => {
-          const layerDefs: { prefix: string; label: string; stroke: string; fill: string; text: string }[] = [
-            { prefix: "L2", label: "LAYER 2: CONNECTIVITY", stroke: "#f472b6", fill: "rgba(244,114,182,0.04)", text: "#be185d" },
-            { prefix: "L3", label: "LAYER 3: INGESTION", stroke: "#93c5fd", fill: "rgba(147,197,253,0.04)", text: "#1d4ed8" },
-            { prefix: "L4", label: "LAYER 4: DATA LAKE", stroke: "#6ee7b7", fill: "rgba(110,231,183,0.04)", text: "#047857" },
-            { prefix: "L5", label: "LAYER 5: PROCESSING", stroke: "#c4b5fd", fill: "rgba(196,181,253,0.04)", text: "#6d28d9" },
-            { prefix: "L6", label: "LAYER 6: MEDALLION", stroke: "#fcd34d", fill: "rgba(252,211,77,0.04)", text: "#d97706" },
-            { prefix: "L7", label: "LAYER 7: SERVING", stroke: "#fdba74", fill: "rgba(253,186,116,0.04)", text: "#c2410c" },
+          const layerDefs = [
+            { prefix: "L2", label: "LAYER 2: CONNECTIVITY & ACCESS", bg: "#fdf2f8", border: "#f472b6", text: "#be185d", numBg: "#be185d" },
+            { prefix: "L3", label: "LAYER 3: INGESTION", bg: "#eff6ff", border: "#93c5fd", text: "#1d4ed8", numBg: "#1d4ed8" },
+            { prefix: "L4", label: "LAYER 4: DATA LAKE", bg: "#ecfdf5", border: "#6ee7b7", text: "#047857", numBg: "#047857" },
+            { prefix: "L5", label: "LAYER 5: PROCESSING", bg: "#f5f3ff", border: "#c4b5fd", text: "#6d28d9", numBg: "#6d28d9" },
+            { prefix: "L6", label: "LAYER 6: MEDALLION", bg: "#fffbeb", border: "#fcd34d", text: "#d97706", numBg: "#d97706" },
+            { prefix: "L7", label: "LAYER 7: SERVING", bg: "#fff7ed", border: "#fdba74", text: "#c2410c", numBg: "#c2410c" },
           ];
-          const boxes: { prefix: string; label: string; stroke: string; fill: string; text: string; x: number; y: number; w: number; h: number }[] = [];
+          const boxes: (typeof layerDefs[0] & { x: number; y: number; w: number; h: number })[] = [];
           layerDefs.forEach(ld => {
             const lp = phaseBounds.filter(p => p.name.startsWith(ld.prefix));
             if (!lp.length) return;
-            const gx = Math.min(...lp.map(p => p.x)) - 20;
-            const gy = Math.min(...lp.map(p => p.y)) - 30;
-            const gw = Math.max(...lp.map(p => p.x + p.w)) - gx + 20;
-            const gh = Math.max(...lp.map(p => p.y + p.h)) - gy + 20;
+            const allNodes = lp.flatMap(p => p.nodeIds);
+            const ns = allNodes.map(id => diag.nodes.find(n => n.id === id)).filter(Boolean) as DiagNode[];
+            if (!ns.length) return;
+            const xs = ns.map(n => n.x), ys = ns.map(n => n.y);
+            const gx = Math.min(...xs) - 70, gy = Math.min(...ys) - 55;
+            const gw = Math.max(...xs) - Math.min(...xs) + 180;
+            const gh = Math.max(...ys) - Math.min(...ys) + 150;
             boxes.push({ ...ld, x: gx, y: gy, w: gw, h: gh });
           });
+          const num = (n: number) => n.toString();
           return (<g>
-            {/* Layer group boxes */}
-            {boxes.map(b => (<g key={b.prefix}>
-              <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={12} fill={b.fill} stroke={b.stroke} strokeWidth={1.5} strokeDasharray="8 4" />
-              <text x={b.x + b.w / 2} y={b.y - 8} textAnchor="middle" style={{ fontSize: 10, fontWeight: 800, fill: b.text, letterSpacing: 1.5 }}>{b.label}</text>
+            {/* Layer bands */}
+            {boxes.map((b, i) => (<g key={b.prefix}>
+              <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={14} fill={b.bg} stroke={b.border} strokeWidth={1.5} />
+              <g transform={`translate(${b.x + 10},${b.y + 12})`}>
+                <rect width={22} height={22} rx={6} fill={b.numBg} />
+                <text x={11} y={16} textAnchor="middle" style={{ fontSize: 12, fontWeight: 900, fill: "#fff" }}>{num(i + 2)}</text>
+              </g>
+              <text x={b.x + 40} y={b.y + 27} style={{ fontSize: 10, fontWeight: 800, fill: b.text, letterSpacing: 1 }}>{b.label}</text>
             </g>))}
             {/* Arrows: Sources → L2 */}
             {srcB && boxes[0] && [0.25, 0.5, 0.75].map((f, i) => {
@@ -731,13 +727,13 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
               const midX = (x1 + x2) / 2;
               return <path key={`s-l2-${i}`} d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`} fill="none" stroke="#f472b6" strokeWidth={1.5} strokeDasharray="6 3" />;
             })}
-            {/* Arrows between consecutive layer boxes */}
+            {/* Arrows between consecutive layers */}
             {boxes.slice(0, -1).map((b, i) => {
               const nb = boxes[i + 1];
               const x1 = b.x + b.w, y1 = b.y + b.h / 2;
               const x2 = nb.x, y2 = nb.y + nb.h / 2;
               const midX = (x1 + x2) / 2;
-              return <path key={`l${i}-l${i + 1}`} d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`} fill="none" stroke={nb.stroke} strokeWidth={1.5} strokeDasharray="6 3" />;
+              return <path key={`l${i}-l${i + 1}`} d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`} fill="none" stroke={nb.border} strokeWidth={1.5} strokeDasharray="6 3" />;
             })}
             {/* Arrow: L7 → Consumers */}
             {conB && boxes.length > 0 && (() => {

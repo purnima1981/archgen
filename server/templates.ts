@@ -1201,7 +1201,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     { id: "pillar_scc", name: "Security Command Center", icon: "security_command_center", subtitle: "GCP-native Security · Findings", zone: "cloud", x: 1700, y: 400, details: { notes: "GCP-native security and risk management. Asset inventory, vulnerability scanning, threat detection.", compliance: "SOC2, ISO 27001, CIS" }},
     // Orchestration & Governance
     { id: "pillar_composer", name: "Cloud Composer", icon: "cloud_composer", subtitle: "Orchestration · DAGs", zone: "cloud", x: 1700, y: 550, details: { notes: "Managed Airflow for pipeline orchestration, dependency management, scheduling.", cost: "$0.35/vCPU·hr", compliance: "SOC2" }},
-    { id: "pillar_catalog", name: "Data Catalog", icon: "data_catalog", subtitle: "Lineage · Governance · Discovery", zone: "cloud", x: 1900, y: 550, details: { notes: "Metadata management, data lineage, discovery, and access governance.", compliance: "SOC2, ISO 27001" }},
+    { id: "pillar_catalog", name: "Data Catalog", icon: "data_catalog", subtitle: "Lineage · Governance · Discovery", zone: "cloud", x: 1700, y: 700, details: { notes: "Metadata management, data lineage, discovery, and access governance.", compliance: "SOC2, ISO 27001" }},
   ],
 
   edges: [],
