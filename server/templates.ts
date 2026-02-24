@@ -504,10 +504,9 @@ const BLUEPRINT: Diagram = {
   ],
 
   edges: [
-    { id: "s1", from: "src_rdb", to: "conn_vpn", label: "Connect", step: 1, crossesBoundary: true, edgeType: "data" },
-    { id: "s2", from: "src_saas", to: "conn_auth", label: "OAuth", step: 1, crossesBoundary: true, edgeType: "data" },
-    { id: "s3", from: "src_apis", to: "conn_rate", label: "Throttle", step: 1, crossesBoundary: true, edgeType: "data" },
-    { id: "s4", from: "src_stream", to: "conn_mtls", label: "mTLS", step: 1, crossesBoundary: true, edgeType: "data" },
+    { id: "bridge_top", from: "src_saas", to: "conn_auth", label: "Identity & Auth", step: 1, crossesBoundary: true, edgeType: "data" },
+    { id: "bridge_mid", from: "src_rdb", to: "conn_secrets", label: "Credentials & Secrets", step: 1, crossesBoundary: true, edgeType: "data" },
+    { id: "bridge_bot", from: "src_stream", to: "conn_vpn", label: "Network & API", step: 1, crossesBoundary: true, edgeType: "data" },
     { id: "c1", from: "conn_vpn", to: "ing_batch", label: "Extract", step: 2, edgeType: "data" },
     { id: "c2", from: "conn_auth", to: "ing_cdc", label: "Replicate", step: 2, edgeType: "data" },
     { id: "c3", from: "conn_mtls", to: "ing_stream", label: "Subscribe", step: 2, edgeType: "data" },
