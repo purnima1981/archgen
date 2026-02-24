@@ -818,9 +818,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     // Vendor Identity & Secrets (outside GCP)
     { id: "vendor_identity", name: "Vendor · Identity & Secrets", nodeIds: ["conn_entra_id", "conn_cyberark", "conn_keeper"] },
     // Layer 3: Ingestion (GCP tools)
-    { id: "ingestion", name: "L3 · Ingestion", nodeIds: ["ing_datastream", "ing_pubsub", "ing_dataflow", "ing_functions"] },
-    // Vendor Ingestion (outside GCP)
-    { id: "vendor_ingestion", name: "Vendor · Ingestion", nodeIds: ["ing_fivetran"] },
+    { id: "ingestion", name: "L3 · Ingestion", nodeIds: ["ing_datastream", "ing_pubsub", "ing_dataflow", "ing_functions", "ing_fivetran"] },
     // Layer 4: Data Lake
     { id: "datalake", name: "L4 · Data Lake", nodeIds: ["lake_gcs", "lake_bq_staging"] },
     // Layer 5: Processing
@@ -1161,7 +1159,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     { id: "ing_pubsub", name: "Pub/Sub", icon: "pubsub", subtitle: "Event Streaming · At-least-once", zone: "cloud", x: 1300, y: 740, details: { notes: "Serverless event ingestion for real-time streams, IoT, clickstream.", cost: "$40/TiB ingested", compliance: "SOC2, ISO 27001" }},
     { id: "ing_dataflow", name: "Dataflow", icon: "dataflow", subtitle: "Stream & Batch Ingestion", zone: "cloud", x: 1500, y: 740, details: { notes: "Apache Beam runner for both stream and batch ingestion pipelines.", cost: "$0.056/vCPU·hr + $0.003/GB·hr", compliance: "SOC2, ISO 27001" }},
     { id: "ing_functions", name: "Cloud Functions", icon: "cloud_functions", subtitle: "Serverless Triggers", zone: "cloud", x: 1100, y: 890, details: { notes: "Lightweight event-driven ingestion for webhooks, API polling, file triggers.", cost: "$0.40/million invocations", compliance: "SOC2" }},
-    { id: "ing_fivetran", name: "Fivetran", icon: "fivetran", subtitle: "Managed SaaS Connectors", zone: "sources", x: 300, y: 890, details: { notes: "300+ pre-built connectors for SaaS sources. Managed schema, incremental sync.", cost: "Per Monthly Active Row pricing", compliance: "SOC2, ISO 27001" }},
+    { id: "ing_fivetran", name: "Fivetran", icon: "fivetran", subtitle: "Managed SaaS Connectors", zone: "cloud", x: 1300, y: 890, details: { notes: "300+ pre-built connectors for SaaS sources. Managed schema, incremental sync.", cost: "Per Monthly Active Row pricing", compliance: "SOC2, ISO 27001" }},
 
     // ── LAYER 4: DATA LAKE ──
     { id: "lake_gcs", name: "Cloud Storage", icon: "cloud_storage", subtitle: "Raw Landing · Parquet/JSON/Avro", zone: "cloud", x: 1100, y: 580, details: { notes: "Immutable object store for raw source data. Landing zone for files, exports, and CDC snapshots.", cost: "$0.020/GB/mo (Standard)", compliance: "SOC2, ISO 27001, HIPAA" }},
