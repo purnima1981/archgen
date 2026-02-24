@@ -289,7 +289,7 @@ const MEDAL_ZONES = [
   { id: "gold", bg: "#fef9c3", bd: "#eab308", lblC: "#a16207", desc: "Curated · aggregated · consumption-ready" },
 ];
 
-function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: any; setPopover: (p: any) => void }) {
+function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: any; setPopover: (p: any) => void }) {
   const [selectedCap, setSelectedCap] = useState<string | null>(null);
   const getNode = (id: string) => diag.nodes.find(n => n.id === id);
   const nodesByPrefix = (pfx: string) => diag.nodes.filter(n => n.id.startsWith(pfx));
@@ -426,7 +426,7 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
         <p style={{ fontSize: 10, color: c.gray500, margin: "3px 0 0 0" }}>{diag.subtitle}</p>
       </div>
 
-      <div style={{ width: "100%", maxWidth: 1100, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ width: "100%", maxWidth: 1400, display: "flex", flexDirection: "column", gap: 8 }}>
 
         {/* ═══ USERS ROW ═══ */}
         <div style={{ display: "flex", justifyContent: "center", gap: 24, padding: "8px 14px", background: c.userBg, borderRadius: 10, border: `1.5px solid ${c.userColor}30` }}>
@@ -446,7 +446,7 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
         <div style={{ display: "flex", gap: 6, alignItems: "stretch", overflow: "hidden" }}>
 
           {/* === LAYER 1: SOURCES === */}
-          <div style={{ width: 170, minWidth: 170, borderRadius: 10, border: `2px solid ${c.sources}30`, background: `${c.sources}06`, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ width: 160, minWidth: 160, borderRadius: 10, border: `2px solid ${c.sources}30`, background: `${c.sources}06`, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ fontSize: 9, fontWeight: 800, color: c.sources, textAlign: "center", textTransform: "uppercase", letterSpacing: 0.8, paddingBottom: 4, borderBottom: `1.5px solid ${c.sources}20` }}>Layer 1<br/>Sources</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, justifyItems: "center" }}>
               {srcNodes.map(n => <SrcCard key={n.id} nodeId={n.id} />)}
@@ -456,7 +456,7 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
           <Arrow color={c.sources} />
 
           {/* === LAYER 2: CONNECTIVITY === */}
-          <div style={{ width: 170, minWidth: 170, borderRadius: 10, border: `2px dashed ${c.connectivity}40`, background: `${c.connectivity}05`, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ width: 160, minWidth: 160, borderRadius: 10, border: `2px dashed ${c.connectivity}40`, background: `${c.connectivity}05`, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ fontSize: 9, fontWeight: 800, color: c.connectivity, textAlign: "center", textTransform: "uppercase", letterSpacing: 0.8, paddingBottom: 4, borderBottom: `1.5px solid ${c.connectivity}20` }}>Layer 2<br/>Connectivity</div>
             <div style={{ fontSize: 6, fontWeight: 700, color: c.connectivity, opacity: 0.6, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 2 }}>Identity & Auth</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, justifyItems: "center" }}>
@@ -488,27 +488,21 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
             </div>
 
             {/* 4 Vertical Pillars */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4, width: 150 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4, width: 180 }}>
               {BP_PILLARS.map(p => {
                 const node = getNode(p.id);
                 const items = parsePillarItems(p.id);
-                const gcpItems = items.filter(it => !it.vendor);
-                const vendorItems = items.filter(it => it.vendor);
                 return (
-                  <div key={p.id} style={{ flex: 1, background: `${p.color}08`, borderRadius: 8, border: `1.5px solid ${p.color}35`, padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 3 }}>
+                  <div key={p.id} style={{ flex: 1, background: `${p.color}08`, borderRadius: 8, border: `1.5px solid ${p.color}35`, padding: "6px 8px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 2 }}>
                     <div style={{ fontSize: 7.5, fontWeight: 800, color: p.color, letterSpacing: 0.3 }}>{node?.name || p.id}</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                      {gcpItems.map((item, j) => (
-                        <div key={j} style={{ fontSize: 6.5, fontWeight: 600, color: `${p.color}BB`, lineHeight: 1.2 }}>• {item.name}{item.desc ? ` (${item.desc})` : ""}</div>
+                      {items.map((item, j) => (
+                        <div key={j} style={{ fontSize: 6.5, fontWeight: 600, color: `${p.color}BB`, lineHeight: 1.2 }}>• {item.name}</div>
                       ))}
                     </div>
-                    {vendorItems.length > 0 && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 1, marginTop: 1 }}>
-                        {vendorItems.map((v, j) => (
-                          <div key={j} style={{ fontSize: 6, fontWeight: 700, color: c.vendor, background: "#FFF8E1", border: `1px dashed ${c.vendor}40`, borderRadius: 3, padding: "1.5px 4px" }}>⬡ {v.name}</div>
-                        ))}
-                      </div>
-                    )}
+                    <div style={{ display: "flex", gap: 2, flexWrap: "wrap", marginTop: 2 }}>
+                      {p.badges.map(b => <span key={b} style={{ fontSize: 5.5, fontWeight: 700, padding: "1px 4px", borderRadius: 3, letterSpacing: 0.3, textTransform: "uppercase" as const, background: p.badgeBg, color: p.badgeC }}>{b}</span>)}
+                    </div>
                   </div>
                 );
               })}
@@ -531,6 +525,231 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+
+function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: any; setPopover: (p: any) => void }) {
+  const connRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const pillarRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [selectedCap, setSelectedCap] = useState<string | null>(null);
+
+  const getNode = (id: string) => diag.nodes.find(n => n.id === id);
+  const nodesByPrefix = (pfx: string) => diag.nodes.filter(n => n.id.startsWith(pfx));
+
+  // Draw connector arrows from platform box edge to pillars
+  useEffect(() => {
+    const draw = () => {
+      const svg = svgRef.current;
+      const col = connRef.current;
+      if (!svg || !col) return;
+      const colRect = col.getBoundingClientRect();
+      let paths = "";
+      BP_PILLARS.forEach(p => {
+        const el = pillarRefs.current[p.id];
+        if (!el) return;
+        const pRect = el.getBoundingClientRect();
+        const pY = pRect.top + pRect.height / 2 - colRect.top;
+        const endX = colRect.width;
+        paths += `<circle cx="1" cy="${pY}" r="3.5" fill="${p.color}" opacity="0.7"/>`;
+        paths += `<line x1="5" y1="${pY}" x2="${endX - 7}" y2="${pY}" stroke="${p.color}" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.45"/>`;
+        paths += `<polygon points="${endX - 1},${pY} ${endX - 8},${pY - 4} ${endX - 8},${pY + 4}" fill="${p.color}" opacity="0.6"/>`;
+      });
+      svg.innerHTML = paths;
+    };
+    setTimeout(draw, 100);
+    window.addEventListener("resize", draw);
+    return () => window.removeEventListener("resize", draw);
+  }, [diag]);
+
+  const capClick = (nodeId: string) => {
+    if (selectedCap === nodeId) { setSelectedCap(null); setPopover(null); }
+    else { setSelectedCap(nodeId); setPopover({ type: "node", id: nodeId }); }
+  };
+
+  const CapBox = ({ nodeId, style }: { nodeId: string; style: React.CSSProperties }) => {
+    const n = getNode(nodeId);
+    if (!n) return null;
+    const isSel = selectedCap === nodeId;
+    return (
+      <div onClick={() => capClick(nodeId)} style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 7, cursor: "pointer", transition: "all 0.12s", outline: isSel ? "2px solid #1a73e8" : "none", outlineOffset: 1, ...style }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 3px 8px rgba(0,0,0,0.06)"; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ""; (e.currentTarget as HTMLDivElement).style.boxShadow = ""; }}>
+        <div style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.2 }}>{n.name}</div>
+        {n.subtitle && <div style={{ fontSize: 8, opacity: 0.5, marginTop: 1 }}>{n.subtitle}</div>}
+      </div>
+    );
+  };
+
+  const FlowArrow = () => (
+    <div style={{ display: "flex", justifyContent: "center", gap: 24, padding: "5px 0" }}>
+      {[0,1,2].map(i => (
+        <svg key={i} width="2" height="22" viewBox="0 0 2 22" style={{ overflow: "visible" }}>
+          <line x1="1" y1="22" x2="1" y2="6" stroke="#94a3b8" strokeWidth="1.5" />
+          <polygon points="1,0 -3.5,8 5.5,8" fill="#94a3b8" />
+        </svg>
+      ))}
+    </div>
+  );
+
+  const srcNodes = nodesByPrefix("src_");
+  const connNodes = nodesByPrefix("conn_");
+  const pillarNodes = BP_PILLARS.map(p => getNode(p.id)).filter(Boolean);
+
+  // Get pillar sub-capabilities from details.notes
+  const parsePillarItems = (nodeId: string): { name: string; desc: string }[] => {
+    const n = getNode(nodeId);
+    if (!n?.details?.notes) return [];
+    const lines = n.details.notes.split("\n").filter(l => l.trim().startsWith("•"));
+    return lines.map(l => {
+      const clean = l.replace(/^[•\s]+/, "").trim();
+      const paren = clean.match(/^([^(]+)\(([^)]+)\)/);
+      if (paren) return { name: paren[1].trim(), desc: paren[2].trim() };
+      return { name: clean, desc: "" };
+    });
+  };
+
+  return (
+    <div style={{ flex: 1, overflow: "auto", background: "#fff", padding: "24px 32px 20px", fontFamily: "Inter, -apple-system, sans-serif" }}>
+      {/* Title */}
+      <div style={{ marginBottom: 18 }}>
+        <h1 style={{ fontSize: 18, fontWeight: 900, color: "#111", letterSpacing: -0.3, margin: 0 }}>{diag.title}</h1>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        {/* ═══ UPPER: Platform + Connectors + Pillars ═══ */}
+        <div style={{ display: "flex", gap: 0, alignItems: "stretch" }}>
+
+          {/* Platform Group Box */}
+          <div style={{ flex: 1, border: "2px solid #94a3b8", borderRadius: 14, padding: 14, background: "#f8fafc", position: "relative" }}>
+            <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#64748b", letterSpacing: 1.5, textTransform: "uppercase" as const }}>YOUR DATA PLATFORM</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {BP_LAYERS.map((layer, li) => {
+                const isLast = li === BP_LAYERS.length - 1;
+                const isMedallion = layer.prefix === "medal_";
+                return (
+                  <div key={layer.prefix}>
+                    <div style={{ borderRadius: 10, padding: "10px 14px", border: `1.5px solid ${layer.border}`, background: layer.bg }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", background: layer.numBg, flexShrink: 0 }}>{layer.num}</div>
+                        <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: layer.nameC }}>{layer.name}</div>
+                        <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, letterSpacing: 0.4, textTransform: "uppercase" as const, background: layer.tagBg, color: layer.tagC }}>{layer.tag}</div>
+                      </div>
+                      {isMedallion ? (
+                        <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                          {MEDAL_ZONES.map((mz, mi) => (
+                            <div key={mz.id} style={{ display: "flex", alignItems: "center", gap: 5, flex: 1 }}>
+                              <div onClick={() => capClick(mz.id)} style={{ flex: 1, padding: "12px 10px", borderRadius: 8, textAlign: "center", border: `2px solid ${mz.bd}`, background: mz.bg, cursor: "pointer", outline: selectedCap === mz.id ? "2px solid #1a73e8" : "none", outlineOffset: 1 }}>
+                                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: mz.lblC }}>{mz.id.toUpperCase()}</div>
+                                <div style={{ fontSize: 8, opacity: 0.45, marginTop: 2 }}>{getNode(mz.id)?.subtitle || mz.desc}</div>
+                              </div>
+                              {mi < MEDAL_ZONES.length - 1 && <div style={{ fontSize: 16, color: "#d0d0d0", flexShrink: 0 }}>→</div>}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                          {nodesByPrefix(layer.prefix).map(n => (
+                            <CapBox key={n.id} nodeId={n.id} style={{ background: layer.capBg, border: `1px solid ${layer.capBd}`, color: layer.capC, ...(layer.prefix === "lake_" ? { flex: 2 } : {}) }} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {!isLast && <FlowArrow />}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Connector Column */}
+          <div ref={connRef} style={{ width: 44, flexShrink: 0, position: "relative" }}>
+            <svg ref={svgRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", overflow: "visible" }} />
+          </div>
+
+          {/* Pillars */}
+          <div style={{ width: 280, display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+            {BP_PILLARS.map(p => {
+              const node = getNode(p.id);
+              const items = parsePillarItems(p.id);
+              return (
+                <div key={p.id} ref={el => { pillarRefs.current[p.id] = el; }} style={{ flex: 1, borderRadius: 10, padding: "12px 14px", borderLeft: `4px solid ${p.color}`, background: p.bg, display: "flex", flexDirection: "column" }}>
+                  <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase" as const, marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid rgba(0,0,0,0.06)", color: p.descC }}>{node?.name || p.id}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, flex: 1 }}>
+                    {items.map((item, i) => (
+                      <div key={i} style={{ padding: "5px 9px", borderRadius: 6, background: p.itemBg, color: p.itemC, display: "flex", flexDirection: "column", gap: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          <div style={{ width: 4, height: 4, borderRadius: "50%", background: p.color, flexShrink: 0 }} />
+                          <span style={{ fontSize: 9, fontWeight: 700 }}>{item.name}</span>
+                        </div>
+                        {item.desc && <div style={{ fontSize: 7.5, opacity: 0.55, paddingLeft: 9, lineHeight: 1.3, color: p.descC }}>{item.desc}</div>}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: "auto", paddingTop: 8, borderTop: "1px solid rgba(0,0,0,0.06)", display: "flex", gap: 3, flexWrap: "wrap" }}>
+                    {p.badges.map(b => <span key={b} style={{ fontSize: 7, fontWeight: 700, padding: "2px 6px", borderRadius: 4, letterSpacing: 0.3, textTransform: "uppercase" as const, background: p.badgeBg, color: p.badgeC }}>{b}</span>)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ═══ LOWER: Aligned to platform width only ═══ */}
+        <div style={{ display: "flex" }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            {/* Trust Boundary */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "4px 0" }}>
+              <div style={{ flex: 1, borderTop: "2px dashed #e11d48", opacity: 0.3 }} />
+              <div style={{ padding: "2px 14px", fontSize: 7.5, fontWeight: 800, color: "#e11d48", letterSpacing: 1.5, textTransform: "uppercase" as const, whiteSpace: "nowrap" }}>▲ Trust Boundary ▲</div>
+              <div style={{ flex: 1, borderTop: "2px dashed #e11d48", opacity: 0.3 }} />
+            </div>
+
+            {/* Connectivity Layer */}
+            <div style={{ border: "2px solid #f472b6", borderRadius: 12, padding: "10px 14px", background: "#fdf2f8", position: "relative" }}>
+              <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#be185d", letterSpacing: 1.2, textTransform: "uppercase" as const }}>CONNECTIVITY & ACCESS — HANDSHAKE LAYER</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
+                <div style={{ width: 18, height: 18, borderRadius: 5, background: "#be185d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", flexShrink: 0 }}>②</div>
+                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: "#be185d" }}>Connectivity & Access</div>
+                <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#fce7f3", color: "#9d174d", letterSpacing: 0.4, textTransform: "uppercase" as const }}>Trust Boundary</div>
+              </div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                {connNodes.map(n => (
+                  <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #f9a8d4", color: "#831843" }} />
+                ))}
+              </div>
+            </div>
+
+            {/* Flow arrow */}
+            <div style={{ display: "flex", justifyContent: "center", gap: 24, padding: "5px 0" }}>
+              {[0,1,2].map(i => (
+                <svg key={i} width="2" height="22" viewBox="0 0 2 22" style={{ overflow: "visible" }}>
+                  <line x1="1" y1="22" x2="1" y2="6" stroke="#94a3b8" strokeWidth="1.5" />
+                  <polygon points="1,0 -3.5,8 5.5,8" fill="#94a3b8" />
+                </svg>
+              ))}
+            </div>
+
+            {/* Sources (external) */}
+            <div style={{ border: "2px dashed #d1d5db", borderRadius: 12, padding: "10px 14px", background: "#f9fafb", position: "relative" }}>
+              <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#6b7280", letterSpacing: 1.2, textTransform: "uppercase" as const }}>EXTERNAL — SOURCE SYSTEMS (YOU DON'T OWN THESE)</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8, padding: "4px 0 0" }}>
+                <div style={{ width: 18, height: 18, borderRadius: 5, background: "#4b5563", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", flexShrink: 0 }}>①</div>
+                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: "#4b5563" }}>Source Systems</div>
+                <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#f3f4f6", color: "#6b7280", letterSpacing: 0.4, textTransform: "uppercase" as const }}>8 Categories</div>
+              </div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                {srcNodes.map(n => (
+                  <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #e5e7eb", color: "#374151" }} />
+                ))}
+              </div>
+            </div>
+          </div>
+          {/* Spacer to match connector + pillar width */}
+          <div style={{ width: 324, flexShrink: 0 }} />
+        </div>
+      </div>
+
     </div>
   );
 }
@@ -1201,7 +1420,7 @@ export default function Dashboard({ user }: { user: User }) {
           {TABS.map(t => (<button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "8px 16px", background: tab === t.id ? "#f0f7ff" : "none", border: tab === t.id ? "1px solid #4285f4" : "1px solid transparent", borderRadius: 8, fontSize: 12, fontWeight: tab === t.id ? 700 : 500, color: tab === t.id ? "#1a73e8" : "#888", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, transition: "all .12s" }}>
             <span>{t.icon}</span>{t.l}</button>))}
           <div style={{ flex: 1 }} />
-          {source && diag?.layout !== "blueprint" && <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 14, background: source === "template" ? "#e8f5e9" : "#fff3e0", color: source === "template" ? "#2e7d32" : "#e65100", fontWeight: 700 }}>{source === "template" ? "⚡ Template — instant, $0" : "🤖 AI Generated"}</span>}
+          {source && diag?.layout !== "blueprint" && diag?.layout !== "gcp_blueprint" && <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 14, background: source === "template" ? "#e8f5e9" : "#fff3e0", color: source === "template" ? "#2e7d32" : "#e65100", fontWeight: 700 }}>{source === "template" ? "⚡ Template — instant, $0" : "🤖 AI Generated"}</span>}
         </div>}
         {!diag && !loading && (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: THEMES[theme]?.bg || "#f8f9fa" }}>
@@ -1220,7 +1439,10 @@ export default function Dashboard({ user }: { user: User }) {
         {diag && tab === "diagram" && diag.layout === "blueprint" && (
           <BlueprintView diag={diag} popover={popover} setPopover={setPopover} />
         )}
-        {diag && tab === "diagram" && diag.layout !== "blueprint" && (
+        {diag && tab === "diagram" && diag.layout === "gcp_blueprint" && (
+          <GCPBlueprintView diag={diag} popover={popover} setPopover={setPopover} />
+        )}
+        {diag && tab === "diagram" && diag.layout !== "blueprint" && diag.layout !== "gcp_blueprint" && (
           <div ref={diagAreaRef} style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", background: THEMES[theme]?.bg || "#f8f9fa", overflow: "hidden" }}>
             
             {/* Edit Mode Toggle Button */}
