@@ -1211,6 +1211,112 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
   ],
 };
 
+// ═══ TEMPLATE 6: CUSTOMER DATA PLATFORM — GCP TECHNICAL BLUEPRINT ═══
+const CUSTOMER_DATA_PLATFORM: Diagram = {
+  title: "Customer Data Platform",
+  subtitle: "GCP-Native · 8 Layers · 4 Pillars · Vendor Integration · Users & Personas",
+  layout: "blueprint",
+
+  phases: [
+    { id: "connectivity", name: "Layer 2: Connectivity & Access", nodeIds: ["conn_cloud_identity","conn_identity_platform","conn_entra_id","conn_cyberark","conn_keeper","conn_secret_manager","conn_vpn","conn_interconnect","conn_vpc","conn_vpc_sc","conn_armor","conn_dns","conn_apigee","conn_api_gateway"] },
+    { id: "ingestion", name: "Layer 3: Ingestion", nodeIds: ["ing_datastream","ing_pubsub","ing_dataflow","ing_functions","ing_fivetran"] },
+    { id: "datalake", name: "Layer 4: Data Lake — Raw Landing", nodeIds: ["lake_gcs","lake_bq_staging"] },
+    { id: "processing", name: "Layer 5: Processing & Transformation", nodeIds: ["proc_dataflow","proc_dataproc"] },
+    { id: "medallion", name: "Layer 6: Medallion Architecture", nodeIds: ["bronze","silver","gold"] },
+    { id: "serving", name: "Layer 7: Serving & Delivery", nodeIds: ["serve_looker","serve_run","serve_hub"] },
+  ],
+  opsGroup: { name: "Crosscutting Pillars", nodeIds: ["pillar_sec","pillar_gov","pillar_obs","pillar_orch"] },
+
+  nodes: [
+    // ── LAYER 1: SOURCES (12 nodes, prefix: src_) ──
+    { id: "src_salesforce", name: "Salesforce", icon: "salesforce", subtitle: "CRM · REST/Bulk API", zone: "sources", x: 100, y: 100 },
+    { id: "src_workday", name: "Workday", icon: "workday", subtitle: "HCM · SOAP/REST", zone: "sources", x: 100, y: 200 },
+    { id: "src_servicenow", name: "ServiceNow", icon: "servicenow", subtitle: "ITSM · REST API", zone: "sources", x: 100, y: 300 },
+    { id: "src_sap", name: "SAP", icon: "sap", subtitle: "ERP · OData/RFC", zone: "sources", x: 100, y: 400 },
+    { id: "src_oracle", name: "Oracle DB", icon: "oracle", subtitle: "RDBMS · JDBC/LogMiner", zone: "sources", x: 100, y: 500 },
+    { id: "src_sqlserver", name: "SQL Server", icon: "sqlserver", subtitle: "RDBMS · JDBC/CDC", zone: "sources", x: 100, y: 600 },
+    { id: "src_postgresql", name: "PostgreSQL", icon: "postgresql", subtitle: "RDBMS · WAL CDC", zone: "sources", x: 100, y: 700 },
+    { id: "src_mongodb", name: "MongoDB", icon: "mongodb", subtitle: "NoSQL · Change Streams", zone: "sources", x: 100, y: 800 },
+    { id: "src_kafka", name: "Kafka", icon: "kafka", subtitle: "Event Streaming", zone: "sources", x: 100, y: 900 },
+    { id: "src_sftp", name: "SFTP / S3", icon: "sftp_server", subtitle: "File Drops · Bulk", zone: "sources", x: 100, y: 1000 },
+    { id: "src_rest_api", name: "REST APIs", icon: "rest_api", subtitle: "Webhooks · Polling", zone: "sources", x: 100, y: 1100 },
+    { id: "src_mainframe", name: "Mainframe", icon: "mainframe", subtitle: "Legacy · COBOL/MQ", zone: "sources", x: 100, y: 1200 },
+
+    // ── LAYER 2: CONNECTIVITY (14 nodes, prefix: conn_) ──
+    { id: "conn_cloud_identity", name: "Cloud Identity", icon: "identity_and_access_management", subtitle: "GCP Identity Broker · SAML", zone: "connectivity", x: 300, y: 100 },
+    { id: "conn_identity_platform", name: "Identity Platform", icon: "identity_platform", subtitle: "Customer Auth · OIDC", zone: "connectivity", x: 300, y: 200 },
+    { id: "conn_entra_id", name: "Entra ID", icon: "entra_id", subtitle: "Enterprise IdP · SSO · MFA", zone: "connectivity", x: 300, y: 300 },
+    { id: "conn_cyberark", name: "CyberArk", icon: "cyberark", subtitle: "PAM · Vault · Rotation", zone: "connectivity", x: 300, y: 400 },
+    { id: "conn_keeper", name: "Keeper", icon: "keeper", subtitle: "Team Passwords · Zero-Knowledge", zone: "connectivity", x: 300, y: 500 },
+    { id: "conn_secret_manager", name: "Secret Manager", icon: "secret_manager", subtitle: "Runtime Secrets · CMEK", zone: "connectivity", x: 300, y: 600 },
+    { id: "conn_vpn", name: "Cloud VPN", icon: "cloud_vpn", subtitle: "IPsec Tunnels · HA VPN", zone: "connectivity", x: 300, y: 700 },
+    { id: "conn_interconnect", name: "Cloud Interconnect", icon: "cloud_interconnect", subtitle: "Dedicated 10–100 Gbps", zone: "connectivity", x: 300, y: 800 },
+    { id: "conn_vpc", name: "VPC", icon: "virtual_private_cloud", subtitle: "Subnets · Private Access", zone: "connectivity", x: 300, y: 900 },
+    { id: "conn_vpc_sc", name: "VPC Service Controls", icon: "security_command_center", subtitle: "Data Exfil Prevention", zone: "connectivity", x: 300, y: 1000 },
+    { id: "conn_armor", name: "Cloud Armor", icon: "cloud_armor", subtitle: "WAF · DDoS · Geo-Block", zone: "connectivity", x: 300, y: 1100 },
+    { id: "conn_dns", name: "Cloud DNS", icon: "cloud_dns", subtitle: "Managed DNS · DNSSEC", zone: "connectivity", x: 300, y: 1200 },
+    { id: "conn_apigee", name: "Apigee", icon: "apigee_api_platform", subtitle: "Full API Lifecycle", zone: "connectivity", x: 300, y: 1300 },
+    { id: "conn_api_gateway", name: "API Gateway", icon: "cloud_api_gateway", subtitle: "Serverless Proxy", zone: "connectivity", x: 300, y: 1400 },
+
+    // ── LAYER 3: INGESTION (5 nodes, prefix: ing_) ──
+    { id: "ing_datastream", name: "Datastream", icon: "datastream", subtitle: "CDC · MySQL/PG/Oracle → BQ", zone: "cloud", x: 500, y: 100 },
+    { id: "ing_pubsub", name: "Pub/Sub", icon: "pubsub", subtitle: "Event Streaming · At-least-once", zone: "cloud", x: 500, y: 200 },
+    { id: "ing_dataflow", name: "Dataflow", icon: "dataflow", subtitle: "Stream & Batch Ingestion", zone: "cloud", x: 500, y: 300 },
+    { id: "ing_functions", name: "Cloud Functions", icon: "cloud_functions", subtitle: "Serverless Triggers", zone: "cloud", x: 500, y: 400 },
+    { id: "ing_fivetran", name: "Fivetran", icon: "fivetran", subtitle: "300+ SaaS Connectors", zone: "cloud", x: 500, y: 500 },
+
+    // ── LAYER 4: DATA LAKE (2 nodes, prefix: lake_) ──
+    { id: "lake_gcs", name: "Cloud Storage", icon: "cloud_storage", subtitle: "Raw Landing · Parquet/JSON/Avro", zone: "cloud", x: 700, y: 100 },
+    { id: "lake_bq_staging", name: "BigQuery Staging", icon: "bigquery", subtitle: "Relational Landing · Schema-on-write", zone: "cloud", x: 700, y: 200 },
+
+    // ── LAYER 5: PROCESSING (2 nodes, prefix: proc_) ──
+    { id: "proc_dataflow", name: "Dataflow", icon: "dataflow", subtitle: "Batch & Stream ELT · Beam", zone: "cloud", x: 900, y: 100 },
+    { id: "proc_dataproc", name: "Dataproc", icon: "dataproc", subtitle: "Spark · Heavy Transforms", zone: "cloud", x: 900, y: 200 },
+
+    // ── LAYER 6: MEDALLION (3 nodes, exact IDs: bronze, silver, gold) ──
+    { id: "bronze", name: "Bronze", icon: "bigquery", subtitle: "Schema-applied · Deduplicated", zone: "cloud", x: 1100, y: 100 },
+    { id: "silver", name: "Silver", icon: "bigquery", subtitle: "Cleaned · Conformed · Business Rules", zone: "cloud", x: 1100, y: 200 },
+    { id: "gold", name: "Gold", icon: "bigquery", subtitle: "Curated · Aggregated · Consumption-ready", zone: "cloud", x: 1100, y: 300 },
+
+    // ── LAYER 7: SERVING (3 nodes, prefix: serve_) ──
+    { id: "serve_looker", name: "Looker", icon: "looker", subtitle: "Semantic Layer · LookML · BI", zone: "cloud", x: 1300, y: 100 },
+    { id: "serve_run", name: "Cloud Run", icon: "cloud_run", subtitle: "Data APIs · Serverless", zone: "cloud", x: 1300, y: 200 },
+    { id: "serve_hub", name: "Analytics Hub", icon: "analytics_hub", subtitle: "Data Marketplace · Sharing", zone: "cloud", x: 1300, y: 300 },
+
+    // ── LAYER 8: CONSUMERS (5 nodes, prefix: con_) ──
+    { id: "con_dashboards", name: "Looker Dashboards", icon: "looker", subtitle: "Executive & Operational BI", zone: "consumers", x: 1500, y: 100 },
+    { id: "con_sheets", name: "Connected Sheets", icon: "data_studio", subtitle: "BQ in Google Sheets", zone: "consumers", x: 1500, y: 200 },
+    { id: "con_notebooks", name: "Vertex AI Notebooks", icon: "vertexai", subtitle: "Data Science · ML", zone: "consumers", x: 1500, y: 300 },
+    { id: "con_apis", name: "Cloud Run APIs", icon: "cloud_run", subtitle: "Embedded · Downstream Apps", zone: "consumers", x: 1500, y: 400 },
+    { id: "con_marketplace", name: "Analytics Hub", icon: "analytics_hub", subtitle: "Data Marketplace · Sharing", zone: "consumers", x: 1500, y: 500 },
+
+    // ── CROSSCUTTING PILLARS (4 nodes, exact IDs: pillar_sec/gov/obs/orch) ──
+    { id: "pillar_sec", name: "🔒 Security & Identity", icon: null, subtitle: "IAM · Encryption · Secrets · Network · mTLS", zone: "cloud", x: 1700, y: 100, details: {
+      notes: "★ NON-NEGOTIABLE PILLAR\n\n• Cloud IAM (Roles, least-privilege, Workload Identity Federation)\n• Cloud KMS (CMEK, HSM-backed, 90-day auto-rotation)\n• VPC Service Controls (Data exfil prevention, service perimeter)\n• Security Command Center (Asset inventory, vuln scanning, threat detection)\n• Cloud Armor (WAF, DDoS protection, geo-blocking)\n• Wiz (Agentless CSPM, misconfiguration scanning)\n• Splunk SIEM (Log correlation, threat detection, compliance)",
+      encryption: "CMEK via Cloud KMS (AES-256) for all data services",
+      compliance: "SOC2, ISO 27001, HIPAA, PCI-DSS, FedRAMP, CIS"
+    }},
+    { id: "pillar_gov", name: "📋 Governance & Quality", icon: null, subtitle: "Catalog · Lineage · DLP · Quality · Classify", zone: "cloud", x: 1700, y: 400, details: {
+      notes: "★ NON-NEGOTIABLE PILLAR\n\n• Dataplex (Auto quality, profiling, validation per medallion gate)\n• Data Catalog (Metadata management, search, discovery)\n• Data Lineage (Column-level lineage across BQ, GCS, Dataflow)\n• Cloud DLP (PII/PHI detection, tokenization, masking)\n• Data Classification (Sensitivity labels, access tier enforcement)",
+      cost: "Dataplex: $0.05/GB scanned | DLP: $1–3/GB inspected",
+      compliance: "GDPR, CCPA, HIPAA, DATA MESH"
+    }},
+    { id: "pillar_obs", name: "📡 Observability & Ops", icon: null, subtitle: "Monitor · Logging · Alerting · SLA · Freshness", zone: "cloud", x: 1700, y: 700, details: {
+      notes: "★ NON-NEGOTIABLE PILLAR\n\n• Cloud Monitoring (Pipeline metrics, SLO tracking, dashboards)\n• Cloud Logging (Centralized audit trails, debug, compliance)\n• Error Reporting (Auto error grouping, stack traces)\n• Alerting → PagerDuty (Severity routing, on-call)\n• Dynatrace (Full-stack APM, AI root cause analysis)\n• Datadog (Unified metrics, traces, GCP integration)\n• Grafana (Open-source dashboarding, Prometheus)",
+      monitoring: "Pipeline SLOs, data freshness, cost burn rate, error budgets",
+      compliance: "SLO/SLA, MTTR, DORA"
+    }},
+    { id: "pillar_orch", name: "⚙️ Orchestration & Cost", icon: null, subtitle: "DAGs · Scheduling · Budget · Chargeback", zone: "cloud", x: 1700, y: 950, details: {
+      notes: "★ NON-NEGOTIABLE PILLAR\n\n• Cloud Composer (Managed Airflow, DAG orchestration)\n• Cloud Scheduler (Cron jobs, HTTP triggers)\n• Workflows (Serverless workflow orchestration)\n• Budget Alerts (80%/100% thresholds per team/project)\n• Cost Attribution (Label-based chargeback per BU)\n• Quota Management (Per-project resource limits)",
+      cost: "Composer: $0.35/vCPU·hr | Budget alerts at 80%/100%",
+      compliance: "FINOPS, TAGGING, QUOTAS"
+    }},
+  ],
+
+  edges: [],
+  threats: [],
+};
+
 // ═══ REGISTRY ═════════════════════════════════════
 export const TEMPLATES: Template[] = [
   { id: "blueprint-analytics", name: "Enterprise Data Analytics Blueprint", icon: "🏗️", description: "Platform-agnostic capability map with all non-negotiable layers: medallion storage, governance, security, observability, orchestration",
@@ -1228,4 +1334,7 @@ export const TEMPLATES: Template[] = [
   { id: "gcp-technical-blueprint", name: "GCP Technical Blueprint", icon: "🏗️", description: "Enterprise GCP technical blueprint with all 8 layers: Sources, Connectivity, Ingestion, Data Lake, Processing, Medallion, Serving, Consumers + crosscutting pillars",
     tags: ["gcp", "technical blueprint", "gcp blueprint", "sources", "source", "connectivity", "layer 1", "layer 2", "identity", "secrets", "network", "vpn", "interconnect", "vpc", "entra", "cyberark", "secret manager", "apigee", "database", "saas", "crm", "erp", "salesforce", "oracle", "kafka", "sftp", "api", "webhook", "mainframe", "legacy", "nosql", "mongodb", "postgresql", "sql server", "workday", "servicenow", "sap", "cloud armor", "dns", "firewall", "ingestion", "datastream", "pubsub", "dataflow", "bigquery", "medallion", "bronze", "silver", "gold", "looker", "serving", "consumers"],
     diagram: GCP_TECHNICAL_BLUEPRINT },
+  { id: "customer-data-platform", name: "Customer Data Platform", icon: "🏗️", description: "GCP-native Customer Data Platform with all 8 layers, 4 crosscutting pillars, vendor integration, and real GCP service icons",
+    tags: ["customer data platform", "cdp", "customer", "gcp", "technical", "blueprint", "data platform", "salesforce", "workday", "servicenow", "sap", "oracle", "kafka", "datastream", "pubsub", "dataflow", "bigquery", "medallion", "bronze", "silver", "gold", "looker", "cloud run", "analytics hub", "vertex ai", "dataplex", "composer", "fivetran", "cyberark", "entra", "splunk", "dynatrace", "wiz"],
+    diagram: CUSTOMER_DATA_PLATFORM },
 ];
