@@ -810,13 +810,17 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     { id: "file", name: "L1 · File / Object", nodeIds: ["src_sftp", "src_s3"] },
     { id: "api", name: "L1 · APIs", nodeIds: ["src_rest_api", "src_webhook"] },
     { id: "legacy", name: "L1 · Legacy", nodeIds: ["src_onprem", "src_mainframe"] },
-    // Layer 2: Connectivity
-    { id: "identity", name: "L2 · Identity & Auth", nodeIds: ["conn_entra_id", "conn_cloud_identity", "conn_identity_platform"] },
-    { id: "secrets", name: "L2 · Credential & Secrets", nodeIds: ["conn_cyberark", "conn_keeper", "conn_secret_manager"] },
+    // Layer 2: Connectivity (GCP tools)
+    { id: "identity", name: "L2 · Identity (GCP)", nodeIds: ["conn_cloud_identity", "conn_identity_platform"] },
+    { id: "secrets", name: "L2 · Secrets (GCP)", nodeIds: ["conn_secret_manager"] },
     { id: "network", name: "L2 · Network", nodeIds: ["conn_vpn", "conn_interconnect", "conn_vpc", "conn_vpc_sc", "conn_armor", "conn_dns"] },
     { id: "api_mgmt", name: "L2 · API Management", nodeIds: ["conn_apigee", "conn_api_gateway"] },
-    // Layer 3: Ingestion
-    { id: "ingestion", name: "L3 · Ingestion", nodeIds: ["ing_datastream", "ing_pubsub", "ing_dataflow", "ing_functions", "ing_fivetran"] },
+    // Vendor Identity & Secrets (outside GCP)
+    { id: "vendor_identity", name: "Vendor · Identity & Secrets", nodeIds: ["conn_entra_id", "conn_cyberark", "conn_keeper"] },
+    // Layer 3: Ingestion (GCP tools)
+    { id: "ingestion", name: "L3 · Ingestion", nodeIds: ["ing_datastream", "ing_pubsub", "ing_dataflow", "ing_functions"] },
+    // Vendor Ingestion (outside GCP)
+    { id: "vendor_ingestion", name: "Vendor · Ingestion", nodeIds: ["ing_fivetran"] },
     // Layer 4: Data Lake
     { id: "datalake", name: "L4 · Data Lake", nodeIds: ["lake_gcs", "lake_bq_staging"] },
     // Layer 5: Processing
@@ -825,8 +829,10 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     { id: "medallion", name: "L6 · Medallion", nodeIds: ["medal_bronze", "medal_silver", "medal_gold"] },
     // Layer 7: Serving
     { id: "serving", name: "L7 · Serving", nodeIds: ["serve_looker", "serve_run", "serve_hub"] },
+    // Vendor Observability & Security (outside GCP)
+    { id: "vendor_obs", name: "Vendor · Observability & Security", nodeIds: ["pillar_splunk", "pillar_dynatrace", "pillar_datadog", "pillar_grafana", "pillar_pagerduty", "pillar_wiz"] },
   ],
-  opsGroup: { name: "Crosscutting Pillars", nodeIds: ["pillar_monitor", "pillar_logging", "pillar_splunk", "pillar_dynatrace", "pillar_datadog", "pillar_grafana", "pillar_pagerduty", "pillar_wiz", "pillar_scc", "pillar_composer", "pillar_catalog"] },
+  opsGroup: { name: "Crosscutting Pillars (GCP)", nodeIds: ["pillar_monitor", "pillar_logging", "pillar_scc", "pillar_composer", "pillar_catalog"] },
 
   nodes: [
     // ── SaaS / ERP (row 1) ──
@@ -1017,7 +1023,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     // ══════════════════════════════════════════════════
 
     // ── Identity & Auth (row 3) ──
-    { id: "conn_entra_id", name: "Entra ID", icon: "entra_id", subtitle: "Enterprise IdP · SSO · MFA · Conditional Access", zone: "connectivity", x: 650, y: 100, details: {
+    { id: "conn_entra_id", name: "Entra ID", icon: "entra_id", subtitle: "Enterprise IdP · SSO · MFA · Conditional Access", zone: "sources", x: 650, y: 100, details: {
       notes: "Microsoft cloud identity platform providing SSO, MFA, conditional access, and user/group directory. Federates into GCP Cloud Identity via SAML 2.0.\n\nUse when: Organization uses Microsoft 365 and needs SSO into GCP console, Looker, and SaaS tools.",
       encryption: "In transit: TLS 1.2+ | Tokens: SAML signed + encrypted | Auth: SAML 2.0 / OIDC",
       monitoring: "Sign-in failure rate, conditional access blocks, risky sign-in detections",
@@ -1046,7 +1052,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     }},
 
     // ── Credential & Secrets (row 3, continued) ──
-    { id: "conn_cyberark", name: "CyberArk", icon: "cyberark", subtitle: "Enterprise PAM · Vault · Auto-Rotation · Secrets Hub", zone: "connectivity", x: 650, y: 460, details: {
+    { id: "conn_cyberark", name: "CyberArk", icon: "cyberark", subtitle: "Enterprise PAM · Vault · Auto-Rotation · Secrets Hub", zone: "sources", x: 650, y: 460, details: {
       notes: "Enterprise PAM platform: privileged credential vault, automated rotation, session recording, JIT access. Secrets Hub syncs secrets to GCP Secret Manager.\n\nUse when: Master vault for all privileged credentials (SA keys, DB passwords, API tokens). Source of truth; Secret Manager is runtime accessor.",
       encryption: "At rest: AES-256 vault | In transit: TLS 1.2+ | HSM for master key",
       monitoring: "Credential rotation success, vault access audit, session recordings",
@@ -1055,7 +1061,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "All privileged creds in CyberArk. Secrets Hub auto-syncs to Secret Manager. No manual secret management.",
       compliance: "SOC2, ISO 27001, PCI-DSS, HIPAA"
     }},
-    { id: "conn_keeper", name: "Keeper", icon: "keeper", subtitle: "Team Passwords · Zero-Knowledge · Sharing", zone: "connectivity", x: 850, y: 460, details: {
+    { id: "conn_keeper", name: "Keeper", icon: "keeper", subtitle: "Team Passwords · Zero-Knowledge · Sharing", zone: "sources", x: 850, y: 460, details: {
       notes: "Zero-knowledge password management for team/personal credential storage, sharing, and basic rotation.\n\nUse when: Team-level secrets and developer credentials not requiring full PAM.",
       encryption: "AES-256 + PBKDF2 client-side. Zero-knowledge: Keeper never sees plaintext. TLS in transit.",
       monitoring: "Vault access logs, sharing audit, password strength reports",
@@ -1155,7 +1161,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     { id: "ing_pubsub", name: "Pub/Sub", icon: "pubsub", subtitle: "Event Streaming · At-least-once", zone: "cloud", x: 1300, y: 100, details: { notes: "Serverless event ingestion for real-time streams, IoT, clickstream.", cost: "$40/TiB ingested", compliance: "SOC2, ISO 27001" }},
     { id: "ing_dataflow", name: "Dataflow", icon: "dataflow", subtitle: "Stream & Batch Ingestion", zone: "cloud", x: 1500, y: 100, details: { notes: "Apache Beam runner for both stream and batch ingestion pipelines.", cost: "$0.056/vCPU·hr + $0.003/GB·hr", compliance: "SOC2, ISO 27001" }},
     { id: "ing_functions", name: "Cloud Functions", icon: "cloud_functions", subtitle: "Serverless Triggers", zone: "cloud", x: 1100, y: 250, details: { notes: "Lightweight event-driven ingestion for webhooks, API polling, file triggers.", cost: "$0.40/million invocations", compliance: "SOC2" }},
-    { id: "ing_fivetran", name: "Fivetran", icon: "fivetran", subtitle: "Managed SaaS Connectors", zone: "cloud", x: 1300, y: 250, details: { notes: "300+ pre-built connectors for SaaS sources. Managed schema, incremental sync.", cost: "Per Monthly Active Row pricing", compliance: "SOC2, ISO 27001" }},
+    { id: "ing_fivetran", name: "Fivetran", icon: "fivetran", subtitle: "Managed SaaS Connectors", zone: "sources", x: 1300, y: 250, details: { notes: "300+ pre-built connectors for SaaS sources. Managed schema, incremental sync.", cost: "Per Monthly Active Row pricing", compliance: "SOC2, ISO 27001" }},
 
     // ── LAYER 4: DATA LAKE ──
     { id: "lake_gcs", name: "Cloud Storage", icon: "cloud_storage", subtitle: "Raw Landing · Parquet/JSON/Avro", zone: "cloud", x: 1100, y: 420, details: { notes: "Immutable object store for raw source data. Landing zone for files, exports, and CDC snapshots.", cost: "$0.020/GB/mo (Standard)", compliance: "SOC2, ISO 27001, HIPAA" }},
@@ -1185,72 +1191,20 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     // Observability
     { id: "pillar_monitor", name: "Cloud Monitoring", icon: "cloud_monitoring", subtitle: "Metrics · Alerts · SLOs", zone: "cloud", x: 1700, y: 100, details: { notes: "Pipeline metrics, SLO tracking, alerting across all layers.", compliance: "SOC2" }},
     { id: "pillar_logging", name: "Cloud Logging", icon: "cloud_logging", subtitle: "Audit · Debug · Compliance", zone: "cloud", x: 1700, y: 250, details: { notes: "Centralized logging for audit trails, debugging, compliance evidence.", compliance: "SOC2, ISO 27001" }},
-    { id: "pillar_splunk", name: "Splunk", icon: "splunk", subtitle: "SIEM · Log Analytics", zone: "cloud", x: 1900, y: 100, details: { notes: "Enterprise SIEM and log analytics. Ingests Cloud Logging exports for advanced correlation, threat detection, and compliance dashboards.", compliance: "SOC2, ISO 27001, HIPAA" }},
-    { id: "pillar_dynatrace", name: "Dynatrace", icon: "dynatrace", subtitle: "APM · Full-stack Observability", zone: "cloud", x: 1900, y: 250, details: { notes: "Full-stack APM with AI-powered root cause analysis. Monitors Dataflow, Cloud Run, Composer performance.", compliance: "SOC2, ISO 27001" }},
-    { id: "pillar_datadog", name: "Datadog", icon: "datadog", subtitle: "Metrics · Traces · Dashboards", zone: "cloud", x: 2100, y: 100, details: { notes: "Unified metrics, traces, and logs. GCP integration for BigQuery, Dataflow, GKE monitoring.", compliance: "SOC2, ISO 27001" }},
-    { id: "pillar_grafana", name: "Grafana", icon: "grafana", subtitle: "Visualization · Alerts", zone: "cloud", x: 2100, y: 250, details: { notes: "Open-source dashboarding for Cloud Monitoring, Prometheus, and custom pipeline metrics.", compliance: "SOC2" }},
-    { id: "pillar_pagerduty", name: "PagerDuty", icon: "pagerduty", subtitle: "Incident Management · On-call", zone: "cloud", x: 1900, y: 400, details: { notes: "Incident response and on-call management. Receives alerts from Cloud Monitoring, Splunk, Datadog.", compliance: "SOC2" }},
+    { id: "pillar_splunk", name: "Splunk", icon: "splunk", subtitle: "SIEM · Log Analytics", zone: "consumers", x: 1900, y: 100, details: { notes: "Enterprise SIEM and log analytics. Ingests Cloud Logging exports for advanced correlation, threat detection, and compliance dashboards.", compliance: "SOC2, ISO 27001, HIPAA" }},
+    { id: "pillar_dynatrace", name: "Dynatrace", icon: "dynatrace", subtitle: "APM · Full-stack Observability", zone: "consumers", x: 1900, y: 250, details: { notes: "Full-stack APM with AI-powered root cause analysis. Monitors Dataflow, Cloud Run, Composer performance.", compliance: "SOC2, ISO 27001" }},
+    { id: "pillar_datadog", name: "Datadog", icon: "datadog", subtitle: "Metrics · Traces · Dashboards", zone: "consumers", x: 2100, y: 100, details: { notes: "Unified metrics, traces, and logs. GCP integration for BigQuery, Dataflow, GKE monitoring.", compliance: "SOC2, ISO 27001" }},
+    { id: "pillar_grafana", name: "Grafana", icon: "grafana", subtitle: "Visualization · Alerts", zone: "consumers", x: 2100, y: 250, details: { notes: "Open-source dashboarding for Cloud Monitoring, Prometheus, and custom pipeline metrics.", compliance: "SOC2" }},
+    { id: "pillar_pagerduty", name: "PagerDuty", icon: "pagerduty", subtitle: "Incident Management · On-call", zone: "consumers", x: 1900, y: 400, details: { notes: "Incident response and on-call management. Receives alerts from Cloud Monitoring, Splunk, Datadog.", compliance: "SOC2" }},
     // Security
-    { id: "pillar_wiz", name: "Wiz", icon: "wiz", subtitle: "CSPM · Cloud Security Posture", zone: "cloud", x: 2100, y: 400, details: { notes: "Agentless cloud security posture management. Scans GCP for misconfigurations, vulnerabilities, and compliance gaps.", compliance: "SOC2, ISO 27001, CIS" }},
+    { id: "pillar_wiz", name: "Wiz", icon: "wiz", subtitle: "CSPM · Cloud Security Posture", zone: "consumers", x: 2100, y: 400, details: { notes: "Agentless cloud security posture management. Scans GCP for misconfigurations, vulnerabilities, and compliance gaps.", compliance: "SOC2, ISO 27001, CIS" }},
     { id: "pillar_scc", name: "Security Command Center", icon: "security_command_center", subtitle: "GCP-native Security · Findings", zone: "cloud", x: 1700, y: 400, details: { notes: "GCP-native security and risk management. Asset inventory, vulnerability scanning, threat detection.", compliance: "SOC2, ISO 27001, CIS" }},
     // Orchestration & Governance
     { id: "pillar_composer", name: "Cloud Composer", icon: "cloud_composer", subtitle: "Orchestration · DAGs", zone: "cloud", x: 1700, y: 550, details: { notes: "Managed Airflow for pipeline orchestration, dependency management, scheduling.", cost: "$0.35/vCPU·hr", compliance: "SOC2" }},
     { id: "pillar_catalog", name: "Data Catalog", icon: "data_catalog", subtitle: "Lineage · Governance · Discovery", zone: "cloud", x: 1900, y: 550, details: { notes: "Metadata management, data lineage, discovery, and access governance.", compliance: "SOC2, ISO 27001" }},
   ],
 
-  edges: [
-    // ── Layer 2 internal wiring ──
-    { id: "c1", from: "conn_entra_id", to: "conn_cloud_identity", label: "SAML Federation", step: 2, security: { transport: "TLS 1.2+", auth: "SAML 2.0", classification: "confidential", private: false }, edgeType: "control" },
-    { id: "c2", from: "conn_cyberark", to: "conn_secret_manager", label: "Secrets Hub Sync", step: 2, security: { transport: "TLS 1.2+", auth: "Service Account", classification: "restricted", private: true }, edgeType: "control" },
-    { id: "c3", from: "conn_vpn", to: "conn_vpc", label: "Tunnel → VPC", step: 2, security: { transport: "IPsec", auth: "IKEv2", classification: "confidential", private: true }, edgeType: "data" },
-    { id: "c4", from: "conn_interconnect", to: "conn_vpc", label: "VLAN → VPC", step: 2, security: { transport: "MACsec", auth: "BGP Peering", classification: "confidential", private: true }, edgeType: "data" },
-    { id: "c5", from: "conn_armor", to: "conn_apigee", label: "WAF → Gateway", step: 2, security: { transport: "TLS", auth: "Internal", classification: "internal", private: true }, edgeType: "data" },
-    { id: "c6", from: "conn_vpc", to: "conn_vpc_sc", label: "Perimeter Check", step: 2, security: { transport: "Internal", auth: "Policy", classification: "internal", private: true }, edgeType: "control" },
-
-    // ── Layer 2 → Layer 3 ──
-    { id: "c7", from: "conn_vpc", to: "ing_datastream", label: "Private Access", step: 3, security: { transport: "Google Internal", auth: "IAM", classification: "confidential", private: true }, edgeType: "data" },
-    { id: "c8", from: "conn_secret_manager", to: "ing_functions", label: "Runtime Secrets", step: 3, security: { transport: "TLS", auth: "IAM", classification: "restricted", private: true }, edgeType: "control" },
-    { id: "c9", from: "conn_apigee", to: "ing_pubsub", label: "API → Stream", step: 3, security: { transport: "TLS", auth: "OAuth / JWT", classification: "confidential", private: true }, edgeType: "data" },
-    { id: "c10", from: "conn_api_gateway", to: "ing_functions", label: "Serverless Proxy", step: 3, security: { transport: "TLS", auth: "JWT / ID Token", classification: "confidential", private: true }, edgeType: "data" },
-
-    // ── Layer 3 → Layer 4 (Ingestion → Data Lake) ──
-    { id: "d1", from: "ing_datastream", to: "lake_bq_staging", label: "CDC Land", step: 4, edgeType: "data" },
-    { id: "d2", from: "ing_pubsub", to: "lake_gcs", label: "Stream Land", step: 4, edgeType: "data" },
-    { id: "d3", from: "ing_dataflow", to: "lake_gcs", label: "Batch Land", step: 4, edgeType: "data" },
-    { id: "d4", from: "ing_fivetran", to: "lake_bq_staging", label: "SaaS Land", step: 4, edgeType: "data" },
-    { id: "d5", from: "ing_functions", to: "lake_gcs", label: "File Land", step: 4, edgeType: "data" },
-
-    // ── Layer 4 → Layer 5 (Data Lake → Processing) ──
-    { id: "d6", from: "lake_gcs", to: "proc_dataflow", label: "Transform", step: 5, edgeType: "data" },
-    { id: "d7", from: "lake_bq_staging", to: "proc_dataproc", label: "Transform", step: 5, edgeType: "data" },
-
-    // ── Layer 5 → Layer 6 (Processing → Medallion) ──
-    { id: "m1", from: "proc_dataflow", to: "medal_bronze", label: "Schema Apply", step: 6, edgeType: "data" },
-    { id: "m2", from: "proc_dataproc", to: "medal_bronze", label: "Schema Apply", step: 6, edgeType: "data" },
-    { id: "m3", from: "medal_bronze", to: "medal_silver", label: "Clean & Conform", step: 7, edgeType: "data" },
-    { id: "m4", from: "medal_silver", to: "medal_gold", label: "Curate & Model", step: 8, edgeType: "data" },
-    { id: "q1", from: "proc_dataplex", to: "medal_bronze", label: "Quality Gate", step: 0, edgeType: "observe" },
-    { id: "q2", from: "proc_dataplex", to: "medal_silver", label: "Quality Gate", step: 0, edgeType: "observe" },
-
-    // ── Layer 6 → Layer 7 (Medallion → Serving) ──
-    { id: "g1", from: "medal_gold", to: "serve_looker", label: "Metrics", step: 9, edgeType: "data" },
-    { id: "g2", from: "medal_gold", to: "serve_run", label: "API", step: 9, edgeType: "data" },
-    { id: "g3", from: "medal_gold", to: "serve_hub", label: "Publish", step: 9, edgeType: "data" },
-
-    // ── Layer 7 → Layer 8 (Serving → Consumers) ──
-    { id: "x1", from: "serve_looker", to: "con_bi", label: "Dashboards", step: 10, edgeType: "data" },
-    { id: "x2", from: "serve_run", to: "con_apps", label: "Consume", step: 10, edgeType: "data" },
-    { id: "x3", from: "serve_hub", to: "con_ds", label: "Discover", step: 10, edgeType: "data" },
-
-    // ── Pillar connections ──
-    { id: "p1", from: "pillar_composer", to: "proc_dataflow", label: "Orchestrate", step: 0, edgeType: "control" },
-    { id: "p2", from: "pillar_monitor", to: "medal_gold", label: "SLA Track", step: 0, edgeType: "observe" },
-    { id: "p3", from: "pillar_catalog", to: "medal_silver", label: "Lineage", step: 0, edgeType: "observe" },
-    { id: "p4", from: "pillar_logging", to: "pillar_splunk", label: "Log Export", step: 0, edgeType: "data" },
-    { id: "p5", from: "pillar_monitor", to: "pillar_pagerduty", label: "Alerts", step: 0, edgeType: "alert" },
-    { id: "p6", from: "pillar_wiz", to: "pillar_scc", label: "Findings Sync", step: 0, edgeType: "observe" },
-    { id: "p7", from: "pillar_dynatrace", to: "pillar_pagerduty", label: "Incidents", step: 0, edgeType: "alert" },
-  ],
+  edges: [],
 
   threats: [
     // Layer 1 threats
