@@ -661,6 +661,7 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
           <marker id="aB" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 .5,9 3.5,0 6.5" fill="#1a73e8" /></marker>
           <marker id="aC" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 .5,9 3.5,0 6.5" fill="#7986cb" /></marker>
           <marker id="aR" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 .5,9 3.5,0 6.5" fill="#e53935" /></marker>
+          <marker id="aP" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 .5,9 3.5,0 6.5" fill="#f472b6" /></marker>
           <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity=".08" /></filter>
         </defs>
 
@@ -674,11 +675,34 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
           <g transform={`translate(${cloudB.x + cloudB.w / 2 - 60},${cloudB.y - 14})`}><rect width={120} height={28} rx={6} fill="#4285f4" /><text x={60} y={19} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: "#fff", letterSpacing: .5 }}>Google Cloud</text></g></g>}
         {conB && <g><rect x={conB.x} y={conB.y} width={conB.w} height={conB.h} rx={12} fill={isDark ? "#162032" : "#fafafa"} stroke={isDark ? "#2a4060" : "#bdbdbd"} strokeWidth={1.5} strokeDasharray="8 4" /><text x={conB.x + conB.w / 2} y={conB.y + 18} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: isDark ? "#5a7a9a" : "#78909c", letterSpacing: 2 }}>CONSUMERS</text></g>}
 
-        {/* Phase groups — draggable */}
-        {phaseBounds.map((p, i) => (<g key={p.id} onMouseDown={e => startGroupDrag(p.nodeIds, e)} style={{ cursor: "move" }}>
-          <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={10} fill={isDark ? "rgba(66,133,244,0.06)" : "rgba(66,133,244,0.03)"} stroke={isDark ? "rgba(66,133,244,0.2)" : "rgba(66,133,244,0.12)"} strokeWidth={1} strokeDasharray="5 3" />
-          <text x={p.x + p.w / 2} y={p.y - 6} textAnchor="middle" style={{ fontSize: 8, fontWeight: 700, fill: isDark ? "#5a8ac0" : "#b0bec5", letterSpacing: 1, pointerEvents: "none" }}>PHASE {i + 1}: {p.name.toUpperCase()}</text>
-        </g>))}
+        {/* Phase groups — draggable (L2 phases get pink to match Enterprise Blueprint connectivity layer) */}
+        {phaseBounds.map((p, i) => { const isL2 = p.name.includes("L2"); return (<g key={p.id} onMouseDown={e => startGroupDrag(p.nodeIds, e)} style={{ cursor: "move" }}>
+          <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={10} fill={isDark ? (isL2 ? "rgba(190,24,93,0.06)" : "rgba(66,133,244,0.06)") : (isL2 ? "rgba(244,114,182,0.06)" : "rgba(66,133,244,0.03)")} stroke={isDark ? (isL2 ? "rgba(190,24,93,0.25)" : "rgba(66,133,244,0.2)") : (isL2 ? "rgba(244,114,182,0.3)" : "rgba(66,133,244,0.12)")} strokeWidth={1} strokeDasharray="5 3" />
+          <text x={p.x + p.w / 2} y={p.y - 6} textAnchor="middle" style={{ fontSize: 8, fontWeight: 700, fill: isDark ? (isL2 ? "#d4618c" : "#5a8ac0") : (isL2 ? "#be185d" : "#b0bec5"), letterSpacing: 1, pointerEvents: "none" }}>PHASE {i + 1}: {p.name.toUpperCase()}</text>
+        </g>); })}
+
+        {/* L2 connectivity group box + 3 bridge arrows from Sources */}
+        {(() => {
+          const l2 = phaseBounds.filter(p => p.name.includes("L2"));
+          if (!l2.length) return null;
+          const gx = Math.min(...l2.map(p => p.x)) - 20;
+          const gy = Math.min(...l2.map(p => p.y)) - 30;
+          const gw = Math.max(...l2.map(p => p.x + p.w)) - gx + 20;
+          const gh = Math.max(...l2.map(p => p.y + p.h)) - gy + 20;
+          const arrows = srcB ? [0.25, 0.5, 0.75].map((f, i) => {
+            const y1 = srcB.y + srcB.h * f;
+            const y2 = gy + gh * f;
+            const x1 = srcB.x + srcB.w;
+            const x2 = gx;
+            const midX = (x1 + x2) / 2;
+            return <path key={`bridge-${i}`} d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`} fill="none" stroke={isDark ? "#d4618c" : "#f472b6"} strokeWidth={1.5} strokeDasharray="6 3" markerEnd="url(#aP)" />;
+          }) : null;
+          return (<g>
+            <rect x={gx} y={gy} width={gw} height={gh} rx={12} fill={isDark ? "rgba(190,24,93,0.05)" : "rgba(244,114,182,0.05)"} stroke={isDark ? "#d4618c" : "#f472b6"} strokeWidth={1.5} strokeDasharray="8 4" />
+            <text x={gx + gw / 2} y={gy - 8} textAnchor="middle" style={{ fontSize: 10, fontWeight: 800, fill: isDark ? "#d4618c" : "#be185d", letterSpacing: 1.5 }}>LAYER 2: CONNECTIVITY & ACCESS</text>
+            {arrows}
+          </g>);
+        })()}
 
         {/* Ops group — draggable */}
         {opsBound && diag.opsGroup && <g onMouseDown={e => startGroupDrag(diag.opsGroup!.nodeIds, e)} style={{ cursor: "move" }}>
