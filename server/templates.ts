@@ -1149,11 +1149,6 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
   ],
 
   edges: [
-    // ── 3 Bridge Arrows: Layer 1 Sources → Layer 2 Connectivity ──
-    { id: "bridge_top", from: "src_sap", to: "conn_identity_platform", label: "Identity & Auth", step: 1, security: { transport: "TLS 1.2+ / IPsec", auth: "OAuth 2.0 / SAML / JDBC", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
-    { id: "bridge_mid", from: "src_mongodb", to: "conn_secret_manager", label: "Credentials & Secrets", step: 1, security: { transport: "TLS 1.2+", auth: "IAM / CyberArk Sync", classification: "restricted", private: true }, crossesBoundary: true, edgeType: "data" },
-    { id: "bridge_bot", from: "src_confluent", to: "conn_vpc", label: "Network & API", step: 1, security: { transport: "IPsec / MACsec / TLS", auth: "VPN / Interconnect / API Keys", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
-
     // ── Layer 2 internal wiring ──
     { id: "c1", from: "conn_entra_id", to: "conn_cloud_identity", label: "SAML Federation", step: 2, security: { transport: "TLS 1.2+", auth: "SAML 2.0", classification: "confidential", private: false }, edgeType: "control" },
     { id: "c2", from: "conn_cyberark", to: "conn_secret_manager", label: "Secrets Hub Sync", step: 2, security: { transport: "TLS 1.2+", auth: "Service Account", classification: "restricted", private: true }, edgeType: "control" },
