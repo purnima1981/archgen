@@ -368,14 +368,16 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
     const gcpNodes = nodes.filter(n => !vendorIds.has(n.icon || ""));
     const vNodes = nodes.filter(n => vendorIds.has(n.icon || ""));
     return (
-      <div style={{ background: bg || `${color}06`, borderRadius: 8, border: `1.5px solid ${color}30`, padding: "7px 10px", display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ fontSize: 8, fontWeight: 800, color, minWidth: 105, textTransform: "uppercase", letterSpacing: 0.3, lineHeight: 1.3, flexShrink: 0 }}>
-          <span style={{ fontSize: 11 }}>{num}</span> {title}
-          {subtitle && <div style={{ fontSize: 7, fontWeight: 600, opacity: 0.7, textTransform: "none", letterSpacing: 0 }}>{subtitle}</div>}
+      <div style={{ background: bg || `${color}06`, borderRadius: 10, border: `1.5px solid ${color}30`, padding: "10px 12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, paddingBottom: 6, borderBottom: `1px solid ${color}20` }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color, textTransform: "uppercase", letterSpacing: 0.3, lineHeight: 1.2 }}>
+            <span style={{ fontSize: 12 }}>{num}</span> {title}
+          </div>
+          {subtitle && <div style={{ fontSize: 7.5, fontWeight: 600, color, opacity: 0.6 }}>{subtitle}</div>}
         </div>
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", flex: 1 }}>
-          {gcpNodes.map(n => <Chip key={n.id} nodeId={n.id} color={color} />)}
-          {vNodes.map(n => <VChip key={n.id} nodeId={n.id} />)}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-start" }}>
+          {gcpNodes.map(n => <IconCard key={n.id} nodeId={n.id} color={color} borderColor={`${color}40`} bg={`${color}08`} />)}
+          {vNodes.map(n => <IconCard key={n.id} nodeId={n.id} color={c.vendor} borderColor={`${c.vendor}40`} bg="#FFF8E1" />)}
         </div>
       </div>
     );
