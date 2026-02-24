@@ -39,6 +39,9 @@ const CAT: Record<string, { bg: string; border: string }> = {
   document_ai: { bg: "#f3e5f5", border: "#8e24aa" }, cloud_monitoring: { bg: "#eceff1", border: "#546e7a" },
   cloud_logging: { bg: "#eceff1", border: "#546e7a" }, cloud_scheduler: { bg: "#eceff1", border: "#546e7a" },
   identity_platform: { bg: "#fff8e1", border: "#f9a825" },
+  cloud_composer: { bg: "#e8f5e9", border: "#43a047" }, dataproc: { bg: "#e3f2fd", border: "#1565c0" },
+  dataplex: { bg: "#e8f5e9", border: "#2e7d32" }, analytics_hub: { bg: "#e3f2fd", border: "#1565c0" },
+  security_command_center: { bg: "#ffebee", border: "#c62828" },
   // Databases
   postgresql: { bg: "#e3f2fd", border: "#336791" }, mysql: { bg: "#e0f7fa", border: "#00758f" },
   oracle: { bg: "#fbe9e7", border: "#c74634" }, sqlserver: { bg: "#ffebee", border: "#cc2927" },

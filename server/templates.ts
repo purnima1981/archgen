@@ -800,7 +800,7 @@ const SOURCES_LAYER: Diagram = {
 
 const GCP_TECHNICAL_BLUEPRINT: Diagram = {
   title: "GCP Technical Blueprint",
-  subtitle: "33 Approved Tools · Layer 1: Sources (19) + Layer 2: Connectivity (14)",
+  subtitle: "All 8 Layers · L1 Sources → L2 Connectivity → L3 Ingestion → L4 Data Lake → L5 Processing → L6 Medallion → L7 Serving → L8 Consumers",
 
   phases: [
     // Layer 1: Sources
@@ -815,8 +815,18 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     { id: "secrets", name: "L2 · Credential & Secrets", nodeIds: ["conn_cyberark", "conn_keeper", "conn_secret_manager"] },
     { id: "network", name: "L2 · Network", nodeIds: ["conn_vpn", "conn_interconnect", "conn_vpc", "conn_vpc_sc", "conn_armor", "conn_dns"] },
     { id: "api_mgmt", name: "L2 · API Management", nodeIds: ["conn_apigee", "conn_api_gateway"] },
+    // Layer 3: Ingestion
+    { id: "ingestion", name: "L3 · Ingestion", nodeIds: ["ing_datastream", "ing_pubsub", "ing_dataflow", "ing_functions", "ing_fivetran"] },
+    // Layer 4: Data Lake
+    { id: "datalake", name: "L4 · Data Lake", nodeIds: ["lake_gcs", "lake_bq_staging"] },
+    // Layer 5: Processing
+    { id: "processing", name: "L5 · Processing", nodeIds: ["proc_dataflow", "proc_dataproc", "proc_dataplex"] },
+    // Layer 6: Medallion
+    { id: "medallion", name: "L6 · Medallion", nodeIds: ["medal_bronze", "medal_silver", "medal_gold"] },
+    // Layer 7: Serving
+    { id: "serving", name: "L7 · Serving", nodeIds: ["serve_looker", "serve_run", "serve_hub"] },
   ],
-  opsGroup: { name: "Next Layer", nodeIds: ["boundary_ingestion"] },
+  opsGroup: { name: "Crosscutting Pillars", nodeIds: ["pillar_monitor", "pillar_logging", "pillar_splunk", "pillar_dynatrace", "pillar_datadog", "pillar_grafana", "pillar_pagerduty", "pillar_wiz", "pillar_scc", "pillar_composer", "pillar_catalog"] },
 
   nodes: [
     // ── SaaS / ERP (row 1) ──
@@ -1140,12 +1150,52 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       compliance: "SOC2"
     }},
 
-    // ── LAYER 3 BOUNDARY (next layer hint) ──
-    { id: "boundary_ingestion", name: "🔽 Layer 3: Ingestion", icon: null, subtitle: "Datastream · Pub/Sub · Dataflow · Cloud Functions · Fivetran", zone: "cloud", x: 1150, y: 700, details: {
-      notes: "★ NEXT LAYER\n\nData passes through connectivity controls and enters ingestion pipelines.\n\n• Batch Pull (BigQuery DTS, Cloud Functions)\n• CDC (Datastream)\n• Stream (Pub/Sub → Dataflow)\n• File Transfer (Storage Transfer Service)\n• Managed ETL (Fivetran)",
-      encryption: "Google-managed encryption in transit and at rest across all ingestion services.",
-      compliance: "SOC2, ISO 27001"
-    }},
+    // ── LAYER 3: INGESTION ──
+    { id: "ing_datastream", name: "Datastream", icon: "datastream", subtitle: "CDC · MySQL/PG/Oracle → BQ", zone: "cloud", x: 1100, y: 100, details: { notes: "Serverless CDC replication from relational sources to BigQuery and Cloud Storage.", cost: "$0.10/GB processed", compliance: "SOC2, ISO 27001" }},
+    { id: "ing_pubsub", name: "Pub/Sub", icon: "pubsub", subtitle: "Event Streaming · At-least-once", zone: "cloud", x: 1300, y: 100, details: { notes: "Serverless event ingestion for real-time streams, IoT, clickstream.", cost: "$40/TiB ingested", compliance: "SOC2, ISO 27001" }},
+    { id: "ing_dataflow", name: "Dataflow", icon: "dataflow", subtitle: "Stream & Batch Ingestion", zone: "cloud", x: 1500, y: 100, details: { notes: "Apache Beam runner for both stream and batch ingestion pipelines.", cost: "$0.056/vCPU·hr + $0.003/GB·hr", compliance: "SOC2, ISO 27001" }},
+    { id: "ing_functions", name: "Cloud Functions", icon: "cloud_functions", subtitle: "Serverless Triggers", zone: "cloud", x: 1100, y: 250, details: { notes: "Lightweight event-driven ingestion for webhooks, API polling, file triggers.", cost: "$0.40/million invocations", compliance: "SOC2" }},
+    { id: "ing_fivetran", name: "Fivetran", icon: "fivetran", subtitle: "Managed SaaS Connectors", zone: "cloud", x: 1300, y: 250, details: { notes: "300+ pre-built connectors for SaaS sources. Managed schema, incremental sync.", cost: "Per Monthly Active Row pricing", compliance: "SOC2, ISO 27001" }},
+
+    // ── LAYER 4: DATA LAKE ──
+    { id: "lake_gcs", name: "Cloud Storage", icon: "cloud_storage", subtitle: "Raw Landing · Parquet/JSON/Avro", zone: "cloud", x: 1100, y: 420, details: { notes: "Immutable object store for raw source data. Landing zone for files, exports, and CDC snapshots.", cost: "$0.020/GB/mo (Standard)", compliance: "SOC2, ISO 27001, HIPAA" }},
+    { id: "lake_bq_staging", name: "BigQuery Staging", icon: "bigquery", subtitle: "Relational Landing · Schema-on-write", zone: "cloud", x: 1300, y: 420, details: { notes: "Staging datasets in BigQuery for structured source data. Schema validation and type enforcement.", cost: "$6.25/TB queried (on-demand)", compliance: "SOC2, ISO 27001, HIPAA" }},
+
+    // ── LAYER 5: PROCESSING ──
+    { id: "proc_dataflow", name: "Dataflow", icon: "dataflow", subtitle: "Batch & Stream ELT", zone: "cloud", x: 1100, y: 580, details: { notes: "Core ELT engine for transforms, joins, aggregations, deduplication.", cost: "$0.056/vCPU·hr", compliance: "SOC2, ISO 27001" }},
+    { id: "proc_dataproc", name: "Dataproc", icon: "dataproc", subtitle: "Spark / Heavy Transforms", zone: "cloud", x: 1300, y: 580, details: { notes: "Managed Spark/Hadoop for complex transformations, ML feature engineering.", cost: "$0.01/vCPU·hr (on top of Compute)", compliance: "SOC2, ISO 27001" }},
+    { id: "proc_dataplex", name: "Dataplex", icon: "dataplex", subtitle: "Data Quality & Profiling", zone: "cloud", x: 1500, y: 580, details: { notes: "Auto data quality checks, profiling, and validation at every medallion transition.", cost: "$0.05/GB scanned", compliance: "SOC2, ISO 27001" }},
+
+    // ── LAYER 6: MEDALLION ──
+    { id: "medal_bronze", name: "Bronze", icon: "bigquery", subtitle: "Schema-applied · Deduplicated", zone: "cloud", x: 1100, y: 740, details: { notes: "BigQuery dataset: ingested data with schema applied, deduplicated, typed. Quality gate required." }},
+    { id: "medal_silver", name: "Silver", icon: "bigquery", subtitle: "Cleaned · Conformed · Business Rules", zone: "cloud", x: 1300, y: 740, details: { notes: "BigQuery dataset: cleaned, business rules applied, cross-source conformed, PII masked." }},
+    { id: "medal_gold", name: "Gold", icon: "bigquery", subtitle: "Curated · Aggregated · Consumption-ready", zone: "cloud", x: 1500, y: 740, details: { notes: "BigQuery dataset: star schema, aggregated metrics, SLA-tracked, consumption-ready." }},
+
+    // ── LAYER 7: SERVING ──
+    { id: "serve_looker", name: "Looker", icon: "looker", subtitle: "Semantic Layer · BI", zone: "cloud", x: 1100, y: 900, details: { notes: "Semantic modeling layer (LookML) for governed metrics, dashboards, and self-service analytics.", cost: "$5,000/mo (Standard)", compliance: "SOC2, ISO 27001" }},
+    { id: "serve_run", name: "Cloud Run", icon: "cloud_run", subtitle: "Data APIs · Serverless", zone: "cloud", x: 1300, y: 900, details: { notes: "Serverless container platform serving data APIs for applications and embedded analytics.", cost: "$0.00002400/vCPU·sec", compliance: "SOC2" }},
+    { id: "serve_hub", name: "Analytics Hub", icon: "analytics_hub", subtitle: "Data Marketplace · Sharing", zone: "cloud", x: 1500, y: 900, details: { notes: "Data exchange for publishing and subscribing to shared datasets across teams and orgs.", cost: "Free (BQ storage costs apply)", compliance: "SOC2, ISO 27001" }},
+
+    // ── LAYER 8: CONSUMERS ──
+    { id: "con_bi", name: "BI Users", icon: "analyst", subtitle: "Dashboards · Reports", zone: "consumers", x: 1800, y: 820, details: { notes: "Business analysts consuming dashboards and reports via Looker." }},
+    { id: "con_ds", name: "Data Scientists", icon: "developer", subtitle: "Notebooks · ML", zone: "consumers", x: 1800, y: 920, details: { notes: "Data scientists accessing gold datasets for ML and advanced analytics." }},
+    { id: "con_apps", name: "Applications", icon: "external_users", subtitle: "APIs · Embedded", zone: "consumers", x: 1800, y: 1020, details: { notes: "Downstream apps consuming data via Cloud Run APIs and embedded analytics." }},
+
+    // ── CROSSCUTTING PILLARS ──
+    // Observability
+    { id: "pillar_monitor", name: "Cloud Monitoring", icon: "cloud_monitoring", subtitle: "Metrics · Alerts · SLOs", zone: "cloud", x: 1700, y: 100, details: { notes: "Pipeline metrics, SLO tracking, alerting across all layers.", compliance: "SOC2" }},
+    { id: "pillar_logging", name: "Cloud Logging", icon: "cloud_logging", subtitle: "Audit · Debug · Compliance", zone: "cloud", x: 1700, y: 250, details: { notes: "Centralized logging for audit trails, debugging, compliance evidence.", compliance: "SOC2, ISO 27001" }},
+    { id: "pillar_splunk", name: "Splunk", icon: "splunk", subtitle: "SIEM · Log Analytics", zone: "cloud", x: 1900, y: 100, details: { notes: "Enterprise SIEM and log analytics. Ingests Cloud Logging exports for advanced correlation, threat detection, and compliance dashboards.", compliance: "SOC2, ISO 27001, HIPAA" }},
+    { id: "pillar_dynatrace", name: "Dynatrace", icon: "dynatrace", subtitle: "APM · Full-stack Observability", zone: "cloud", x: 1900, y: 250, details: { notes: "Full-stack APM with AI-powered root cause analysis. Monitors Dataflow, Cloud Run, Composer performance.", compliance: "SOC2, ISO 27001" }},
+    { id: "pillar_datadog", name: "Datadog", icon: "datadog", subtitle: "Metrics · Traces · Dashboards", zone: "cloud", x: 2100, y: 100, details: { notes: "Unified metrics, traces, and logs. GCP integration for BigQuery, Dataflow, GKE monitoring.", compliance: "SOC2, ISO 27001" }},
+    { id: "pillar_grafana", name: "Grafana", icon: "grafana", subtitle: "Visualization · Alerts", zone: "cloud", x: 2100, y: 250, details: { notes: "Open-source dashboarding for Cloud Monitoring, Prometheus, and custom pipeline metrics.", compliance: "SOC2" }},
+    { id: "pillar_pagerduty", name: "PagerDuty", icon: "pagerduty", subtitle: "Incident Management · On-call", zone: "cloud", x: 1900, y: 400, details: { notes: "Incident response and on-call management. Receives alerts from Cloud Monitoring, Splunk, Datadog.", compliance: "SOC2" }},
+    // Security
+    { id: "pillar_wiz", name: "Wiz", icon: "wiz", subtitle: "CSPM · Cloud Security Posture", zone: "cloud", x: 2100, y: 400, details: { notes: "Agentless cloud security posture management. Scans GCP for misconfigurations, vulnerabilities, and compliance gaps.", compliance: "SOC2, ISO 27001, CIS" }},
+    { id: "pillar_scc", name: "Security Command Center", icon: "security_command_center", subtitle: "GCP-native Security · Findings", zone: "cloud", x: 1700, y: 400, details: { notes: "GCP-native security and risk management. Asset inventory, vulnerability scanning, threat detection.", compliance: "SOC2, ISO 27001, CIS" }},
+    // Orchestration & Governance
+    { id: "pillar_composer", name: "Cloud Composer", icon: "cloud_composer", subtitle: "Orchestration · DAGs", zone: "cloud", x: 1700, y: 550, details: { notes: "Managed Airflow for pipeline orchestration, dependency management, scheduling.", cost: "$0.35/vCPU·hr", compliance: "SOC2" }},
+    { id: "pillar_catalog", name: "Data Catalog", icon: "data_catalog", subtitle: "Lineage · Governance · Discovery", zone: "cloud", x: 1900, y: 550, details: { notes: "Metadata management, data lineage, discovery, and access governance.", compliance: "SOC2, ISO 27001" }},
   ],
 
   edges: [
@@ -1157,11 +1207,49 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     { id: "c5", from: "conn_armor", to: "conn_apigee", label: "WAF → Gateway", step: 2, security: { transport: "TLS", auth: "Internal", classification: "internal", private: true }, edgeType: "data" },
     { id: "c6", from: "conn_vpc", to: "conn_vpc_sc", label: "Perimeter Check", step: 2, security: { transport: "Internal", auth: "Policy", classification: "internal", private: true }, edgeType: "control" },
 
-    // ── Layer 2 → Layer 3 boundary ──
-    { id: "c7", from: "conn_vpc", to: "boundary_ingestion", label: "Private Access", step: 3, security: { transport: "Google Internal", auth: "IAM", classification: "confidential", private: true }, edgeType: "data" },
-    { id: "c8", from: "conn_secret_manager", to: "boundary_ingestion", label: "Runtime Secrets", step: 3, security: { transport: "TLS", auth: "IAM", classification: "restricted", private: true }, edgeType: "control" },
-    { id: "c9", from: "conn_apigee", to: "boundary_ingestion", label: "API Proxy", step: 3, security: { transport: "TLS", auth: "OAuth / JWT", classification: "confidential", private: true }, edgeType: "data" },
-    { id: "c10", from: "conn_api_gateway", to: "boundary_ingestion", label: "Serverless Proxy", step: 3, security: { transport: "TLS", auth: "JWT / ID Token", classification: "confidential", private: true }, edgeType: "data" },
+    // ── Layer 2 → Layer 3 ──
+    { id: "c7", from: "conn_vpc", to: "ing_datastream", label: "Private Access", step: 3, security: { transport: "Google Internal", auth: "IAM", classification: "confidential", private: true }, edgeType: "data" },
+    { id: "c8", from: "conn_secret_manager", to: "ing_functions", label: "Runtime Secrets", step: 3, security: { transport: "TLS", auth: "IAM", classification: "restricted", private: true }, edgeType: "control" },
+    { id: "c9", from: "conn_apigee", to: "ing_pubsub", label: "API → Stream", step: 3, security: { transport: "TLS", auth: "OAuth / JWT", classification: "confidential", private: true }, edgeType: "data" },
+    { id: "c10", from: "conn_api_gateway", to: "ing_functions", label: "Serverless Proxy", step: 3, security: { transport: "TLS", auth: "JWT / ID Token", classification: "confidential", private: true }, edgeType: "data" },
+
+    // ── Layer 3 → Layer 4 (Ingestion → Data Lake) ──
+    { id: "d1", from: "ing_datastream", to: "lake_bq_staging", label: "CDC Land", step: 4, edgeType: "data" },
+    { id: "d2", from: "ing_pubsub", to: "lake_gcs", label: "Stream Land", step: 4, edgeType: "data" },
+    { id: "d3", from: "ing_dataflow", to: "lake_gcs", label: "Batch Land", step: 4, edgeType: "data" },
+    { id: "d4", from: "ing_fivetran", to: "lake_bq_staging", label: "SaaS Land", step: 4, edgeType: "data" },
+    { id: "d5", from: "ing_functions", to: "lake_gcs", label: "File Land", step: 4, edgeType: "data" },
+
+    // ── Layer 4 → Layer 5 (Data Lake → Processing) ──
+    { id: "d6", from: "lake_gcs", to: "proc_dataflow", label: "Transform", step: 5, edgeType: "data" },
+    { id: "d7", from: "lake_bq_staging", to: "proc_dataproc", label: "Transform", step: 5, edgeType: "data" },
+
+    // ── Layer 5 → Layer 6 (Processing → Medallion) ──
+    { id: "m1", from: "proc_dataflow", to: "medal_bronze", label: "Schema Apply", step: 6, edgeType: "data" },
+    { id: "m2", from: "proc_dataproc", to: "medal_bronze", label: "Schema Apply", step: 6, edgeType: "data" },
+    { id: "m3", from: "medal_bronze", to: "medal_silver", label: "Clean & Conform", step: 7, edgeType: "data" },
+    { id: "m4", from: "medal_silver", to: "medal_gold", label: "Curate & Model", step: 8, edgeType: "data" },
+    { id: "q1", from: "proc_dataplex", to: "medal_bronze", label: "Quality Gate", step: 0, edgeType: "observe" },
+    { id: "q2", from: "proc_dataplex", to: "medal_silver", label: "Quality Gate", step: 0, edgeType: "observe" },
+
+    // ── Layer 6 → Layer 7 (Medallion → Serving) ──
+    { id: "g1", from: "medal_gold", to: "serve_looker", label: "Metrics", step: 9, edgeType: "data" },
+    { id: "g2", from: "medal_gold", to: "serve_run", label: "API", step: 9, edgeType: "data" },
+    { id: "g3", from: "medal_gold", to: "serve_hub", label: "Publish", step: 9, edgeType: "data" },
+
+    // ── Layer 7 → Layer 8 (Serving → Consumers) ──
+    { id: "x1", from: "serve_looker", to: "con_bi", label: "Dashboards", step: 10, edgeType: "data" },
+    { id: "x2", from: "serve_run", to: "con_apps", label: "Consume", step: 10, edgeType: "data" },
+    { id: "x3", from: "serve_hub", to: "con_ds", label: "Discover", step: 10, edgeType: "data" },
+
+    // ── Pillar connections ──
+    { id: "p1", from: "pillar_composer", to: "proc_dataflow", label: "Orchestrate", step: 0, edgeType: "control" },
+    { id: "p2", from: "pillar_monitor", to: "medal_gold", label: "SLA Track", step: 0, edgeType: "observe" },
+    { id: "p3", from: "pillar_catalog", to: "medal_silver", label: "Lineage", step: 0, edgeType: "observe" },
+    { id: "p4", from: "pillar_logging", to: "pillar_splunk", label: "Log Export", step: 0, edgeType: "data" },
+    { id: "p5", from: "pillar_monitor", to: "pillar_pagerduty", label: "Alerts", step: 0, edgeType: "alert" },
+    { id: "p6", from: "pillar_wiz", to: "pillar_scc", label: "Findings Sync", step: 0, edgeType: "observe" },
+    { id: "p7", from: "pillar_dynatrace", to: "pillar_pagerduty", label: "Incidents", step: 0, edgeType: "alert" },
   ],
 
   threats: [
@@ -1193,7 +1281,7 @@ export const TEMPLATES: Template[] = [
   { id: "rag-genai", name: "RAG / GenAI", icon: "🤖", description: "Document RAG chatbot with Vertex AI Gemini",
     tags: ["rag", "genai", "gen ai", "generative", "chatbot", "assistant", "copilot", "llm", "gemini", "gpt", "embedding", "vector", "pgvector", "document", "knowledge base", "ai assistant", "question answering"],
     diagram: RAG_GENAI },
-  { id: "gcp-technical-blueprint", name: "GCP Technical Blueprint", icon: "🏗️", description: "Enterprise GCP technical blueprint with real tools: Layer 1 Sources (19 tools) + Layer 2 Connectivity (14 tools) — identity, secrets, network, API management",
-    tags: ["gcp", "technical blueprint", "gcp blueprint", "sources", "source", "connectivity", "layer 1", "layer 2", "identity", "secrets", "network", "vpn", "interconnect", "vpc", "entra", "cyberark", "secret manager", "apigee", "database", "saas", "crm", "erp", "salesforce", "oracle", "kafka", "sftp", "api", "webhook", "mainframe", "legacy", "nosql", "mongodb", "postgresql", "sql server", "workday", "servicenow", "sap", "cloud armor", "dns", "firewall"],
+  { id: "gcp-technical-blueprint", name: "GCP Technical Blueprint", icon: "🏗️", description: "Enterprise GCP technical blueprint with all 8 layers: Sources, Connectivity, Ingestion, Data Lake, Processing, Medallion, Serving, Consumers + crosscutting pillars",
+    tags: ["gcp", "technical blueprint", "gcp blueprint", "sources", "source", "connectivity", "layer 1", "layer 2", "identity", "secrets", "network", "vpn", "interconnect", "vpc", "entra", "cyberark", "secret manager", "apigee", "database", "saas", "crm", "erp", "salesforce", "oracle", "kafka", "sftp", "api", "webhook", "mainframe", "legacy", "nosql", "mongodb", "postgresql", "sql server", "workday", "servicenow", "sap", "cloud armor", "dns", "firewall", "ingestion", "datastream", "pubsub", "dataflow", "bigquery", "medallion", "bronze", "silver", "gold", "looker", "serving", "consumers"],
     diagram: GCP_TECHNICAL_BLUEPRINT },
 ];
