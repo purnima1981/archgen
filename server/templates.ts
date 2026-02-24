@@ -800,7 +800,6 @@ const SOURCES_LAYER: Diagram = {
 
 const GCP_TECHNICAL_BLUEPRINT: Diagram = {
   title: "GCP Technical Blueprint",
-  layout: "blueprint",
   subtitle: "33 Approved Tools · Layer 1: Sources (19) + Layer 2: Connectivity (14)",
 
   phases: [
