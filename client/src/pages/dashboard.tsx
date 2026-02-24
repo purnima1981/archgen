@@ -766,8 +766,11 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
 
         {/* Ops group — draggable */}
         {opsBound && diag.opsGroup && <g onMouseDown={e => startGroupDrag(diag.opsGroup!.nodeIds, e)} style={{ cursor: "move" }}>
-          <rect x={opsBound.x} y={opsBound.y} width={opsBound.w} height={opsBound.h} rx={10} fill={isDark ? "rgba(84,110,122,0.1)" : "rgba(84,110,122,0.06)"} stroke={isDark ? "#37474f" : "#b0bec5"} strokeWidth={1.2} strokeDasharray="4 3" />
-          <text x={opsBound.x + opsBound.w / 2} y={opsBound.y + 14} textAnchor="middle" style={{ fontSize: 9, fontWeight: 700, fill: isDark ? "#607d8b" : "#90a4ae", letterSpacing: 1, pointerEvents: "none" }}>{(diag.opsGroup?.name || "OPS").toUpperCase()}</text>
+          <rect x={opsBound.x} y={opsBound.y} width={opsBound.w} height={opsBound.h} rx={12} fill={isDark ? "rgba(84,110,122,0.1)" : "#f8fafc"} stroke={isDark ? "#37474f" : "#94a3b8"} strokeWidth={1.5} />
+          <g transform={`translate(${opsBound.x + 8},${opsBound.y - 14})`}>
+            <rect width={opsBound.w - 16} height={24} rx={6} fill="#64748b" />
+            <text x={(opsBound.w - 16) / 2} y={16} textAnchor="middle" style={{ fontSize: 9, fontWeight: 800, fill: "#fff", letterSpacing: 1.5 }}>{(diag.opsGroup?.name || "OPS").toUpperCase()}</text>
+          </g>
         </g>}
 
         {/* Edges */}
