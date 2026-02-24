@@ -318,6 +318,25 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
   const connNodes = nodesByPrefix("conn_");
 
   /* ── Chip: GCP service ── */
+  /* ── Card style matching RAG/Streaming (icon box → name → subtitle) ── */
+  const IconCard = ({ nodeId, color, borderColor, bg }: { nodeId: string; color: string; borderColor?: string; bg?: string }) => {
+    const n = getNode(nodeId);
+    if (!n) return null;
+    const isSel = selectedCap === nodeId;
+    const ic = n.icon ? iconUrl(n.name, n.icon) : null;
+    const cat = getCat(n.icon, n.id);
+    return (
+      <div onClick={() => capClick(nodeId)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, cursor: "pointer", width: 72, outline: isSel ? "2px solid #1a73e8" : "none", outlineOffset: 2, borderRadius: 10 }}>
+        <div style={{ width: 52, height: 52, borderRadius: 12, background: bg || cat.bg, border: `1.5px solid ${borderColor || cat.border}`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+          {ic ? <img src={ic} alt="" style={{ width: 36, height: 36 }} /> : <div style={{ fontSize: 8, fontWeight: 800, color: borderColor || color, letterSpacing: 0.3, opacity: 0.6, textAlign: "center", lineHeight: 1.1 }}>{n.name.split(/[\s\/]/)[0]}</div>}
+        </div>
+        <div style={{ fontSize: 8, fontWeight: 700, color: color || "#222", textAlign: "center", lineHeight: 1.15, maxWidth: 72 }}>{n.name}</div>
+        {n.subtitle && <div style={{ fontSize: 6.5, color: "#888", textAlign: "center", lineHeight: 1.1, maxWidth: 72 }}>{n.subtitle}</div>}
+      </div>
+    );
+  };
+
+  /* ── Chip: inline GCP service tag for layer rows ── */
   const Chip = ({ nodeId, color }: { nodeId: string; color: string }) => {
     const n = getNode(nodeId);
     if (!n) return null;
@@ -363,34 +382,15 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
   };
 
   /* ── Source card ── */
-  const SrcCard = ({ nodeId }: { nodeId: string }) => {
-    const n = getNode(nodeId);
-    if (!n) return null;
-    const ic = n.icon ? iconUrl(n.name, n.icon) : null;
-    return (
-      <div onClick={() => capClick(nodeId)} style={{ background: c.white, borderRadius: 4, padding: "4px 5px", fontSize: 7, fontWeight: 600, color: c.sources, textAlign: "center", border: `1px solid ${c.sources}15`, lineHeight: 1.2, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-        {ic && <img src={ic} alt="" style={{ width: 16, height: 16 }} />}
-        {n.name}
-        {n.subtitle && <div style={{ fontSize: 5.5, opacity: 0.6, fontWeight: 500 }}>{n.subtitle}</div>}
-      </div>
-    );
-  };
+  /* ── Source card — uses IconCard ── */
+  const SrcCard = ({ nodeId }: { nodeId: string }) => <IconCard nodeId={nodeId} color={c.sources} borderColor={`${c.sources}40`} bg={`${c.sources}08`} />;
 
   /* ── Connectivity card ── */
-  const ConnCard = ({ nodeId, isVendor }: { nodeId: string; isVendor?: boolean }) => {
-    const n = getNode(nodeId);
-    if (!n) return null;
-    const ic = n.icon ? iconUrl(n.name, n.icon) : null;
-    return isVendor ? (
-      <div onClick={() => capClick(nodeId)} style={{ background: "#FFF8E1", borderRadius: 4, padding: "3px 5px", fontSize: 6.5, fontWeight: 700, color: c.vendor, textAlign: "center", border: `1.5px dashed ${c.vendor}30`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}>
-        {ic ? <img src={ic} alt="" style={{ width: 16, height: 16 }} /> : <span style={{ fontSize: 7 }}>⬡</span>} {n.name}
-      </div>
-    ) : (
-      <div onClick={() => capClick(nodeId)} style={{ background: c.white, borderRadius: 4, padding: "3px 5px", fontSize: 7, fontWeight: 600, color: c.connectivity, textAlign: "center", border: `1px solid ${c.connectivity}15`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 3 }}>
-        {ic && <img src={ic} alt="" style={{ width: 16, height: 16 }} />}{n.name}
-      </div>
-    );
-  };
+  /* ── Connectivity card — uses IconCard ── */
+  const ConnCard = ({ nodeId, isVendor }: { nodeId: string; isVendor?: boolean }) => 
+    isVendor 
+      ? <IconCard nodeId={nodeId} color={c.vendor} borderColor={`${c.vendor}40`} bg="#FFF8E1" />
+      : <IconCard nodeId={nodeId} color={c.connectivity} borderColor={`${c.connectivity}30`} bg={`${c.connectivity}08`} />;
 
   /* ── Arrow ── */
   const Arrow = ({ color = "#94A2B8" }: { color?: string }) => (
@@ -444,21 +444,27 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
         <div style={{ display: "flex", gap: 6, alignItems: "stretch", overflow: "hidden" }}>
 
           {/* === LAYER 1: SOURCES === */}
-          <div style={{ width: 105, minWidth: 105, borderRadius: 10, border: `2px solid ${c.sources}30`, background: `${c.sources}06`, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ width: 170, minWidth: 170, borderRadius: 10, border: `2px solid ${c.sources}30`, background: `${c.sources}06`, padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ fontSize: 9, fontWeight: 800, color: c.sources, textAlign: "center", textTransform: "uppercase", letterSpacing: 0.8, paddingBottom: 4, borderBottom: `1.5px solid ${c.sources}20` }}>Layer 1<br/>Sources</div>
-            {srcNodes.map(n => <SrcCard key={n.id} nodeId={n.id} />)}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, justifyItems: "center" }}>
+              {srcNodes.map(n => <SrcCard key={n.id} nodeId={n.id} />)}
+            </div>
           </div>
 
           <Arrow color={c.sources} />
 
           {/* === LAYER 2: CONNECTIVITY === */}
-          <div style={{ width: 105, minWidth: 105, borderRadius: 10, border: `2px dashed ${c.connectivity}40`, background: `${c.connectivity}05`, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ width: 170, minWidth: 170, borderRadius: 10, border: `2px dashed ${c.connectivity}40`, background: `${c.connectivity}05`, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ fontSize: 9, fontWeight: 800, color: c.connectivity, textAlign: "center", textTransform: "uppercase", letterSpacing: 0.8, paddingBottom: 4, borderBottom: `1.5px solid ${c.connectivity}20` }}>Layer 2<br/>Connectivity</div>
             <div style={{ fontSize: 6, fontWeight: 700, color: c.connectivity, opacity: 0.6, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 2 }}>Identity & Auth</div>
-            {identityIds.map(id => <ConnCard key={id} nodeId={id} />)}
-            {vendorIdentityIds.map(id => <ConnCard key={id} nodeId={id} isVendor />)}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, justifyItems: "center" }}>
+              {identityIds.map(id => <ConnCard key={id} nodeId={id} />)}
+              {vendorIdentityIds.map(id => <ConnCard key={id} nodeId={id} isVendor />)}
+            </div>
             <div style={{ fontSize: 6, fontWeight: 700, color: c.connectivity, opacity: 0.6, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 2 }}>Secrets & Network</div>
-            {networkIds.map(id => <ConnCard key={id} nodeId={id} />)}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, justifyItems: "center" }}>
+              {networkIds.map(id => <ConnCard key={id} nodeId={id} />)}
+            </div>
           </div>
 
           <Arrow color={c.gcpBlue} />
