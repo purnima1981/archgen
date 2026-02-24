@@ -678,23 +678,23 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
           <g transform={`translate(${cloudB.x + cloudB.w / 2 - 60},${cloudB.y - 14})`}><rect width={120} height={28} rx={6} fill="#4285f4" /><text x={60} y={19} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: "#fff", letterSpacing: .5 }}>Google Cloud</text></g></g>}
         {conB && <g><rect x={conB.x} y={conB.y} width={conB.w} height={conB.h} rx={12} fill={isDark ? "#162032" : "#fafafa"} stroke={isDark ? "#2a4060" : "#bdbdbd"} strokeWidth={1.5} strokeDasharray="8 4" /><text x={conB.x + conB.w / 2} y={conB.y + 18} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: isDark ? "#5a7a9a" : "#78909c", letterSpacing: 2 }}>CONSUMERS</text></g>}
 
-        {/* Phase groups — only for L1 and Vendor (L2-L7 are shown as layer bands) */}
-        {phaseBounds.filter(p => p.name.includes("L1") || p.name.includes("Vendor")).map((p, i) => (
-          <g key={p.id} onMouseDown={e => startGroupDrag(p.nodeIds, e)} style={{ cursor: "move" }}>
-            <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={10} fill="rgba(148,163,184,0.04)" stroke="rgba(148,163,184,0.2)" strokeWidth={1} strokeDasharray="5 3" />
-            <text x={p.x + p.w / 2} y={p.y - 6} textAnchor="middle" style={{ fontSize: 8, fontWeight: 700, fill: "#78909c", letterSpacing: 1, pointerEvents: "none" }}>{p.name.toUpperCase()}</text>
-          </g>
-        ))}
+        {/* Phase groups — for L1, L2, and Vendor (L3-L7 are shown as layer bands inside GCP) */}
+        {phaseBounds.filter(p => p.name.includes("L1") || p.name.includes("L2") || p.name.includes("Vendor")).map((p, i) => {
+          const isL2 = p.name.includes("L2");
+          return (<g key={p.id} onMouseDown={e => startGroupDrag(p.nodeIds, e)} style={{ cursor: "move" }}>
+            <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={10} fill={isL2 ? "rgba(244,114,182,0.06)" : "rgba(148,163,184,0.04)"} stroke={isL2 ? "rgba(244,114,182,0.3)" : "rgba(148,163,184,0.2)"} strokeWidth={1} strokeDasharray="5 3" />
+            <text x={p.x + p.w / 2} y={p.y - 6} textAnchor="middle" style={{ fontSize: 8, fontWeight: 700, fill: isL2 ? "#be185d" : "#78909c", letterSpacing: 1, pointerEvents: "none" }}>{p.name.toUpperCase()}</text>
+          </g>);
+        })}
 
         {/* Layer bands matching Enterprise Blueprint BP_LAYERS colors exactly */}
         {(() => {
           const layerDefs = [
-            { prefix: "L2", label: "LAYER 2: CONNECTIVITY & ACCESS", bg: "#fdf2f8", border: "#f472b6", text: "#be185d", numBg: "#be185d" },
-            { prefix: "L3", label: "LAYER 3: INGESTION", bg: "#eff6ff", border: "#93c5fd", text: "#1d4ed8", numBg: "#1d4ed8" },
-            { prefix: "L4", label: "LAYER 4: DATA LAKE", bg: "#ecfdf5", border: "#6ee7b7", text: "#047857", numBg: "#047857" },
-            { prefix: "L5", label: "LAYER 5: PROCESSING", bg: "#f5f3ff", border: "#c4b5fd", text: "#6d28d9", numBg: "#6d28d9" },
-            { prefix: "L6", label: "LAYER 6: MEDALLION", bg: "#fffbeb", border: "#fcd34d", text: "#d97706", numBg: "#d97706" },
-            { prefix: "L7", label: "LAYER 7: SERVING", bg: "#fff7ed", border: "#fdba74", text: "#c2410c", numBg: "#c2410c" },
+            { prefix: "L7", num: 7, label: "SERVING & DELIVERY", bg: "#fff7ed", border: "#fdba74", text: "#c2410c", numBg: "#c2410c" },
+            { prefix: "L6", num: 6, label: "MEDALLION ARCHITECTURE", bg: "#fffbeb", border: "#fcd34d", text: "#d97706", numBg: "#d97706" },
+            { prefix: "L5", num: 5, label: "PROCESSING & TRANSFORMATION", bg: "#f5f3ff", border: "#c4b5fd", text: "#6d28d9", numBg: "#6d28d9" },
+            { prefix: "L4", num: 4, label: "DATA LAKE — RAW LANDING", bg: "#ecfdf5", border: "#6ee7b7", text: "#047857", numBg: "#047857" },
+            { prefix: "L3", num: 3, label: "INGESTION", bg: "#eff6ff", border: "#93c5fd", text: "#1d4ed8", numBg: "#1d4ed8" },
           ];
           const boxes: (typeof layerDefs[0] & { x: number; y: number; w: number; h: number })[] = [];
           layerDefs.forEach(ld => {
@@ -709,36 +709,54 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
             const gh = Math.max(...ys) - Math.min(...ys) + 150;
             boxes.push({ ...ld, x: gx, y: gy, w: gw, h: gh });
           });
-          const num = (n: number) => n.toString();
           return (<g>
             {/* Layer bands */}
-            {boxes.map((b, i) => (<g key={b.prefix}>
+            {boxes.map((b) => (<g key={b.prefix}>
               <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={14} fill={b.bg} stroke={b.border} strokeWidth={1.5} />
               <g transform={`translate(${b.x + 10},${b.y + 12})`}>
                 <rect width={22} height={22} rx={6} fill={b.numBg} />
-                <text x={11} y={16} textAnchor="middle" style={{ fontSize: 12, fontWeight: 900, fill: "#fff" }}>{num(i + 2)}</text>
+                <text x={11} y={16} textAnchor="middle" style={{ fontSize: 12, fontWeight: 900, fill: "#fff" }}>{b.num}</text>
               </g>
               <text x={b.x + 40} y={b.y + 27} style={{ fontSize: 10, fontWeight: 800, fill: b.text, letterSpacing: 1 }}>{b.label}</text>
             </g>))}
-            {/* Arrows: Sources → L2 */}
-            {srcB && boxes[0] && [0.25, 0.5, 0.75].map((f, i) => {
-              const x1 = srcB.x + srcB.w, y1 = srcB.y + srcB.h * f;
-              const x2 = boxes[0].x, y2 = boxes[0].y + boxes[0].h * f;
+            {/* Arrow: L2 connectivity phases → L3 (bottom of cloud) */}
+            {boxes.length > 0 && (() => {
+              const l2Phases = phaseBounds.filter(p => p.name.includes("L2"));
+              const l3 = boxes[boxes.length - 1];
+              if (!l2Phases.length) return null;
+              const l2Right = Math.max(...l2Phases.map(p => p.x + p.w));
+              const l2MidY = (Math.min(...l2Phases.map(p => p.y)) + Math.max(...l2Phases.map(p => p.y + p.h))) / 2;
+              const x1 = l2Right, y1 = l2MidY;
+              const x2 = l3.x, y2 = l3.y + l3.h / 2;
               const midX = (x1 + x2) / 2;
-              return <path key={`s-l2-${i}`} d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`} fill="none" stroke="#f472b6" strokeWidth={1.5} strokeDasharray="6 3" />;
+              return <path d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`} fill="none" stroke="#f472b6" strokeWidth={1.5} strokeDasharray="6 3" />;
+            })()}
+            {/* Arrows: Sources → L2 connectivity */}
+            {srcB && (() => {
+              const l2Phases = phaseBounds.filter(p => p.name.includes("L2"));
+              if (!l2Phases.length) return null;
+              const l2Left = Math.min(...l2Phases.map(p => p.x));
+              const l2Top = Math.min(...l2Phases.map(p => p.y));
+              const l2Bot = Math.max(...l2Phases.map(p => p.y + p.h));
+              return [0.25, 0.5, 0.75].map((f, i) => {
+                const x1 = srcB.x + srcB.w, y1 = srcB.y + srcB.h * f;
+                const y2 = l2Top + (l2Bot - l2Top) * f;
+                const midX = (x1 + l2Left) / 2;
+                return <path key={`s-l2-${i}`} d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${l2Left},${y2}`} fill="none" stroke="#f472b6" strokeWidth={1.5} strokeDasharray="6 3" />;
+              });
+            })()}
+            {/* Arrows between layers going upward: L3→L4→L5→L6→L7 */}
+            {[...boxes].reverse().slice(0, -1).map((b, i, arr) => {
+              const nb = [...boxes].reverse()[i + 1]; // next layer up
+              const x1 = b.x + b.w / 2, y1 = b.y;
+              const x2 = nb.x + nb.w / 2, y2 = nb.y + nb.h;
+              const midY = (y1 + y2) / 2;
+              return <path key={`up-${i}`} d={`M${x1},${y1} C${x1},${midY} ${x2},${midY} ${x2},${y2}`} fill="none" stroke={nb.border} strokeWidth={1.5} strokeDasharray="6 3" />;
             })}
-            {/* Arrows between consecutive layers */}
-            {boxes.slice(0, -1).map((b, i) => {
-              const nb = boxes[i + 1];
-              const x1 = b.x + b.w, y1 = b.y + b.h / 2;
-              const x2 = nb.x, y2 = nb.y + nb.h / 2;
-              const midX = (x1 + x2) / 2;
-              return <path key={`l${i}-l${i + 1}`} d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`} fill="none" stroke={nb.border} strokeWidth={1.5} strokeDasharray="6 3" />;
-            })}
-            {/* Arrow: L7 → Consumers */}
+            {/* Arrow: L7 (top) → Consumers */}
             {conB && boxes.length > 0 && (() => {
-              const lb = boxes[boxes.length - 1];
-              const x1 = lb.x + lb.w, y1 = lb.y + lb.h / 2;
+              const l7 = boxes[0]; // L7 is first (top)
+              const x1 = l7.x + l7.w, y1 = l7.y + l7.h / 2;
               const x2 = conB.x, y2 = conB.y + conB.h / 2;
               const midX = (x1 + x2) / 2;
               return <path d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`} fill="none" stroke="#67e8f9" strokeWidth={1.5} strokeDasharray="6 3" />;
