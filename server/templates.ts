@@ -798,397 +798,317 @@ const SOURCES_LAYER: Diagram = {
 };
 
 
+// ═══ TEMPLATE 5: GCP ENTERPRISE DATA ANALYTICS — TECHNICAL BLUEPRINT ═══
+// Matches blueprint-v7.jsx layout: Users → Sources → Connectivity → GCP (L3–L8) → Pillars
 const GCP_TECHNICAL_BLUEPRINT: Diagram = {
-  title: "GCP Technical Blueprint",
-  subtitle: "All 8 Layers · L1 Sources → L2 Connectivity → L3 Ingestion → L4 Data Lake → L5 Processing → L6 Medallion → L7 Serving → L8 Consumers",
+  title: "GCP Enterprise Data Analytics Platform",
+  subtitle: "8 Layers · 4 Pillars · GCP-Native Services · Vendor Integration · Users & Personas",
   layout: "blueprint",
 
   phases: [
-    // Layer 2: Connectivity
-    { id: "connectivity", name: "Layer 2: Connectivity & Access", nodeIds: ["conn_entra_id","conn_cloud_identity","conn_identity_platform","conn_cyberark","conn_keeper","conn_secret_manager","conn_vpn","conn_interconnect","conn_vpc","conn_vpc_sc","conn_armor","conn_dns","conn_apigee","conn_api_gateway"] },
-    // Layer 3: Ingestion
-    { id: "ingestion", name: "Layer 3: Ingestion", nodeIds: ["ing_datastream","ing_pubsub","ing_dataflow","ing_functions","ing_fivetran"] },
-    // Layer 4: Data Lake
+    { id: "connectivity", name: "Layer 2: Connectivity & Access", nodeIds: ["conn_cloud_identity","conn_identity_platform","conn_iam","conn_entra_id","conn_cyberark","conn_keeper","conn_secret_manager","conn_vpn","conn_interconnect","conn_vpc","conn_armor","conn_dns","conn_apigee","conn_api_gateway"] },
+    { id: "ingestion", name: "Layer 3: Ingestion", nodeIds: ["ing_datastream","ing_pubsub","ing_dataflow","ing_functions","ing_fivetran","ing_matillion"] },
     { id: "datalake", name: "Layer 4: Data Lake — Raw Landing", nodeIds: ["lake_gcs","lake_bq_staging"] },
-    // Layer 5: Processing
-    { id: "processing", name: "Layer 5: Processing & Transformation", nodeIds: ["proc_dataflow","proc_dataproc"] },
-    // Layer 6: Medallion
+    { id: "processing", name: "Layer 5: Processing & Transformation", nodeIds: ["proc_dataflow","proc_dataproc","proc_bq_sql","proc_dlp","proc_matillion"] },
     { id: "medallion", name: "Layer 6: Medallion Architecture", nodeIds: ["bronze","silver","gold"] },
-    // Layer 7: Serving
-    { id: "serving", name: "Layer 7: Serving & Delivery", nodeIds: ["serve_looker","serve_run","serve_hub"] },
+    { id: "serving", name: "Layer 7: Serving & Delivery", nodeIds: ["serve_looker","serve_run","serve_hub","serve_bi_engine"] },
   ],
   opsGroup: { name: "Crosscutting Pillars", nodeIds: ["pillar_sec","pillar_gov","pillar_obs","pillar_orch"] },
 
   nodes: [
-    // ── SaaS / ERP (row 1) ──
-    { id: "src_salesforce", name: "Salesforce", icon: "salesforce", subtitle: "CRM · REST/Bulk API · CDC", zone: "sources", x: 100, y: 100, details: {
-      notes: "Cloud CRM platform exposing accounts, contacts, opportunities, cases, and custom objects via REST/Bulk APIs and Change Data Capture streams.\n\nUse when: CRM data (sales, support, customer 360) needs to land in the warehouse.",
-      encryption: "In transit: TLS 1.3 | At rest: Salesforce Shield AES-256 (if licensed) | Auth: OAuth 2.0",
-      monitoring: "API call count vs 100K/day limit, CDC event lag, Bulk API job status",
+    // ══════════════════════════════════════════════════
+    // ── LAYER 1: SOURCES (12 nodes) ──────────────────
+    // ══════════════════════════════════════════════════
+    { id: "src_salesforce", name: "Salesforce", icon: "salesforce", subtitle: "CRM", zone: "sources", x: 100, y: 100, details: {
+      notes: "Cloud CRM platform exposing accounts, contacts, opportunities via REST/Bulk APIs and CDC.",
+      encryption: "TLS 1.3 | AES-256 (Shield) | OAuth 2.0",
+      monitoring: "API call count vs 100K/day limit, CDC event lag",
       alerting: "API limit > 80% → Slack P2 | CDC lag > 30 min → PagerDuty P2",
-      cost: "API calls included in Salesforce license, CDC requires Platform Events allocation",
-      guardrails: "OAuth 2.0 tokens in Secret Manager, respect rate limits (100K/day), incremental sync via SystemModstamp",
-      compliance: "SOC2, GDPR (PII in CRM data)"
+      cost: "API calls included in Salesforce license",
+      compliance: "SOC2, GDPR"
     }},
-    { id: "src_workday", name: "Workday", icon: "workday", subtitle: "HCM/Finance · SOAP/REST · RaaS", zone: "sources", x: 300, y: 100, details: {
-      notes: "Cloud HCM/Finance platform exposing employees, payroll, benefits, org structure, and financials via SOAP/REST APIs and RaaS reports.\n\nUse when: HR, payroll, or financial data needs to land in the warehouse.",
-      encryption: "In transit: TLS 1.2+ | At rest: AES-256 (Workday-managed) | Auth: WS-Security (SOAP), OAuth 2.0 (REST)",
-      monitoring: "RaaS report execution time, API response latency, data freshness",
-      alerting: "Extract failure → PagerDuty P2 | Data > 8hr stale → Slack P2",
-      cost: "API access included in Workday license tier",
-      guardrails: "OAuth 2.0 tokens in Secret Manager, concurrent request limits, ISU (Integration System User) with minimal scope",
-      compliance: "SOC2, GDPR, HIPAA (payroll/benefits data)"
+    { id: "src_workday", name: "Workday", icon: "workday", subtitle: "HCM", zone: "sources", x: 100, y: 200, details: {
+      notes: "Cloud HCM/Finance platform for employees, payroll, benefits via SOAP/REST and RaaS reports.",
+      encryption: "TLS 1.2+ | AES-256 | WS-Security / OAuth 2.0",
+      compliance: "SOC2, GDPR, HIPAA"
     }},
-    { id: "src_servicenow", name: "ServiceNow", icon: "servicenow", subtitle: "ITSM · Table API · Import Sets", zone: "sources", x: 100, y: 260, details: {
-      notes: "Cloud ITSM platform exposing incidents, changes, CMDB CIs, requests, and knowledge articles via REST Table API and Import Sets.\n\nUse when: IT operations data (incidents, CMDB, change history) needs to land in the warehouse.",
-      encryption: "In transit: TLS 1.2+ | At rest: AES-256 (ServiceNow-managed) | Auth: OAuth 2.0 or basic auth",
-      monitoring: "Table API pagination count, Import Set job status, record counts per sync",
-      alerting: "Sync failure → Slack P2 | CMDB drift detected → P3",
-      cost: "API included in ServiceNow license, governed by ACLs",
-      guardrails: "OAuth 2.0 in Secret Manager, sysparm_query filters for incremental pulls, ACL-scoped integration user",
+    { id: "src_servicenow", name: "ServiceNow", icon: "servicenow", subtitle: "ITSM", zone: "sources", x: 100, y: 300, details: {
+      notes: "Cloud ITSM platform for incidents, changes, CMDB via REST Table API.",
       compliance: "SOC2"
     }},
-    { id: "src_sap", name: "SAP", icon: "sap", subtitle: "ERP · OData/BAPI/IDoc/SLT", zone: "sources", x: 300, y: 260, details: {
-      notes: "ERP system exposing finance, supply chain, procurement, and HR data via OData APIs, BAPIs, IDocs, or SLT replication.\n\nUse when: ERP transactional data (GL, AP, AR, inventory) needs to land in the warehouse.",
-      encryption: "In transit: TLS 1.2+, SNC for RFC connections | At rest: SAP HANA data volume encryption (AES-256) | Auth: OAuth 2.0, X.509, or SAML",
-      monitoring: "SLT replication lag, OData batch job duration, IDoc queue depth",
-      alerting: "SLT lag > 15 min → PagerDuty P1 | OData timeout → Slack P2",
-      cost: "BigQuery Connector for SAP licensed separately, SLT requires SAP DMIS add-on",
-      guardrails: "Dedicated RFC user with minimal authorizations, SLT table filtering, delta-only replication",
-      compliance: "SOC2, SOX (financial data)"
+    { id: "src_sap", name: "SAP", icon: "sap", subtitle: "ERP", zone: "sources", x: 100, y: 400, details: {
+      notes: "ERP system for finance, supply chain, procurement via OData/BAPI/IDoc/SLT.",
+      compliance: "SOC2, SOX"
     }},
-
-    // ── Databases (row 2) ──
-    { id: "src_oracle", name: "Oracle", icon: "oracle", subtitle: "RDBMS · LogMiner CDC · JDBC", zone: "sources", x: 100, y: 460, details: {
-      notes: "Enterprise RDBMS running on-prem or OCI, exposing tables via JDBC, LogMiner-based CDC, or Oracle GoldenGate.\n\nUse when: Oracle transactional data needs CDC replication or bulk extraction to GCP.",
-      encryption: "In transit: Native Network Encryption or TLS | At rest: TDE (AES-256) | Auth: JDBC wallet credentials, Kerberos, or LDAP",
-      monitoring: "LogMiner lag, archive log generation rate, JDBC connection pool utilization",
-      alerting: "CDC lag > 10 min → PagerDuty P1 | Archive log space < 20% → P1",
-      cost: "Oracle licensing (CPU-based), GoldenGate licensed separately",
-      guardrails: "Dedicated extraction user with SELECT + LOGMINING grants only, VPN/Interconnect required, supplemental logging enabled",
+    { id: "src_oracle", name: "Oracle DB", icon: "oracle", subtitle: "RDBMS", zone: "sources", x: 100, y: 500, details: {
+      notes: "Enterprise RDBMS via JDBC, LogMiner CDC, or GoldenGate.",
       compliance: "SOC2, HIPAA, PCI-DSS"
     }},
-    { id: "src_sqlserver", name: "SQL Server", icon: "sqlserver", subtitle: "RDBMS · CT/CDC · Always On", zone: "sources", x: 300, y: 460, details: {
-      notes: "Microsoft RDBMS running on-prem, Azure, or VMs, exposing tables via JDBC/ODBC, Change Tracking (CT), CDC, or Always On replicas.\n\nUse when: SQL Server data needs CDC replication or bulk extraction to GCP.",
-      encryption: "In transit: TLS 1.2+ | At rest: TDE (AES-256), Always Encrypted for column-level | Auth: Windows Auth, SQL Auth, Azure AD",
-      monitoring: "CT version cleanup lag, CDC capture job latency, AG replica sync status",
-      alerting: "CDC capture job stopped → PagerDuty P1 | CT retention exceeded → P2",
-      cost: "SQL Server licensing (per-core), Azure SQL per-DTU or vCore pricing",
-      guardrails: "Read from AG secondary replica to avoid prod impact, CT/CDC enabled per table, dedicated login with db_datareader + CT permissions",
+    { id: "src_sqlserver", name: "SQL Server", icon: "sqlserver", subtitle: "RDBMS", zone: "sources", x: 100, y: 600, details: {
+      notes: "Microsoft RDBMS via JDBC/ODBC, Change Tracking, CDC, Always On replicas.",
       compliance: "SOC2, HIPAA"
     }},
-    { id: "src_postgresql", name: "PostgreSQL", icon: "postgresql", subtitle: "RDBMS · WAL · Logical Replication", zone: "sources", x: 100, y: 620, details: {
-      notes: "Open-source RDBMS running on-prem, VMs, or managed services, exposing tables via JDBC and logical replication slots.\n\nUse when: PostgreSQL data needs CDC or bulk extraction to GCP.",
-      encryption: "In transit: SSL/TLS | At rest: pgcrypto or filesystem-level; managed services use provider encryption | Auth: SCRAM-SHA-256, LDAP, or cert-based",
-      monitoring: "Replication slot lag (bytes), WAL file count, logical decoding throughput",
-      alerting: "Replication slot lag > 1GB → PagerDuty P1 (risk of WAL bloat) | Connection refused → P1",
-      cost: "Open source (free), Cloud SQL for PostgreSQL ~$0.017/hr (db-f1-micro)",
-      guardrails: "wal_level=logical, dedicated replication user, monitor replication slot to prevent WAL disk bloat",
+    { id: "src_postgresql", name: "PostgreSQL", icon: "postgresql", subtitle: "RDBMS", zone: "sources", x: 100, y: 700, details: {
+      notes: "Open-source RDBMS via JDBC and WAL logical replication slots.",
       compliance: "SOC2"
     }},
-    { id: "src_mongodb", name: "MongoDB", icon: "mongodb", subtitle: "NoSQL · Change Streams · mongodump", zone: "sources", x: 300, y: 620, details: {
-      notes: "Document database exposing collections via Change Streams for CDC or mongodump/mongoexport for bulk extraction.\n\nUse when: NoSQL document data needs to land in the warehouse.",
-      encryption: "In transit: TLS | At rest: WiredTiger AES-256; Atlas supports AWS KMS / GCP KMS | Auth: SCRAM-SHA-256, X.509, LDAP",
-      monitoring: "Change Stream resume token lag, oplog window size, cursor idle time",
-      alerting: "Oplog window < 2hr → PagerDuty P1 | Change Stream cursor lost → P1",
-      cost: "Atlas: from $0.08/hr (M10). Self-managed: free Community edition",
-      guardrails: "Replica set required for Change Streams, resume token persisted to GCS for crash recovery, read from secondary preferred",
+    { id: "src_mongodb", name: "MongoDB", icon: "mongodb", subtitle: "NoSQL", zone: "sources", x: 100, y: 800, details: {
+      notes: "Document database via Change Streams for CDC or mongodump for bulk.",
       compliance: "SOC2"
     }},
-    { id: "src_cloud_sql", name: "Cloud SQL", icon: "cloud_sql", subtitle: "Managed MySQL/PG/SS · HA · PITR", zone: "sources", x: 100, y: 780, details: {
-      notes: "Managed MySQL, PostgreSQL, or SQL Server on GCP with automated backups, patching, and HA.\n\nUse when: GCP-native relational data (app backends) needs to land in the warehouse.",
-      encryption: "In transit: TLS 1.2+ (enforced) | At rest: CMEK via Cloud KMS (AES-256) | Auth: IAM database authentication, Cloud SQL Auth Proxy",
-      monitoring: "CPU/memory utilization, replication lag, connection count, storage auto-resize events",
-      alerting: "HA failover triggered → PagerDuty P1 | CPU > 90% sustained → P2 | Storage > 90% → P1",
-      cost: "~$0.017/hr (db-f1-micro) to ~$6.60/hr (db-highmem-64). HA doubles cost.",
-      guardrails: "Private IP only (no public), IAM-based auth via Auth Proxy, automated backups with PITR, cross-region read replicas for DR",
-      compliance: "SOC2, HIPAA, PCI-DSS"
-    }},
-    { id: "src_cloud_spanner", name: "Cloud Spanner", icon: "cloud_spanner", subtitle: "Global DB · 99.999% SLA · Zero RPO", zone: "sources", x: 300, y: 780, details: {
-      notes: "Globally distributed, strongly consistent relational DB with 99.999% SLA for multi-region configurations.\n\nUse when: Globally distributed transactional data needs to land in the warehouse.",
-      encryption: "In transit: TLS (Google-managed) | At rest: Google default AES-256 or CMEK via Cloud KMS | Auth: IAM + fine-grained access control (row/column)",
-      monitoring: "Node CPU utilization (target < 65%), request latency P99, storage utilization",
-      alerting: "CPU > 65% → auto-scale or P2 | Latency P99 > 100ms → P2",
-      cost: "$0.90/node-hour (regional), $2.70/node-hour (multi-region). Storage: $0.30/GB/mo",
-      guardrails: "Multi-region for 99.999% SLA (Enterprise Plus required), BigQuery federated queries for extraction, Dataflow SpannerIO for bulk reads",
-      compliance: "SOC2, HIPAA, PCI-DSS, FedRAMP"
-    }},
-
-    // ── Event Streams (row 3, left) ──
-    { id: "src_kafka", name: "Apache Kafka", icon: "kafka", subtitle: "Self-Managed · Pub-Sub · MirrorMaker", zone: "sources", x: 100, y: 980, details: {
-      notes: "Distributed event streaming platform for high-throughput, low-latency publish-subscribe messaging and event sourcing.\n\nUse when: Real-time event streams need to be ingested into GCP (clickstream, IoT, transactions).",
-      encryption: "In transit: TLS for inter-broker and client | At rest: depends on underlying storage | Auth: SASL/PLAIN, SASL/SCRAM, mTLS, OAUTHBEARER",
-      monitoring: "Consumer group lag, broker under-replicated partitions, request latency, ISR shrink events",
-      alerting: "Consumer lag > 100K messages → PagerDuty P1 | Under-replicated partitions → P1",
-      cost: "Self-managed: infrastructure cost. Typical 3-broker cluster ~$500-2000/mo on GCE",
-      guardrails: "acks=all for durability, min.insync.replicas=2, MirrorMaker 2 for cross-DC replication, mTLS for producer auth",
+    { id: "src_kafka", name: "Kafka", icon: "kafka", subtitle: "Streaming", zone: "sources", x: 100, y: 900, details: {
+      notes: "Distributed event streaming for high-throughput publish-subscribe messaging.",
       compliance: "SOC2"
     }},
-    { id: "src_confluent", name: "Confluent Cloud", icon: "confluent", subtitle: "Managed Kafka · Schema Registry · ksqlDB", zone: "sources", x: 300, y: 980, details: {
-      notes: "Managed Kafka service with Schema Registry, ksqlDB, connectors, and multi-cloud support.\n\nUse when: Managed Kafka streams need ingestion into GCP without self-managing brokers.",
-      encryption: "In transit: TLS 1.2+ | At rest: AES-256 (Confluent-managed) | Auth: RBAC + ACLs, API keys, or OAuth",
-      monitoring: "Cluster throughput (MB/s), consumer lag, Schema Registry compatibility checks",
-      alerting: "Consumer lag > threshold → PagerDuty P1 | Schema compatibility failure → Slack P2",
-      cost: "Basic: $0.04/GB ingress. Standard: $0.11/GB. Dedicated: from $3.33/hr",
-      guardrails: "Cluster Linking for cross-region DR, Schema Registry enforced (BACKWARD compatibility), RBAC per topic",
-      compliance: "SOC2, HIPAA, PCI-DSS, ISO 27001"
-    }},
-    { id: "src_kinesis", name: "AWS Kinesis", icon: "aws_kinesis", subtitle: "Cross-Cloud · Data Streams · Firehose", zone: "sources", x: 100, y: 1140, details: {
-      notes: "AWS managed streaming service for real-time data ingestion at scale (Data Streams + Firehose).\n\nUse when: Cross-cloud streaming data from AWS needs to land in GCP.",
-      encryption: "In transit: TLS | At rest: AWS KMS SSE (AES-256) | Auth: AWS IAM policies, KMS key policies",
-      monitoring: "GetRecords latency, iterator age, shard count, Firehose delivery lag",
-      alerting: "Iterator age > 5 min → PagerDuty P1 | Firehose delivery failure → P1",
-      cost: "$0.015/shard-hour + $0.014/million PUT payload units + AWS egress",
-      guardrails: "Dataflow KinesisIO consumer with checkpointing, Workload Identity Federation for cross-cloud auth (no static AWS keys)",
+    { id: "src_sftp", name: "SFTP / S3", icon: "sftp_server", subtitle: "Files", zone: "sources", x: 100, y: 1000, details: {
+      notes: "Secure file transfer for batch file drops (CSV, JSON, XML) from partners or legacy systems.",
       compliance: "SOC2"
     }},
-
-    // ── File / Object (row 3, middle) ──
-    { id: "src_sftp", name: "SFTP Server", icon: "sftp_server", subtitle: "Partner File Drops · Batch", zone: "sources", x: 100, y: 1340, details: {
-      notes: "Secure file transfer endpoint for batch file drops (CSV, JSON, XML, flat files) from partners or legacy systems.\n\nUse when: Partners or legacy systems push files on a schedule for batch ingestion.",
-      encryption: "In transit: SSH/SFTP (encrypted channel) | At rest: PGP/GPG for file-level encryption if required | Auth: SSH key pairs, password, or certificate",
-      monitoring: "File arrival time vs SLA, file size anomalies, transfer success/failure count",
-      alerting: "Expected file missing > 1hr past SLA → PagerDuty P2 | File size 0 bytes → P2",
-      cost: "SFTP server hosting, or managed SFTP (AWS Transfer Family ~$0.30/hr + $0.04/GB)",
-      guardrails: "SSH keys in Secret Manager, file checksum validation on arrival, landing zone with schema-on-read validation",
+    { id: "src_rest_api", name: "REST APIs", icon: "rest_api", subtitle: "Webhooks", zone: "sources", x: 100, y: 1100, details: {
+      notes: "HTTP/REST endpoints and push-based webhook callbacks for event-driven ingestion.",
       compliance: "SOC2"
     }},
-    { id: "src_s3", name: "AWS S3", icon: "aws_s3", subtitle: "Cross-Cloud Objects · CRR · STS", zone: "sources", x: 300, y: 1340, details: {
-      notes: "AWS object storage service. Cross-cloud source for files, data lake exports, or partner data drops.\n\nUse when: Files or data lake objects in AWS S3 need to transfer to GCS/BQ.",
-      encryption: "In transit: TLS | At rest: SSE-S3 (AES-256), SSE-KMS, or SSE-C | Auth: AWS IAM + bucket policies, STS temporary credentials",
-      monitoring: "Storage Transfer Service job success/failure, bytes transferred, transfer duration",
-      alerting: "Transfer job failed → PagerDuty P2 | Transfer duration > 2x baseline → Slack P2",
-      cost: "AWS S3 storage + egress ($0.09/GB). Storage Transfer Service: free (pay GCS + egress only)",
-      guardrails: "Workload Identity Federation for cross-cloud auth (no static AWS keys), Storage Transfer Service for native S3→GCS",
-      compliance: "SOC2"
-    }},
-
-    // ── APIs (row 3, right) ──
-    { id: "src_rest_api", name: "REST API", icon: "rest_api", subtitle: "Generic HTTP/JSON · Scheduled Pull", zone: "sources", x: 100, y: 1500, details: {
-      notes: "Any HTTP/REST endpoint exposing data via JSON/XML payloads. Covers custom APIs, SaaS APIs not listed elsewhere.\n\nUse when: A custom or niche SaaS API needs to be pulled into GCP on a schedule.",
-      encryption: "In transit: TLS 1.2+ | Auth: varies — OAuth 2.0, API key, bearer token, mTLS",
-      monitoring: "API response codes, response time, records per pull, rate limit remaining",
-      alerting: "HTTP 4xx/5xx > 5% → Slack P2 | Rate limit hit → P2",
-      cost: "Depends on API provider pricing. Cloud Function invocation: ~$0.40/million",
-      guardrails: "All credentials in Secret Manager, exponential backoff on retry, pagination handling, idempotent writes",
-      compliance: "SOC2"
-    }},
-    { id: "src_webhook", name: "Webhook", icon: "webhook", subtitle: "Push-Based Events · HMAC · Real-Time", zone: "sources", x: 300, y: 1500, details: {
-      notes: "Push-based HTTP callback that sends event payloads when something happens in the source system.\n\nUse when: Real-time event notifications (payment completed, ticket created) need immediate ingestion.",
-      encryption: "In transit: TLS | Auth: HMAC signature verification for payload integrity, source-specific auth",
-      monitoring: "Webhook delivery rate, signature validation failures, Pub/Sub backlog depth",
-      alerting: "Signature validation failure spike → Security P1 | Delivery gap > 15 min → PagerDuty P2",
-      cost: "Cloud Function/Run: ~$0.40/million invocations. Pub/Sub: $40/TB",
-      guardrails: "HMAC signature verification mandatory, Pub/Sub buffer for durability (31-day retention), dead-letter topic for failures",
-      compliance: "SOC2"
-    }},
-
-    // ── Legacy (row 4) ──
-    { id: "src_onprem", name: "On-Prem Server", icon: "onprem_server", subtitle: "Hybrid Connectivity · VPN · Interconnect", zone: "sources", x: 100, y: 1660, details: {
-      notes: "On-premises application or database server requiring hybrid connectivity to GCP for data extraction.\n\nUse when: Legacy on-prem systems need connectivity to GCP via VPN or Interconnect.",
-      encryption: "In transit: IPsec (VPN) or MACsec (Interconnect) | At rest: varies by on-prem system | Auth: on-prem credentials in CyberArk → Secret Manager",
-      monitoring: "VPN tunnel status, Interconnect link utilization, extraction job success",
-      alerting: "VPN tunnel down → PagerDuty P1 | Interconnect utilization > 80% → P2",
-      cost: "Cloud VPN: ~$0.075/hr per tunnel. Interconnect: $0.05-0.08/hr (VLAN attachment)",
-      guardrails: "Redundant VPN tunnels or Interconnect attachments, VPC Service Controls, no direct public IP exposure",
-      compliance: "SOC2, ISO 27001"
-    }},
-    { id: "src_mainframe", name: "Mainframe", icon: "mainframe", subtitle: "z/OS · DB2 · VSAM · COBOL · EBCDIC", zone: "sources", x: 300, y: 1660, details: {
-      notes: "Legacy IBM z/OS or AS/400 systems exposing data via VSAM, DB2, IMS, or batch file extracts (EBCDIC).\n\nUse when: Mainframe data (COBOL copybooks, DB2 tables, VSAM files) needs to land in GCP.",
-      encryption: "In transit: z/OS dataset encryption (DFSMS), TLS for network, SNA encryption for legacy protocols | Auth: RACF/ACF2 credentials in CyberArk → Secret Manager",
-      monitoring: "Batch job completion (JES2), MIPS consumption during extraction, file transfer byte counts",
-      alerting: "Batch job ABEND → PagerDuty P1 | MIPS budget exceeded → P1",
-      cost: "MIPS-based mainframe cost (most expensive source). Interconnect: ~$0.05-0.08/hr",
-      guardrails: "Extract during batch windows only, MIPS budgeting with mainframe team, EBCDIC→UTF-8 conversion, COBOL copybook parser",
-      compliance: "SOC2, PCI-DSS (financial mainframe)"
-    }},
-
-    // ══════════════════════════════════════════════════
-    // ── LAYER 2: CONNECTIVITY (14 tools) ─────────────
-    // ══════════════════════════════════════════════════
-
-    // ── Identity & Auth (row 3) ──
-    { id: "conn_entra_id", name: "Entra ID", icon: "entra_id", subtitle: "Enterprise IdP · SSO · MFA · Conditional Access", zone: "connectivity", x: 650, y: 100, details: {
-      notes: "Microsoft cloud identity platform providing SSO, MFA, conditional access, and user/group directory. Federates into GCP Cloud Identity via SAML 2.0.\n\nUse when: Organization uses Microsoft 365 and needs SSO into GCP console, Looker, and SaaS tools.",
-      encryption: "In transit: TLS 1.2+ | Tokens: SAML signed + encrypted | Auth: SAML 2.0 / OIDC",
-      monitoring: "Sign-in failure rate, conditional access blocks, risky sign-in detections",
-      alerting: "Risky sign-in → Security P1 | MFA bypass attempt → Security P1",
-      cost: "Free (basic SSO). Premium P1: $6/user/mo. P2: $9/user/mo",
-      guardrails: "Conditional access: require MFA + compliant device for GCP. Block legacy auth protocols.",
-      compliance: "SOC2, ISO 27001, HIPAA"
-    }},
-    { id: "conn_cloud_identity", name: "Cloud Identity", icon: "identity_and_access_management", subtitle: "GCP Identity Broker · SAML Federation · Group Sync", zone: "connectivity", x: 850, y: 100, details: {
-      notes: "Google-managed identity service receiving SAML federation from Entra ID, mapping users/groups to GCP IAM roles.\n\nUse when: Required layer between enterprise IdP and GCP IAM. All GCP access flows through Cloud Identity.",
-      encryption: "In transit: Google-managed TLS | Tokens: SAML encrypted",
-      monitoring: "GCDS sync status, login audit events, admin activity logs",
-      alerting: "GCDS sync failure → PagerDuty P2 | Super admin login → Security P1",
-      cost: "Free: unlimited users. Premium: $7.20/user/mo (device mgmt)",
-      guardrails: "GCDS or SCIM provisioning. No local passwords — federated only.",
-      compliance: "SOC2, ISO 27001"
-    }},
-    { id: "conn_identity_platform", name: "Identity Platform", icon: "identity_platform", subtitle: "Customer Auth · OIDC · Social Login · Phone MFA", zone: "connectivity", x: 650, y: 260, details: {
-      notes: "Customer-facing auth service supporting OIDC, SAML, social logins, email/password, and phone auth for app end-users.\n\nUse when: External users (patients, partners, customers) authenticate to consume data via apps or embedded BI.",
-      encryption: "In transit: TLS | Tokens: JWT | At rest: Google-managed",
-      monitoring: "Auth success/failure rate, sign-up volume, MFA enrollment",
-      alerting: "Auth failure > 10% → P2 | Brute force detected → Security P1",
-      cost: "Free: 50K MAU. Then $0.0055/MAU",
-      guardrails: "Enable MFA, block disposable emails, rate limit auth attempts",
-      compliance: "SOC2"
-    }},
-
-    // ── Credential & Secrets (row 3, continued) ──
-    { id: "conn_cyberark", name: "CyberArk", icon: "cyberark", subtitle: "Enterprise PAM · Vault · Auto-Rotation · Secrets Hub", zone: "connectivity", x: 650, y: 460, details: {
-      notes: "Enterprise PAM platform: privileged credential vault, automated rotation, session recording, JIT access. Secrets Hub syncs secrets to GCP Secret Manager.\n\nUse when: Master vault for all privileged credentials (SA keys, DB passwords, API tokens). Source of truth; Secret Manager is runtime accessor.",
-      encryption: "At rest: AES-256 vault | In transit: TLS 1.2+ | HSM for master key",
-      monitoring: "Credential rotation success, vault access audit, session recordings",
-      alerting: "Rotation failure → PagerDuty P1 | Unauthorized vault access → Security P1",
-      cost: "CyberArk license (per-user PAM). Privilege Cloud SaaS pricing varies.",
-      guardrails: "All privileged creds in CyberArk. Secrets Hub auto-syncs to Secret Manager. No manual secret management.",
-      compliance: "SOC2, ISO 27001, PCI-DSS, HIPAA"
-    }},
-    { id: "conn_keeper", name: "Keeper", icon: "keeper", subtitle: "Team Passwords · Zero-Knowledge · Sharing", zone: "connectivity", x: 850, y: 460, details: {
-      notes: "Zero-knowledge password management for team/personal credential storage, sharing, and basic rotation.\n\nUse when: Team-level secrets and developer credentials not requiring full PAM.",
-      encryption: "AES-256 + PBKDF2 client-side. Zero-knowledge: Keeper never sees plaintext. TLS in transit.",
-      monitoring: "Vault access logs, sharing audit, password strength reports",
-      alerting: "Breach watch alert → Security P2",
-      cost: "Business: $3.75/user/mo. Enterprise: $5/user/mo",
-      guardrails: "SSO via Entra ID. Enforce password policies. No direct GCP integration — human-use only.",
-      compliance: "SOC2, ISO 27001"
-    }},
-    { id: "conn_secret_manager", name: "Secret Manager", icon: "secret_manager", subtitle: "Runtime Secrets · Versioning · IAM · CMEK", zone: "connectivity", x: 650, y: 620, details: {
-      notes: "GCP-native secret storage with versioning, automatic replication, and IAM-controlled access. Apps read secrets at runtime via API.\n\nUse when: Runtime secret access for Cloud Functions, Cloud Run, Composer DAGs. Receives synced secrets from CyberArk Secrets Hub.",
-      encryption: "At rest: CMEK via Cloud KMS (AES-256) | In transit: TLS | Auth: IAM",
-      monitoring: "Secret access audit logs, version count, replication lag",
-      alerting: "Unauthorized access attempt → Security P1 | Secret not rotated > 90 days → P2",
-      cost: "$0.06/10K access ops. $0.06/secret version/mo. Replication: free.",
-      guardrails: "CyberArk Secrets Hub is sole writer. Applications are readers only. IAM per-secret. Audit every access.",
-      compliance: "SOC2, ISO 27001, HIPAA"
-    }},
-
-    // ── Network (row 4) ──
-    { id: "conn_vpn", name: "Cloud VPN", icon: "cloud_vpn", subtitle: "IPsec Tunnels · HA VPN · 99.99% SLA", zone: "connectivity", x: 650, y: 820, details: {
-      notes: "Managed IPsec VPN tunnels connecting on-prem or other cloud networks to GCP VPC over public internet.\n\nUse when: Hybrid connectivity for low-to-medium bandwidth (<3 Gbps/tunnel). HA VPN provides 99.99% SLA with 2 tunnels.",
-      encryption: "IPsec with IKEv2. AES-128/256-CBC or AES-128/256-GCM.",
-      monitoring: "Tunnel status (up/down), bandwidth utilization, packet loss",
-      alerting: "Tunnel down → PagerDuty P1 | Bandwidth > 80% → P2",
-      cost: "~$0.075/hr per tunnel. HA VPN: 2 tunnels minimum = ~$0.15/hr",
-      guardrails: "Always use HA VPN (2 tunnels). BGP via Cloud Router. No Classic VPN for production.",
-      compliance: "SOC2"
-    }},
-    { id: "conn_interconnect", name: "Cloud Interconnect", icon: "cloud_interconnect", subtitle: "Dedicated/Partner · 10-100 Gbps · MACsec", zone: "connectivity", x: 850, y: 820, details: {
-      notes: "Dedicated (10/100 Gbps) or Partner (50 Mbps–50 Gbps) physical link between on-prem and GCP, bypassing public internet.\n\nUse when: High bandwidth (>1 Gbps), low latency, or data must not traverse public internet.",
-      encryption: "MACsec (802.1AE) for Dedicated. IPsec over Interconnect also supported.",
-      monitoring: "Link utilization, BGP session status, light levels (Dedicated)",
-      alerting: "Link down → PagerDuty P1 | Utilization > 80% → P2",
-      cost: "Dedicated: $0.05-0.08/hr per VLAN attachment. Partner: varies by provider.",
-      guardrails: "Redundant attachments across 2 edge availability domains for 99.99% SLA.",
-      compliance: "SOC2, ISO 27001"
-    }},
-    { id: "conn_vpc", name: "VPC", icon: "virtual_private_cloud", subtitle: "Global Network · Subnets · Firewall Rules · Private Access", zone: "connectivity", x: 650, y: 980, details: {
-      notes: "Global virtual network with regional subnets, firewall rules, Private Google Access, and VPC Peering.\n\nUse when: Foundation for all GCP networking. Every project needs at least one VPC.",
-      encryption: "Google encrypts all VM-to-VM traffic within VPC automatically.",
-      monitoring: "Firewall rule hit counts, VPC Flow Logs, Private Google Access usage",
-      alerting: "Firewall deny spike → Security P2 | Unexpected egress → P1",
-      cost: "VPC: free. VPC Flow Logs: $0.50/GB ingested into Logging.",
-      guardrails: "Shared VPC for central management. Private Google Access enabled. No default network.",
-      compliance: "SOC2"
-    }},
-    { id: "conn_vpc_sc", name: "VPC Service Controls", icon: "security_command_center", subtitle: "Data Exfiltration Prevention · Service Perimeter", zone: "connectivity", x: 850, y: 980, details: {
-      notes: "Service perimeter preventing data exfiltration from GCP APIs (BQ, GCS, etc.) to unauthorized networks or projects.\n\nUse when: Required for sensitive data workloads (PHI, PII, financial). Prevents BQ data from being copied outside perimeter.",
-      encryption: "Policy enforcement layer — works with CMEK on underlying services.",
-      monitoring: "Perimeter violations (dry-run mode), access level evaluations",
-      alerting: "Perimeter violation → Security P1 | New ingress/egress policy change → audit alert",
-      cost: "Free (included with GCP).",
-      guardrails: "Dry-run before enforce. Perimeter around all data projects. Access levels for CI/CD.",
-      compliance: "SOC2, HIPAA, PCI-DSS, FedRAMP"
-    }},
-    { id: "conn_armor", name: "Cloud Armor", icon: "cloud_armor", subtitle: "WAF · DDoS Protection · Geo-Blocking", zone: "connectivity", x: 650, y: 1140, details: {
-      notes: "WAF and DDoS protection at Google's network edge, applied to external HTTP(S) load balancers.\n\nUse when: External-facing APIs or web apps need DDoS, SQLi, XSS, or geo-based blocking.",
-      encryption: "TLS termination at load balancer. Policies applied before traffic reaches backends.",
-      monitoring: "Request rate, blocked requests by rule, DDoS attack events",
-      alerting: "DDoS attack detected → Security P1 | Rule block rate > threshold → P2",
-      cost: "Standard: $0.75/policy/mo + $0.01/10K requests. Plus: $200/mo + $0.01/10K req.",
-      guardrails: "OWASP top-10 rules enabled. Geo-blocking for non-served regions. Rate limiting per IP.",
-      compliance: "SOC2"
-    }},
-    { id: "conn_dns", name: "Cloud DNS", icon: "cloud_dns", subtitle: "Managed DNS · Private Zones · DNSSEC · 100% SLA", zone: "connectivity", x: 850, y: 1140, details: {
-      notes: "Managed DNS with public zones, private zones, forwarding, and peering. 100% availability SLA.\n\nUse when: Name resolution for all GCP services, hybrid DNS with on-prem, private zones for internal service discovery.",
-      encryption: "DNSSEC for public zones. Internal DNS over Google encrypted backbone.",
-      monitoring: "Query rate, NXDOMAIN rate, DNSSEC validation failures",
-      alerting: "DNSSEC validation failure → P2 | Query latency spike → P2",
-      cost: "$0.20/zone/mo + $0.40/million queries.",
-      guardrails: "DNSSEC enabled for public zones. Private zones for internal. DNS forwarding for hybrid.",
-      compliance: "SOC2"
-    }},
-
-    // ── API Management (row 4, continued) ──
-    { id: "conn_apigee", name: "Apigee", icon: "apigee_api_platform", subtitle: "Full API Lifecycle · Portal · Analytics · Monetization", zone: "connectivity", x: 650, y: 1340, details: {
-      notes: "Full-lifecycle API management: gateway, developer portal, analytics, monetization, rate limiting, and policy enforcement.\n\nUse when: Curated data exposed as managed, monetized APIs with developer portal and analytics.",
-      encryption: "TLS 1.2+ at edge. CMEK for analytics. OAuth 2.0, API keys, JWT for auth.",
-      monitoring: "API latency, error rate, traffic by consumer, quota usage",
-      alerting: "Error rate > 5% → PagerDuty P2 | Latency P99 > 2s → P2",
-      cost: "Evaluation: free. Standard: $500/mo. Enterprise: custom pricing.",
-      guardrails: "Rate limiting per consumer. OAuth enforcement. Threat protection policies. No API key in URL.",
+    { id: "src_mainframe", name: "Mainframe", icon: "mainframe", subtitle: "Legacy", zone: "sources", x: 100, y: 1200, details: {
+      notes: "IBM z/OS or AS/400 systems: VSAM, DB2, IMS, batch file extracts (EBCDIC).",
       compliance: "SOC2, PCI-DSS"
     }},
-    { id: "conn_api_gateway", name: "API Gateway", icon: "cloud_api_gateway", subtitle: "Serverless Proxy · Cloud Functions / Cloud Run", zone: "connectivity", x: 850, y: 1340, details: {
-      notes: "Lightweight serverless API gateway for routing, auth, and rate limiting in front of Cloud Functions or Cloud Run.\n\nUse when: Simple API proxy when Apigee is overkill. Quick setup for internal or low-complexity APIs.",
-      encryption: "TLS in transit. API keys, JWT, or Google ID tokens for auth.",
-      monitoring: "Request count, latency, 4xx/5xx rates",
-      alerting: "5xx rate > 5% → P2 | Latency > 1s → P2",
-      cost: "$3.50/million calls (first 2M free).",
-      guardrails: "Use for internal APIs only. External APIs → Apigee.",
+
+    // ══════════════════════════════════════════════════
+    // ── LAYER 2: CONNECTIVITY (14 nodes) ─────────────
+    // ══════════════════════════════════════════════════
+
+    // Identity & Auth (GCP)
+    { id: "conn_cloud_identity", name: "Cloud Identity", icon: "identity_and_access_management", subtitle: "GCP Identity Broker · SAML Federation", zone: "connectivity", x: 300, y: 100, details: {
+      notes: "Google-managed identity service receiving SAML federation from Entra ID.",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "conn_identity_platform", name: "Identity Platform", icon: "identity_platform", subtitle: "Customer Auth · OIDC · Social Login", zone: "connectivity", x: 300, y: 200, details: {
+      notes: "Customer-facing auth: OIDC, SAML, social login, phone MFA for app end-users.",
+      cost: "Free: 50K MAU. Then $0.0055/MAU",
+      compliance: "SOC2"
+    }},
+    { id: "conn_iam", name: "Cloud IAM", icon: "identity_and_access_management", subtitle: "Roles · Policies · Workload Identity", zone: "connectivity", x: 300, y: 300, details: {
+      notes: "Identity & Access Management: roles, policies, Workload Identity Federation.",
+      compliance: "SOC2, ISO 27001"
+    }},
+
+    // Vendor Identity
+    { id: "conn_entra_id", name: "Entra ID", icon: "entra_id", subtitle: "Enterprise IdP · SSO · MFA", zone: "connectivity", x: 300, y: 400, details: {
+      notes: "Microsoft cloud identity: SSO, MFA, conditional access. Federates into GCP via SAML 2.0.",
+      cost: "Free (basic). P1: $6/user/mo. P2: $9/user/mo",
+      compliance: "SOC2, ISO 27001, HIPAA"
+    }},
+    { id: "conn_cyberark", name: "CyberArk", icon: "cyberark", subtitle: "Enterprise PAM · Vault · Auto-Rotation", zone: "connectivity", x: 300, y: 500, details: {
+      notes: "Enterprise PAM: privileged credential vault, auto rotation, Secrets Hub syncs to GCP Secret Manager.",
+      compliance: "SOC2, ISO 27001, PCI-DSS, HIPAA"
+    }},
+    { id: "conn_keeper", name: "Keeper", icon: "keeper", subtitle: "Team Passwords · Zero-Knowledge", zone: "connectivity", x: 300, y: 600, details: {
+      notes: "Zero-knowledge password management for team/personal credentials.",
+      cost: "Business: $3.75/user/mo. Enterprise: $5/user/mo",
+      compliance: "SOC2, ISO 27001"
+    }},
+
+    // Secrets & Network
+    { id: "conn_secret_manager", name: "Secret Manager", icon: "secret_manager", subtitle: "Runtime Secrets · Versioning · CMEK", zone: "connectivity", x: 300, y: 700, details: {
+      notes: "GCP-native secret storage with versioning, IAM access, CMEK. Synced from CyberArk.",
+      cost: "$0.06/10K access ops",
+      compliance: "SOC2, ISO 27001, HIPAA"
+    }},
+    { id: "conn_vpn", name: "Cloud VPN", icon: "cloud_vpn", subtitle: "IPsec Tunnels · HA VPN · 99.99% SLA", zone: "connectivity", x: 300, y: 800, details: {
+      notes: "Managed IPsec VPN tunnels for hybrid connectivity. HA VPN: 99.99% SLA.",
+      cost: "~$0.075/hr per tunnel",
+      compliance: "SOC2"
+    }},
+    { id: "conn_interconnect", name: "Interconnect", icon: "cloud_interconnect", subtitle: "Dedicated/Partner · 10–100 Gbps", zone: "connectivity", x: 300, y: 900, details: {
+      notes: "Dedicated (10/100 Gbps) or Partner physical link bypassing public internet.",
+      cost: "$0.05–0.08/hr per VLAN attachment",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "conn_vpc", name: "VPC / VPC-SC", icon: "virtual_private_cloud", subtitle: "Network · Subnets · Service Controls", zone: "connectivity", x: 300, y: 1000, details: {
+      notes: "Global VPC with subnets, firewall rules, Private Google Access. VPC Service Controls for data exfiltration prevention.",
+      compliance: "SOC2, HIPAA, PCI-DSS, FedRAMP"
+    }},
+    { id: "conn_armor", name: "Cloud Armor", icon: "cloud_armor", subtitle: "WAF · DDoS · Geo-Blocking", zone: "connectivity", x: 300, y: 1100, details: {
+      notes: "WAF and DDoS protection at Google's network edge.",
+      cost: "$0.75/policy/mo + $0.01/10K requests",
+      compliance: "SOC2"
+    }},
+    { id: "conn_dns", name: "Cloud DNS", icon: "cloud_dns", subtitle: "Managed DNS · Private Zones · DNSSEC", zone: "connectivity", x: 300, y: 1200, details: {
+      notes: "Managed DNS with public/private zones, forwarding, DNSSEC. 100% SLA.",
+      cost: "$0.20/zone/mo + $0.40/million queries",
+      compliance: "SOC2"
+    }},
+    { id: "conn_apigee", name: "Apigee", icon: "apigee_api_platform", subtitle: "Full API Lifecycle · Portal · Analytics", zone: "connectivity", x: 300, y: 1300, details: {
+      notes: "Full-lifecycle API management: gateway, developer portal, analytics, monetization.",
+      cost: "Standard: $500/mo. Enterprise: custom",
+      compliance: "SOC2, PCI-DSS"
+    }},
+    { id: "conn_api_gateway", name: "API Gateway", icon: "cloud_api_gateway", subtitle: "Serverless Proxy · Cloud Functions/Run", zone: "connectivity", x: 300, y: 1400, details: {
+      notes: "Lightweight serverless API gateway for Cloud Functions or Cloud Run backends.",
+      cost: "$3.50/million calls (first 2M free)",
       compliance: "SOC2"
     }},
 
-    // ── LAYER 3: INGESTION ──
-    { id: "ing_datastream", name: "Datastream", icon: "datastream", subtitle: "CDC · MySQL/PG/Oracle → BQ", zone: "cloud", x: 1100, y: 980, details: { notes: "Serverless CDC replication from relational sources to BigQuery and Cloud Storage.", cost: "$0.10/GB processed", compliance: "SOC2, ISO 27001" }},
-    { id: "ing_pubsub", name: "Pub/Sub", icon: "pubsub", subtitle: "Event Streaming · At-least-once", zone: "cloud", x: 1300, y: 980, details: { notes: "Serverless event ingestion for real-time streams, IoT, clickstream.", cost: "$40/TiB ingested", compliance: "SOC2, ISO 27001" }},
-    { id: "ing_dataflow", name: "Dataflow", icon: "dataflow", subtitle: "Stream & Batch Ingestion", zone: "cloud", x: 1500, y: 980, details: { notes: "Apache Beam runner for both stream and batch ingestion pipelines.", cost: "$0.056/vCPU·hr + $0.003/GB·hr", compliance: "SOC2, ISO 27001" }},
-    { id: "ing_functions", name: "Cloud Functions", icon: "cloud_functions", subtitle: "Serverless Triggers", zone: "cloud", x: 1100, y: 1130, details: { notes: "Lightweight event-driven ingestion for webhooks, API polling, file triggers.", cost: "$0.40/million invocations", compliance: "SOC2" }},
-    { id: "ing_fivetran", name: "Fivetran", icon: "fivetran", subtitle: "Managed SaaS Connectors", zone: "cloud", x: 1300, y: 1130, details: { notes: "300+ pre-built connectors for SaaS sources. Managed schema, incremental sync.", cost: "Per Monthly Active Row pricing", compliance: "SOC2, ISO 27001" }},
+    // ══════════════════════════════════════════════════
+    // ── LAYER 3: INGESTION (6 nodes) ─────────────────
+    // ══════════════════════════════════════════════════
+    { id: "ing_datastream", name: "Datastream", icon: "datastream", subtitle: "CDC · MySQL/PG/Oracle → BQ", zone: "cloud", x: 500, y: 100, details: {
+      notes: "Serverless CDC replication from relational sources to BigQuery and Cloud Storage.",
+      cost: "$0.10/GB processed",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "ing_pubsub", name: "Pub/Sub", icon: "pubsub", subtitle: "Events · At-least-once", zone: "cloud", x: 500, y: 200, details: {
+      notes: "Serverless event ingestion for real-time streams, IoT, clickstream.",
+      cost: "$40/TiB ingested",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "ing_dataflow", name: "Dataflow", icon: "dataflow", subtitle: "Stream & Batch Ingestion", zone: "cloud", x: 500, y: 300, details: {
+      notes: "Apache Beam runner for stream and batch ingestion pipelines.",
+      cost: "$0.056/vCPU·hr + $0.003/GB·hr",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "ing_functions", name: "Cloud Functions", icon: "cloud_functions", subtitle: "Serverless Triggers", zone: "cloud", x: 500, y: 400, details: {
+      notes: "Lightweight event-driven ingestion for webhooks, API polling, file triggers.",
+      cost: "$0.40/million invocations",
+      compliance: "SOC2"
+    }},
+    { id: "ing_fivetran", name: "Fivetran", icon: "fivetran", subtitle: "SaaS Connectors · Managed", zone: "cloud", x: 500, y: 500, details: {
+      notes: "300+ pre-built connectors for SaaS sources. Managed schema, incremental sync. [Vendor]",
+      cost: "Per Monthly Active Row pricing",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "ing_matillion", name: "Matillion", icon: null, subtitle: "ELT · Low-Code Transforms", zone: "cloud", x: 500, y: 600, details: {
+      notes: "Low-code ELT platform for data ingestion and transformation. [Vendor]",
+      compliance: "SOC2"
+    }},
 
-    // ── LAYER 4: DATA LAKE ──
-    { id: "lake_gcs", name: "Cloud Storage", icon: "cloud_storage", subtitle: "Raw Landing · Parquet/JSON/Avro", zone: "cloud", x: 1100, y: 760, details: { notes: "Immutable object store for raw source data. Landing zone for files, exports, and CDC snapshots.", cost: "$0.020/GB/mo (Standard)", compliance: "SOC2, ISO 27001, HIPAA" }},
-    { id: "lake_bq_staging", name: "BigQuery Staging", icon: "bigquery", subtitle: "Relational Landing · Schema-on-write", zone: "cloud", x: 1300, y: 760, details: { notes: "Staging datasets in BigQuery for structured source data. Schema validation and type enforcement.", cost: "$6.25/TB queried (on-demand)", compliance: "SOC2, ISO 27001, HIPAA" }},
+    // ══════════════════════════════════════════════════
+    // ── LAYER 4: DATA LAKE (2 nodes) ─────────────────
+    // ══════════════════════════════════════════════════
+    { id: "lake_gcs", name: "Cloud Storage", icon: "cloud_storage", subtitle: "Raw Landing · Parquet/JSON/Avro", zone: "cloud", x: 700, y: 100, details: {
+      notes: "Immutable object store for raw source data. Landing zone for files, exports, CDC snapshots.",
+      cost: "$0.020/GB/mo (Standard)",
+      compliance: "SOC2, ISO 27001, HIPAA"
+    }},
+    { id: "lake_bq_staging", name: "BigQuery Staging", icon: "bigquery", subtitle: "Relational Landing · Schema-on-write", zone: "cloud", x: 700, y: 200, details: {
+      notes: "Staging datasets in BigQuery for structured source data with schema validation.",
+      cost: "$6.25/TB queried (on-demand)",
+      compliance: "SOC2, ISO 27001, HIPAA"
+    }},
 
-    // ── LAYER 5: PROCESSING ──
-    { id: "proc_dataflow", name: "Dataflow", icon: "dataflow", subtitle: "Batch & Stream ELT", zone: "cloud", x: 1100, y: 540, details: { notes: "Core ELT engine for transforms, joins, aggregations, deduplication.", cost: "$0.056/vCPU·hr", compliance: "SOC2, ISO 27001" }},
-    { id: "proc_dataproc", name: "Dataproc", icon: "dataproc", subtitle: "Spark / Heavy Transforms", zone: "cloud", x: 1300, y: 540, details: { notes: "Managed Spark/Hadoop for complex transformations, ML feature engineering.", cost: "$0.01/vCPU·hr (on top of Compute)", compliance: "SOC2, ISO 27001" }},
+    // ══════════════════════════════════════════════════
+    // ── LAYER 5: PROCESSING (5 nodes) ────────────────
+    // ══════════════════════════════════════════════════
+    { id: "proc_dataflow", name: "Dataflow", icon: "dataflow", subtitle: "Beam · Batch & Stream ELT", zone: "cloud", x: 900, y: 100, details: {
+      notes: "Core ELT engine for transforms, joins, aggregations, deduplication.",
+      cost: "$0.056/vCPU·hr",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "proc_dataproc", name: "Dataproc", icon: "dataproc", subtitle: "Spark · Heavy Transforms", zone: "cloud", x: 900, y: 200, details: {
+      notes: "Managed Spark/Hadoop for complex transformations, ML feature engineering.",
+      cost: "$0.01/vCPU·hr (on top of Compute)",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "proc_bq_sql", name: "BigQuery SQL", icon: "bigquery", subtitle: "SQL Transforms · Scheduled Queries", zone: "cloud", x: 900, y: 300, details: {
+      notes: "In-warehouse SQL transformations, scheduled queries, materialized views.",
+      cost: "$6.25/TB queried (on-demand)",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "proc_dlp", name: "Cloud DLP", icon: "security_command_center", subtitle: "PII Detection · Masking", zone: "cloud", x: 900, y: 400, details: {
+      notes: "PII/PHI detection, tokenization, and masking for sensitive data.",
+      cost: "$1–3/GB inspected",
+      compliance: "GDPR, HIPAA, PCI-DSS"
+    }},
+    { id: "proc_matillion", name: "Matillion", icon: null, subtitle: "ETL · Low-Code", zone: "cloud", x: 900, y: 500, details: {
+      notes: "Low-code ELT platform for transformations and data prep. [Vendor]",
+      compliance: "SOC2"
+    }},
 
-    // ── LAYER 6: MEDALLION ──
-    { id: "bronze", name: "Bronze", icon: "bigquery", subtitle: "Schema-applied · Deduplicated", zone: "cloud", x: 1100, y: 320, details: { notes: "BigQuery dataset: ingested data with schema applied, deduplicated, typed. Quality gate required." }},
-    { id: "silver", name: "Silver", icon: "bigquery", subtitle: "Cleaned · Conformed · Business Rules", zone: "cloud", x: 1300, y: 320, details: { notes: "BigQuery dataset: cleaned, business rules applied, cross-source conformed, PII masked." }},
-    { id: "gold", name: "Gold", icon: "bigquery", subtitle: "Curated · Aggregated · Consumption-ready", zone: "cloud", x: 1500, y: 320, details: { notes: "BigQuery dataset: star schema, aggregated metrics, SLA-tracked, consumption-ready." }},
+    // ══════════════════════════════════════════════════
+    // ── LAYER 6: MEDALLION (3 nodes) ─────────────────
+    // ══════════════════════════════════════════════════
+    { id: "bronze", name: "Bronze", icon: "bigquery", subtitle: "Schema-applied · Deduplicated", zone: "cloud", x: 1100, y: 100, details: {
+      notes: "BigQuery dataset: ingested data with schema applied, deduplicated, typed."
+    }},
+    { id: "silver", name: "Silver", icon: "bigquery", subtitle: "Cleaned · Conformed · Business Rules", zone: "cloud", x: 1100, y: 200, details: {
+      notes: "BigQuery dataset: cleaned, business rules applied, PII masked."
+    }},
+    { id: "gold", name: "Gold", icon: "bigquery", subtitle: "Curated · Aggregated · Consumption-ready", zone: "cloud", x: 1100, y: 300, details: {
+      notes: "BigQuery dataset: star schema, aggregated metrics, SLA-tracked."
+    }},
 
-    // ── LAYER 7: SERVING ──
-    { id: "serve_looker", name: "Looker", icon: "looker", subtitle: "Semantic Layer · BI", zone: "cloud", x: 1100, y: 100, details: { notes: "Semantic modeling layer (LookML) for governed metrics, dashboards, and self-service analytics.", cost: "$5,000/mo (Standard)", compliance: "SOC2, ISO 27001" }},
-    { id: "serve_run", name: "Cloud Run", icon: "cloud_run", subtitle: "Data APIs · Serverless", zone: "cloud", x: 1300, y: 100, details: { notes: "Serverless container platform serving data APIs for applications and embedded analytics.", cost: "$0.00002400/vCPU·sec", compliance: "SOC2" }},
-    { id: "serve_hub", name: "Analytics Hub", icon: "analytics_hub", subtitle: "Data Marketplace · Sharing", zone: "cloud", x: 1500, y: 100, details: { notes: "Data exchange for publishing and subscribing to shared datasets across teams and orgs.", cost: "Free (BQ storage costs apply)", compliance: "SOC2, ISO 27001" }},
+    // ══════════════════════════════════════════════════
+    // ── LAYER 7: SERVING (4 nodes) ───────────────────
+    // ══════════════════════════════════════════════════
+    { id: "serve_looker", name: "Looker", icon: "looker", subtitle: "Semantic Layer · LookML", zone: "cloud", x: 1300, y: 100, details: {
+      notes: "Semantic modeling layer (LookML) for governed metrics, dashboards, self-service.",
+      cost: "$5,000/mo (Standard)",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "serve_run", name: "Cloud Run", icon: "cloud_run", subtitle: "Data APIs · Serverless", zone: "cloud", x: 1300, y: 200, details: {
+      notes: "Serverless container platform serving data APIs for apps and embedded analytics.",
+      cost: "$0.00002400/vCPU·sec",
+      compliance: "SOC2"
+    }},
+    { id: "serve_hub", name: "Analytics Hub", icon: "analytics_hub", subtitle: "Data Marketplace · Sharing", zone: "cloud", x: 1300, y: 300, details: {
+      notes: "Data exchange for publishing and subscribing to shared datasets.",
+      cost: "Free (BQ storage costs apply)",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "serve_bi_engine", name: "BigQuery BI Engine", icon: "bigquery", subtitle: "In-Memory Acceleration", zone: "cloud", x: 1300, y: 400, details: {
+      notes: "In-memory analysis service for sub-second query response on BI dashboards.",
+      cost: "$0.0416/GB/hr reserved",
+      compliance: "SOC2"
+    }},
 
-    // ── LAYER 8: CONSUMERS ──
-    { id: "con_bi", name: "BI Users", icon: "analyst", subtitle: "Dashboards · Reports", zone: "consumers", x: 1800, y: 100, details: { notes: "Business analysts consuming dashboards and reports via Looker." }},
-    { id: "con_ds", name: "Data Scientists", icon: "developer", subtitle: "Notebooks · ML", zone: "consumers", x: 1800, y: 200, details: { notes: "Data scientists accessing gold datasets for ML and advanced analytics." }},
-    { id: "con_apps", name: "Applications", icon: "external_users", subtitle: "APIs · Embedded", zone: "consumers", x: 1800, y: 300, details: { notes: "Downstream apps consuming data via Cloud Run APIs and embedded analytics." }},
+    // ══════════════════════════════════════════════════
+    // ── LAYER 8: CONSUMERS (8 nodes) ─────────────────
+    // ══════════════════════════════════════════════════
+    { id: "con_looker", name: "Looker Dashboards", icon: "looker", subtitle: "Executive & Operational BI", zone: "consumers", x: 1500, y: 100, details: {
+      notes: "Business analysts consuming dashboards and reports via Looker."
+    }},
+    { id: "con_sheets", name: "Connected Sheets", icon: "data_studio", subtitle: "BQ in Google Sheets", zone: "consumers", x: 1500, y: 200, details: {
+      notes: "BigQuery data accessible directly in Google Sheets for business users."
+    }},
+    { id: "con_vertex", name: "Vertex AI Notebooks", icon: "vertexai", subtitle: "Data Science · ML", zone: "consumers", x: 1500, y: 300, details: {
+      notes: "Managed Jupyter notebooks for data science and ML on gold datasets."
+    }},
+    { id: "con_run", name: "Cloud Run APIs", icon: "cloud_run", subtitle: "Embedded · Downstream Apps", zone: "consumers", x: 1500, y: 400, details: {
+      notes: "Downstream applications consuming data via Cloud Run APIs."
+    }},
+    { id: "con_hub", name: "Analytics Hub", icon: "analytics_hub", subtitle: "Data Marketplace · External", zone: "consumers", x: 1500, y: 500, details: {
+      notes: "External consumers subscribing to shared datasets via Analytics Hub."
+    }},
+    { id: "con_powerbi", name: "Power BI", icon: null, subtitle: "Microsoft BI · DirectQuery", zone: "consumers", x: 1500, y: 600, details: {
+      notes: "Microsoft Power BI connecting to BigQuery via DirectQuery or import. [Vendor]"
+    }},
+    { id: "con_tableau", name: "Tableau", icon: null, subtitle: "Visual Analytics · Extracts", zone: "consumers", x: 1500, y: 700, details: {
+      notes: "Tableau Desktop/Server connecting to BigQuery for visual analytics. [Vendor]"
+    }},
+    { id: "con_slicer", name: "Slicer & Dicer", icon: null, subtitle: "Ad-Hoc Analysis · Self-Service", zone: "consumers", x: 1500, y: 800, details: {
+      notes: "Self-service ad-hoc analysis tool for business users. [Vendor]"
+    }},
 
-    // ── CROSSCUTTING PILLARS (matching BlueprintView BP_PILLARS IDs) ──
+    // ══════════════════════════════════════════════════
+    // ── CROSSCUTTING PILLARS (4 nodes) ───────────────
+    // ══════════════════════════════════════════════════
     { id: "pillar_sec", name: "🔒 Security & Identity", icon: null, subtitle: "IAM · Encryption · Secrets · Network · mTLS", zone: "cloud", x: 1700, y: 100, details: {
-      notes: "★ NON-NEGOTIABLE PILLAR\n\n• Cloud IAM (Roles, least-privilege, Workload Identity Federation)\n• Cloud KMS (CMEK, HSM-backed, 90-day auto-rotation)\n• VPC Service Controls (Data exfiltration prevention, service perimeter)\n• Security Command Center (Asset inventory, vulnerability scanning, threat detection)\n• Cloud Armor (WAF, DDoS protection, geo-blocking)\n• Wiz (Agentless CSPM, misconfiguration scanning)\n• Splunk SIEM (Log correlation, threat detection, compliance dashboards)",
+      notes: "★ NON-NEGOTIABLE PILLAR\n\n• Cloud IAM · KMS · CMEK (Identity & key management, least-privilege, CMEK encryption)\n• VPC Service Controls (Data exfiltration prevention, service perimeter)\n• Security Command Center (Asset inventory, vulnerability scanning, threat detection)\n• Cloud Armor (WAF, DDoS protection, geo-blocking)\n• Wiz (Agentless CSPM, misconfiguration scanning — Vendor)\n• Splunk SIEM (Log correlation, threat detection, compliance — Vendor)",
       encryption: "CMEK via Cloud KMS (AES-256) for all data services. HSM for master keys.",
       compliance: "SOC2, ISO 27001, HIPAA, PCI-DSS, FedRAMP, CIS"
     }},
     { id: "pillar_gov", name: "📋 Governance & Quality", icon: null, subtitle: "Catalog · Lineage · DLP · Quality · Classify", zone: "cloud", x: 1700, y: 400, details: {
-      notes: "★ NON-NEGOTIABLE PILLAR\n\n• Dataplex (Auto data quality, profiling, validation at every medallion transition)\n• Data Catalog (Metadata management, search, discovery)\n• Data Lineage (Column-level lineage across BQ, GCS, Dataflow)\n• Cloud DLP (PII/PHI detection, tokenization, masking)\n• Data Classification (Sensitivity labels, access tier enforcement)",
-      cost: "Dataplex: $0.05/GB scanned | DLP: $1-3/GB inspected",
+      notes: "★ NON-NEGOTIABLE PILLAR\n\n• Dataplex (Auto data quality, profiling, validation at every medallion gate)\n• Data Catalog (Metadata management, search, discovery)\n• Data Lineage (Column-level lineage across BQ, GCS, Dataflow)\n• Cloud DLP (PII/PHI detection, tokenization, classification, masking)",
+      cost: "Dataplex: $0.05/GB scanned | DLP: $1–3/GB inspected",
       compliance: "GDPR, CCPA, HIPAA, DATA MESH"
     }},
     { id: "pillar_obs", name: "📡 Observability & Ops", icon: null, subtitle: "Monitor · Logging · Alerting · SLA · Freshness", zone: "cloud", x: 1700, y: 700, details: {
-      notes: "★ NON-NEGOTIABLE PILLAR\n\n• Cloud Monitoring (Pipeline metrics, SLO tracking, custom dashboards)\n• Cloud Logging (Centralized audit trails, debug logs, compliance evidence)\n• Alerting (PagerDuty integration, severity-based routing, on-call)\n• Dynatrace (Full-stack APM, AI root cause analysis)\n• Splunk (SIEM log analytics, security correlation)\n• Datadog (Unified metrics, traces, GCP integration)\n• Grafana (Open-source dashboarding, Prometheus, custom metrics)\n• PagerDuty (Incident management, on-call rotation)",
+      notes: "★ NON-NEGOTIABLE PILLAR\n\n• Cloud Monitoring (Pipeline metrics, SLO tracking, custom dashboards)\n• Cloud Logging (Centralized audit trails, debug logs, compliance evidence)\n• Error Reporting (Auto error grouping, stack traces, exception tracking)\n• Alerting → PagerDuty (Severity-based routing, on-call rotation)\n• Dynatrace (Full-stack APM, AI root cause analysis — Vendor)\n• Datadog (Unified metrics, traces, GCP integration — Vendor)\n• Grafana (Open-source dashboarding, Prometheus — Vendor)",
       monitoring: "Pipeline SLOs, data freshness, cost burn rate, error budgets",
       compliance: "SLO/SLA, MTTR, DORA"
     }},
     { id: "pillar_orch", name: "⚙️ Orchestration & Cost", icon: null, subtitle: "DAGs · Scheduling · Budget · Chargeback", zone: "cloud", x: 1700, y: 950, details: {
-      notes: "★ NON-NEGOTIABLE PILLAR\n\n• Cloud Composer (Managed Airflow, DAG orchestration, dependency management)\n• Cloud Scheduler (Cron jobs, HTTP triggers)\n• Workflows (Serverless workflow orchestration)\n• Budget Alerts (80% / 100% thresholds per team/project)\n• Cost Attribution (Label-based chargeback per BU)\n• Quota Management (Per-project resource limits)",
+      notes: "★ NON-NEGOTIABLE PILLAR\n\n• Cloud Composer (Managed Airflow, DAG orchestration, dependency management)\n• Cloud Scheduler (Cron jobs, HTTP triggers)\n• Budget Alerts (80%/100% thresholds per team/project)\n• Cost Attribution (Label-based chargeback per BU, FinOps tagging)",
       cost: "Composer: $0.35/vCPU·hr | Budget alerts at 80%/100% threshold",
       compliance: "FINOPS, TAGGING, QUOTAS"
     }},
@@ -1197,20 +1117,14 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
   edges: [],
 
   threats: [
-    // Layer 1 threats
-    { id: "t1", target: "src_salesforce", stride: "Spoofing", severity: "high", title: "OAuth Token Theft", description: "Stolen OAuth refresh tokens used to impersonate extraction service", impact: "Unauthorized CRM data extraction, customer data exfiltration", mitigation: "Short-lived tokens, token rotation, IP allowlisting at Salesforce, Secret Manager versioning", compliance: "SOC2 CC6.1" },
-    { id: "t2", target: "src_oracle", stride: "Information Disclosure", severity: "critical", title: "Database Credential Leakage", description: "JDBC credentials exposed in code, logs, or environment variables", impact: "Direct access to production Oracle database, data exfiltration", mitigation: "All credentials in Secret Manager (via CyberArk sync), no plaintext in code/CI, audit logging on secret access", compliance: "SOC2 CC6.1, ISO 27001" },
-    { id: "t3", target: "src_kafka", stride: "Tampering", severity: "high", title: "Message Injection", description: "Malicious events injected into Kafka topic by compromised producer", impact: "Poisoned data flowing into data lake, downstream corruption", mitigation: "mTLS for all producers, Schema Registry enforcement, input validation at ingestion layer", compliance: "SOC2 CC8.1" },
-    { id: "t4", target: "src_mainframe", stride: "Denial of Service", severity: "medium", title: "Mainframe MIPS Overload", description: "Extraction jobs consume excessive MIPS during peak hours", impact: "Production mainframe degradation affecting core business transactions", mitigation: "Scheduled extraction during batch windows only, MIPS budgeting with mainframe team, rate limiting", compliance: null },
-    // Layer 2 threats
-    { id: "t5", target: "conn_vpn", stride: "Elevation of Privilege", severity: "high", title: "VPN Tunnel Compromise", description: "Compromised VPN endpoint grants network-level access to GCP VPC", impact: "Lateral movement from on-prem to cloud resources", mitigation: "VPC Service Controls, micro-segmentation, Zero Trust (BeyondCorp), no broad network trust", compliance: "SOC2 CC6.6" },
-    { id: "t6", target: "conn_entra_id", stride: "Spoofing", severity: "critical", title: "Federated Identity Hijack", description: "Compromised Entra ID tenant federates malicious users into GCP", impact: "Full GCP access via spoofed SAML assertions", mitigation: "Conditional access (MFA + device compliance), SAML assertion signing verification, Cloud Audit Logs monitoring", compliance: "SOC2 CC6.1, ISO 27001" },
-    { id: "t7", target: "conn_secret_manager", stride: "Information Disclosure", severity: "critical", title: "Secret Exfiltration", description: "Over-privileged service account reads secrets beyond its scope", impact: "Credential theft enabling lateral access across systems", mitigation: "Least-privilege IAM per-secret, CyberArk as sole writer, audit every access, VPC-SC perimeter", compliance: "SOC2 CC6.3, HIPAA" },
-    { id: "t8", target: "conn_vpc_sc", stride: "Tampering", severity: "high", title: "Service Perimeter Bypass", description: "Data exfiltrated via misconfigured ingress/egress rules or access levels", impact: "Sensitive data (PHI, PII) copied outside the perimeter", mitigation: "Dry-run validation before enforcement, regular perimeter audit, restrict egress to known projects only", compliance: "SOC2, HIPAA, PCI-DSS" },
-    { id: "t9", target: "conn_cyberark", stride: "Denial of Service", severity: "high", title: "Vault Sync Failure", description: "CyberArk Secrets Hub fails to sync credentials to Secret Manager", impact: "Pipeline failures across all sources using rotated credentials", mitigation: "Monitoring on sync job status, alerting on staleness > 1hr, fallback to previous secret version", compliance: "SOC2 CC7.2" },
+    { id: "t1", target: "src_salesforce", stride: "Spoofing", severity: "high", title: "OAuth Token Theft", description: "Stolen OAuth refresh tokens used to impersonate extraction service", impact: "Unauthorized CRM data extraction", mitigation: "Short-lived tokens, rotation, IP allowlisting, Secret Manager versioning", compliance: "SOC2 CC6.1" },
+    { id: "t2", target: "src_oracle", stride: "Information Disclosure", severity: "critical", title: "Database Credential Leakage", description: "JDBC credentials exposed in code, logs, or env vars", impact: "Direct access to production Oracle database", mitigation: "All credentials in Secret Manager (via CyberArk sync), audit logging", compliance: "SOC2 CC6.1, ISO 27001" },
+    { id: "t3", target: "src_kafka", stride: "Tampering", severity: "high", title: "Message Injection", description: "Malicious events injected into Kafka topic by compromised producer", impact: "Poisoned data in data lake, downstream corruption", mitigation: "mTLS for producers, Schema Registry enforcement, input validation", compliance: "SOC2 CC8.1" },
+    { id: "t4", target: "conn_vpn", stride: "Elevation of Privilege", severity: "high", title: "VPN Tunnel Compromise", description: "Compromised VPN endpoint grants network access to GCP VPC", impact: "Lateral movement from on-prem to cloud", mitigation: "VPC-SC, micro-segmentation, Zero Trust, BeyondCorp", compliance: "SOC2 CC6.6" },
+    { id: "t5", target: "conn_entra_id", stride: "Spoofing", severity: "critical", title: "Federated Identity Hijack", description: "Compromised Entra ID tenant federates malicious users into GCP", impact: "Full GCP access via spoofed SAML assertions", mitigation: "Conditional access (MFA + device), SAML signing verification, audit logs", compliance: "SOC2 CC6.1, ISO 27001" },
+    { id: "t6", target: "conn_secret_manager", stride: "Information Disclosure", severity: "critical", title: "Secret Exfiltration", description: "Over-privileged SA reads secrets beyond scope", impact: "Credential theft enabling lateral access", mitigation: "Least-privilege IAM per-secret, CyberArk sole writer, VPC-SC perimeter", compliance: "SOC2 CC6.3, HIPAA" },
   ],
 };
-
 // ═══ TEMPLATE 6: CUSTOMER DATA PLATFORM — GCP TECHNICAL BLUEPRINT ═══
 const CUSTOMER_DATA_PLATFORM: Diagram = {
   title: "Customer Data Platform",
