@@ -554,67 +554,205 @@ const BLUEPRINT: Diagram = {
 };
 // ═══ TEMPLATE 5: SOURCES LAYER (LAYER 1) — TECHNICAL BLUEPRINT ═══
 const SOURCES_LAYER: Diagram = {
-  title: "Layer 1: Sources — Technical Blueprint",
-  subtitle: "8 Source Categories · External systems feeding data into the GCP platform",
-  layout: "blueprint",
+  title: "Layer 1: Sources — GCP Technical Blueprint",
+  subtitle: "19 Approved Tools · 6 Categories · All external systems feeding data into the GCP platform",
 
   phases: [
-    { id: "sources", name: "Layer 1: Sources", nodeIds: ["src_rdb", "src_nosql", "src_saas", "src_files", "src_apis", "src_stream", "src_unstructured", "src_legacy"] },
+    { id: "saas", name: "SaaS / ERP", nodeIds: ["src_salesforce", "src_workday", "src_servicenow", "src_sap"] },
+    { id: "databases", name: "Databases", nodeIds: ["src_oracle", "src_sqlserver", "src_postgresql", "src_mongodb", "src_cloud_sql", "src_cloud_spanner"] },
+    { id: "streaming", name: "Event Streams", nodeIds: ["src_kafka", "src_confluent", "src_kinesis"] },
+    { id: "file", name: "File / Object", nodeIds: ["src_sftp", "src_s3"] },
+    { id: "api", name: "APIs", nodeIds: ["src_rest_api", "src_webhook"] },
+    { id: "legacy", name: "Legacy", nodeIds: ["src_onprem", "src_mainframe"] },
   ],
   opsGroup: { name: "Next Layer", nodeIds: ["boundary_conn"] },
 
   nodes: [
-    { id: "src_rdb", name: "Relational DB", icon: null, subtitle: "Oracle · PG · MySQL · SQL Server · Cloud SQL · Spanner", zone: "sources", x: 100, y: 200, details: {
-      notes: "On-prem and cloud-hosted RDBMS systems.\n\n• Batch Pull: JDBC extract → scheduled full/incremental loads\n• CDC: LogMiner (Oracle), CT (SQL Server), WAL (PostgreSQL)\n• Federated: BigQuery federated queries for Cloud SQL / Spanner",
-      encryption: "TLS in transit | TDE or CMEK at rest",
-      guardrails: "Service account per source, credentials in Secret Manager, VPN or Private IP for on-prem",
-      compliance: "SOC2, HIPAA (if PHI present)"
+    // ── SaaS / ERP (row 1) ──
+    { id: "src_salesforce", name: "Salesforce", icon: "salesforce", subtitle: "CRM · REST/Bulk API · CDC", zone: "sources", x: 100, y: 150, details: {
+      notes: "Cloud CRM platform exposing accounts, contacts, opportunities, cases, and custom objects via REST/Bulk APIs and Change Data Capture streams.\n\nUse when: CRM data (sales, support, customer 360) needs to land in the warehouse.",
+      encryption: "In transit: TLS 1.3 | At rest: Salesforce Shield AES-256 (if licensed) | Auth: OAuth 2.0",
+      monitoring: "API call count vs 100K/day limit, CDC event lag, Bulk API job status",
+      alerting: "API limit > 80% → Slack P2 | CDC lag > 30 min → PagerDuty P2",
+      cost: "API calls included in Salesforce license, CDC requires Platform Events allocation",
+      guardrails: "OAuth 2.0 tokens in Secret Manager, respect rate limits (100K/day), incremental sync via SystemModstamp",
+      compliance: "SOC2, GDPR (PII in CRM data)"
     }},
-    { id: "src_nosql", name: "NoSQL", icon: null, subtitle: "MongoDB · DynamoDB · Cassandra · Firestore", zone: "sources", x: 250, y: 200, details: {
-      notes: "Document, key-value, and wide-column stores.\n\n• CDC: MongoDB Change Streams, DynamoDB Streams\n• Bulk Export: mongodump → GCS, DynamoDB export to S3 then transfer\n• API Pull: REST/SDK-based extraction for smaller datasets",
-      encryption: "TLS in transit | Provider-managed encryption at rest",
-      guardrails: "Connection string + credentials in Secret Manager, VPN for self-hosted",
+    { id: "src_workday", name: "Workday", icon: "workday", subtitle: "HCM/Finance · SOAP/REST · RaaS", zone: "sources", x: 250, y: 150, details: {
+      notes: "Cloud HCM/Finance platform exposing employees, payroll, benefits, org structure, and financials via SOAP/REST APIs and RaaS reports.\n\nUse when: HR, payroll, or financial data needs to land in the warehouse.",
+      encryption: "In transit: TLS 1.2+ | At rest: AES-256 (Workday-managed) | Auth: WS-Security (SOAP), OAuth 2.0 (REST)",
+      monitoring: "RaaS report execution time, API response latency, data freshness",
+      alerting: "Extract failure → PagerDuty P2 | Data > 8hr stale → Slack P2",
+      cost: "API access included in Workday license tier",
+      guardrails: "OAuth 2.0 tokens in Secret Manager, concurrent request limits, ISU (Integration System User) with minimal scope",
+      compliance: "SOC2, GDPR, HIPAA (payroll/benefits data)"
+    }},
+    { id: "src_servicenow", name: "ServiceNow", icon: "servicenow", subtitle: "ITSM · Table API · Import Sets", zone: "sources", x: 400, y: 150, details: {
+      notes: "Cloud ITSM platform exposing incidents, changes, CMDB CIs, requests, and knowledge articles via REST Table API and Import Sets.\n\nUse when: IT operations data (incidents, CMDB, change history) needs to land in the warehouse.",
+      encryption: "In transit: TLS 1.2+ | At rest: AES-256 (ServiceNow-managed) | Auth: OAuth 2.0 or basic auth",
+      monitoring: "Table API pagination count, Import Set job status, record counts per sync",
+      alerting: "Sync failure → Slack P2 | CMDB drift detected → P3",
+      cost: "API included in ServiceNow license, governed by ACLs",
+      guardrails: "OAuth 2.0 in Secret Manager, sysparm_query filters for incremental pulls, ACL-scoped integration user",
       compliance: "SOC2"
     }},
-    { id: "src_saas", name: "SaaS / CRM", icon: null, subtitle: "Salesforce · Workday · ServiceNow · SAP", zone: "sources", x: 400, y: 200, details: {
-      notes: "Cloud SaaS platforms with API-based extraction.\n\n• API Pull: REST/SOAP with pagination, rate-limit handling\n• CDC: Salesforce CDC streams, SAP SLT replication\n• Managed: Fivetran, BigQuery DTS native SaaS connectors",
-      encryption: "TLS 1.2+ in transit | Vendor-managed AES-256 at rest",
-      guardrails: "OAuth 2.0 tokens in Secret Manager, respect vendor rate limits (e.g. Salesforce 100K/day)",
-      compliance: "SOC2, GDPR (PII in CRM/HR data)"
-    }},
-    { id: "src_files", name: "Files / SFTP", icon: null, subtitle: "CSV · Parquet · Excel · partner drops", zone: "sources", x: 550, y: 200, details: {
-      notes: "Batch file drops from partners, vendors, or internal systems.\n\n• SFTP Poll: Cloud Function polls on schedule → writes to GCS\n• Cross-Cloud: Storage Transfer Service (S3 → GCS native)\n• Event-Driven: GCS notification → triggers processing",
-      encryption: "SSH/SFTP encrypted channel | PGP for file-level encryption if required",
-      guardrails: "SSH key pairs in Secret Manager, schema check on landing, file integrity checksums",
-      compliance: "SOC2"
-    }},
-    { id: "src_apis", name: "APIs", icon: null, subtitle: "REST · GraphQL · webhooks", zone: "sources", x: 700, y: 200, details: {
-      notes: "External and internal HTTP endpoints.\n\n• Pull: Cloud Function/Run calls API on schedule → writes to GCS/BQ\n• Push: Webhook → Cloud Function HTTP trigger → Pub/Sub buffer\n• Managed: Fivetran custom connector, Apigee gateway",
-      encryption: "TLS 1.2+ in transit | HMAC signature verification for webhooks",
-      guardrails: "OAuth 2.0 or API keys in Secret Manager, retry with backoff, dead-letter queue for failed webhooks",
-      compliance: "SOC2"
-    }},
-    { id: "src_stream", name: "Event Streams", icon: null, subtitle: "Kafka · Confluent · Kinesis · IoT", zone: "sources", x: 850, y: 200, details: {
-      notes: "High-volume real-time event producers.\n\n• Subscribe: Pub/Sub ← Kafka Connect, or Dataflow KafkaIO consumer\n• Bridge: Kafka → Pub/Sub connector for cloud-native consumption\n• Cross-Cloud: Kinesis → Dataflow KinesisIO → GCS/BQ",
-      encryption: "TLS for inter-broker and client communication | SASL or mTLS authentication",
-      guardrails: "Partition-aware consumption, exactly-once semantics, backpressure handling",
-      compliance: "SOC2"
-    }},
-    { id: "src_unstructured", name: "Unstructured", icon: null, subtitle: "PDFs · images · audio · email", zone: "sources", x: 1000, y: 200, details: {
-      notes: "Content requiring OCR, NLP, or ML before structured use.\n\n• Land: Drop raw files into GCS landing zone\n• Process: Document AI (OCR) → extract text → structured JSON\n• Enrich: Vertex AI for NLP, classification, entity extraction",
-      encryption: "TLS in transit | CMEK on GCS landing bucket",
-      guardrails: "Async pipeline: land → Pub/Sub notification → processing, service account with Storage Object Creator",
-      compliance: "SOC2, HIPAA (if scanned medical docs)"
-    }},
-    { id: "src_legacy", name: "Legacy", icon: null, subtitle: "z/OS · DB2 · VSAM · MQ · COBOL", zone: "sources", x: 1150, y: 200, details: {
-      notes: "Mainframes and AS/400 systems with limited APIs.\n\n• File Extract: COBOL batch job → flat file → SFTP/GCS → BQ load\n• Connector: Mainframe Connector for Google Cloud (Precisely)\n• MQ Bridge: MQ → Pub/Sub bridge for message-based integration",
-      encryption: "z/OS dataset encryption (DFSMS) | TLS for network | SNA encryption for legacy protocols",
-      guardrails: "Dedicated Interconnect, mainframe credentials in CyberArk → Secret Manager, EBCDIC → UTF-8 conversion",
-      compliance: "SOC2, PCI-DSS (if financial mainframe)"
+    { id: "src_sap", name: "SAP", icon: "sap", subtitle: "ERP · OData/BAPI/IDoc/SLT", zone: "sources", x: 550, y: 150, details: {
+      notes: "ERP system exposing finance, supply chain, procurement, and HR data via OData APIs, BAPIs, IDocs, or SLT replication.\n\nUse when: ERP transactional data (GL, AP, AR, inventory) needs to land in the warehouse.",
+      encryption: "In transit: TLS 1.2+, SNC for RFC connections | At rest: SAP HANA data volume encryption (AES-256) | Auth: OAuth 2.0, X.509, or SAML",
+      monitoring: "SLT replication lag, OData batch job duration, IDoc queue depth",
+      alerting: "SLT lag > 15 min → PagerDuty P1 | OData timeout → Slack P2",
+      cost: "BigQuery Connector for SAP licensed separately, SLT requires SAP DMIS add-on",
+      guardrails: "Dedicated RFC user with minimal authorizations, SLT table filtering, delta-only replication",
+      compliance: "SOC2, SOX (financial data)"
     }},
 
-    // ── CONNECTIVITY BOUNDARY (next layer hint) ──
-    { id: "boundary_conn", name: "🔒 Layer 2: Connectivity", icon: null, subtitle: "VPN · Auth · Secrets · Firewall · mTLS · Rate Limiting", zone: "connectivity", x: 600, y: 400, details: {
+    // ── Databases (row 2) ──
+    { id: "src_oracle", name: "Oracle", icon: "oracle", subtitle: "RDBMS · LogMiner CDC · JDBC", zone: "sources", x: 100, y: 300, details: {
+      notes: "Enterprise RDBMS running on-prem or OCI, exposing tables via JDBC, LogMiner-based CDC, or Oracle GoldenGate.\n\nUse when: Oracle transactional data needs CDC replication or bulk extraction to GCP.",
+      encryption: "In transit: Native Network Encryption or TLS | At rest: TDE (AES-256) | Auth: JDBC wallet credentials, Kerberos, or LDAP",
+      monitoring: "LogMiner lag, archive log generation rate, JDBC connection pool utilization",
+      alerting: "CDC lag > 10 min → PagerDuty P1 | Archive log space < 20% → P1",
+      cost: "Oracle licensing (CPU-based), GoldenGate licensed separately",
+      guardrails: "Dedicated extraction user with SELECT + LOGMINING grants only, VPN/Interconnect required, supplemental logging enabled",
+      compliance: "SOC2, HIPAA, PCI-DSS"
+    }},
+    { id: "src_sqlserver", name: "SQL Server", icon: "sqlserver", subtitle: "RDBMS · CT/CDC · Always On", zone: "sources", x: 250, y: 300, details: {
+      notes: "Microsoft RDBMS running on-prem, Azure, or VMs, exposing tables via JDBC/ODBC, Change Tracking (CT), CDC, or Always On replicas.\n\nUse when: SQL Server data needs CDC replication or bulk extraction to GCP.",
+      encryption: "In transit: TLS 1.2+ | At rest: TDE (AES-256), Always Encrypted for column-level | Auth: Windows Auth, SQL Auth, Azure AD",
+      monitoring: "CT version cleanup lag, CDC capture job latency, AG replica sync status",
+      alerting: "CDC capture job stopped → PagerDuty P1 | CT retention exceeded → P2",
+      cost: "SQL Server licensing (per-core), Azure SQL per-DTU or vCore pricing",
+      guardrails: "Read from AG secondary replica to avoid prod impact, CT/CDC enabled per table, dedicated login with db_datareader + CT permissions",
+      compliance: "SOC2, HIPAA"
+    }},
+    { id: "src_postgresql", name: "PostgreSQL", icon: "postgresql", subtitle: "RDBMS · WAL · Logical Replication", zone: "sources", x: 400, y: 300, details: {
+      notes: "Open-source RDBMS running on-prem, VMs, or managed services, exposing tables via JDBC and logical replication slots.\n\nUse when: PostgreSQL data needs CDC or bulk extraction to GCP.",
+      encryption: "In transit: SSL/TLS | At rest: pgcrypto or filesystem-level; managed services use provider encryption | Auth: SCRAM-SHA-256, LDAP, or cert-based",
+      monitoring: "Replication slot lag (bytes), WAL file count, logical decoding throughput",
+      alerting: "Replication slot lag > 1GB → PagerDuty P1 (risk of WAL bloat) | Connection refused → P1",
+      cost: "Open source (free), Cloud SQL for PostgreSQL ~$0.017/hr (db-f1-micro)",
+      guardrails: "wal_level=logical, dedicated replication user, monitor replication slot to prevent WAL disk bloat",
+      compliance: "SOC2"
+    }},
+    { id: "src_mongodb", name: "MongoDB", icon: "mongodb", subtitle: "NoSQL · Change Streams · mongodump", zone: "sources", x: 550, y: 300, details: {
+      notes: "Document database exposing collections via Change Streams for CDC or mongodump/mongoexport for bulk extraction.\n\nUse when: NoSQL document data needs to land in the warehouse.",
+      encryption: "In transit: TLS | At rest: WiredTiger AES-256; Atlas supports AWS KMS / GCP KMS | Auth: SCRAM-SHA-256, X.509, LDAP",
+      monitoring: "Change Stream resume token lag, oplog window size, cursor idle time",
+      alerting: "Oplog window < 2hr → PagerDuty P1 | Change Stream cursor lost → P1",
+      cost: "Atlas: from $0.08/hr (M10). Self-managed: free Community edition",
+      guardrails: "Replica set required for Change Streams, resume token persisted to GCS for crash recovery, read from secondary preferred",
+      compliance: "SOC2"
+    }},
+    { id: "src_cloud_sql", name: "Cloud SQL", icon: "cloud_sql", subtitle: "Managed MySQL/PG/SS · HA · PITR", zone: "sources", x: 700, y: 300, details: {
+      notes: "Managed MySQL, PostgreSQL, or SQL Server on GCP with automated backups, patching, and HA.\n\nUse when: GCP-native relational data (app backends) needs to land in the warehouse.",
+      encryption: "In transit: TLS 1.2+ (enforced) | At rest: CMEK via Cloud KMS (AES-256) | Auth: IAM database authentication, Cloud SQL Auth Proxy",
+      monitoring: "CPU/memory utilization, replication lag, connection count, storage auto-resize events",
+      alerting: "HA failover triggered → PagerDuty P1 | CPU > 90% sustained → P2 | Storage > 90% → P1",
+      cost: "~$0.017/hr (db-f1-micro) to ~$6.60/hr (db-highmem-64). HA doubles cost.",
+      guardrails: "Private IP only (no public), IAM-based auth via Auth Proxy, automated backups with PITR, cross-region read replicas for DR",
+      compliance: "SOC2, HIPAA, PCI-DSS"
+    }},
+    { id: "src_cloud_spanner", name: "Cloud Spanner", icon: "cloud_spanner", subtitle: "Global DB · 99.999% SLA · Zero RPO", zone: "sources", x: 850, y: 300, details: {
+      notes: "Globally distributed, strongly consistent relational DB with 99.999% SLA for multi-region configurations.\n\nUse when: Globally distributed transactional data needs to land in the warehouse.",
+      encryption: "In transit: TLS (Google-managed) | At rest: Google default AES-256 or CMEK via Cloud KMS | Auth: IAM + fine-grained access control (row/column)",
+      monitoring: "Node CPU utilization (target < 65%), request latency P99, storage utilization",
+      alerting: "CPU > 65% → auto-scale or P2 | Latency P99 > 100ms → P2",
+      cost: "$0.90/node-hour (regional), $2.70/node-hour (multi-region). Storage: $0.30/GB/mo",
+      guardrails: "Multi-region for 99.999% SLA (Enterprise Plus required), BigQuery federated queries for extraction, Dataflow SpannerIO for bulk reads",
+      compliance: "SOC2, HIPAA, PCI-DSS, FedRAMP"
+    }},
+
+    // ── Event Streams (row 3, left) ──
+    { id: "src_kafka", name: "Apache Kafka", icon: "kafka", subtitle: "Self-Managed · Pub-Sub · MirrorMaker", zone: "sources", x: 100, y: 450, details: {
+      notes: "Distributed event streaming platform for high-throughput, low-latency publish-subscribe messaging and event sourcing.\n\nUse when: Real-time event streams need to be ingested into GCP (clickstream, IoT, transactions).",
+      encryption: "In transit: TLS for inter-broker and client | At rest: depends on underlying storage | Auth: SASL/PLAIN, SASL/SCRAM, mTLS, OAUTHBEARER",
+      monitoring: "Consumer group lag, broker under-replicated partitions, request latency, ISR shrink events",
+      alerting: "Consumer lag > 100K messages → PagerDuty P1 | Under-replicated partitions → P1",
+      cost: "Self-managed: infrastructure cost. Typical 3-broker cluster ~$500-2000/mo on GCE",
+      guardrails: "acks=all for durability, min.insync.replicas=2, MirrorMaker 2 for cross-DC replication, mTLS for producer auth",
+      compliance: "SOC2"
+    }},
+    { id: "src_confluent", name: "Confluent Cloud", icon: "confluent", subtitle: "Managed Kafka · Schema Registry · ksqlDB", zone: "sources", x: 250, y: 450, details: {
+      notes: "Managed Kafka service with Schema Registry, ksqlDB, connectors, and multi-cloud support.\n\nUse when: Managed Kafka streams need ingestion into GCP without self-managing brokers.",
+      encryption: "In transit: TLS 1.2+ | At rest: AES-256 (Confluent-managed) | Auth: RBAC + ACLs, API keys, or OAuth",
+      monitoring: "Cluster throughput (MB/s), consumer lag, Schema Registry compatibility checks",
+      alerting: "Consumer lag > threshold → PagerDuty P1 | Schema compatibility failure → Slack P2",
+      cost: "Basic: $0.04/GB ingress. Standard: $0.11/GB. Dedicated: from $3.33/hr",
+      guardrails: "Cluster Linking for cross-region DR, Schema Registry enforced (BACKWARD compatibility), RBAC per topic",
+      compliance: "SOC2, HIPAA, PCI-DSS, ISO 27001"
+    }},
+    { id: "src_kinesis", name: "AWS Kinesis", icon: "aws_kinesis", subtitle: "Cross-Cloud · Data Streams · Firehose", zone: "sources", x: 400, y: 450, details: {
+      notes: "AWS managed streaming service for real-time data ingestion at scale (Data Streams + Firehose).\n\nUse when: Cross-cloud streaming data from AWS needs to land in GCP.",
+      encryption: "In transit: TLS | At rest: AWS KMS SSE (AES-256) | Auth: AWS IAM policies, KMS key policies",
+      monitoring: "GetRecords latency, iterator age, shard count, Firehose delivery lag",
+      alerting: "Iterator age > 5 min → PagerDuty P1 | Firehose delivery failure → P1",
+      cost: "$0.015/shard-hour + $0.014/million PUT payload units + AWS egress",
+      guardrails: "Dataflow KinesisIO consumer with checkpointing, Workload Identity Federation for cross-cloud auth (no static AWS keys)",
+      compliance: "SOC2"
+    }},
+
+    // ── File / Object (row 3, middle) ──
+    { id: "src_sftp", name: "SFTP Server", icon: "sftp_server", subtitle: "Partner File Drops · Batch", zone: "sources", x: 600, y: 450, details: {
+      notes: "Secure file transfer endpoint for batch file drops (CSV, JSON, XML, flat files) from partners or legacy systems.\n\nUse when: Partners or legacy systems push files on a schedule for batch ingestion.",
+      encryption: "In transit: SSH/SFTP (encrypted channel) | At rest: PGP/GPG for file-level encryption if required | Auth: SSH key pairs, password, or certificate",
+      monitoring: "File arrival time vs SLA, file size anomalies, transfer success/failure count",
+      alerting: "Expected file missing > 1hr past SLA → PagerDuty P2 | File size 0 bytes → P2",
+      cost: "SFTP server hosting, or managed SFTP (AWS Transfer Family ~$0.30/hr + $0.04/GB)",
+      guardrails: "SSH keys in Secret Manager, file checksum validation on arrival, landing zone with schema-on-read validation",
+      compliance: "SOC2"
+    }},
+    { id: "src_s3", name: "AWS S3", icon: "aws_s3", subtitle: "Cross-Cloud Objects · CRR · STS", zone: "sources", x: 750, y: 450, details: {
+      notes: "AWS object storage service. Cross-cloud source for files, data lake exports, or partner data drops.\n\nUse when: Files or data lake objects in AWS S3 need to transfer to GCS/BQ.",
+      encryption: "In transit: TLS | At rest: SSE-S3 (AES-256), SSE-KMS, or SSE-C | Auth: AWS IAM + bucket policies, STS temporary credentials",
+      monitoring: "Storage Transfer Service job success/failure, bytes transferred, transfer duration",
+      alerting: "Transfer job failed → PagerDuty P2 | Transfer duration > 2x baseline → Slack P2",
+      cost: "AWS S3 storage + egress ($0.09/GB). Storage Transfer Service: free (pay GCS + egress only)",
+      guardrails: "Workload Identity Federation for cross-cloud auth (no static AWS keys), Storage Transfer Service for native S3→GCS",
+      compliance: "SOC2"
+    }},
+
+    // ── APIs (row 3, right) ──
+    { id: "src_rest_api", name: "REST API", icon: "rest_api", subtitle: "Generic HTTP/JSON · Scheduled Pull", zone: "sources", x: 900, y: 450, details: {
+      notes: "Any HTTP/REST endpoint exposing data via JSON/XML payloads. Covers custom APIs, SaaS APIs not listed elsewhere.\n\nUse when: A custom or niche SaaS API needs to be pulled into GCP on a schedule.",
+      encryption: "In transit: TLS 1.2+ | Auth: varies — OAuth 2.0, API key, bearer token, mTLS",
+      monitoring: "API response codes, response time, records per pull, rate limit remaining",
+      alerting: "HTTP 4xx/5xx > 5% → Slack P2 | Rate limit hit → P2",
+      cost: "Depends on API provider pricing. Cloud Function invocation: ~$0.40/million",
+      guardrails: "All credentials in Secret Manager, exponential backoff on retry, pagination handling, idempotent writes",
+      compliance: "SOC2"
+    }},
+    { id: "src_webhook", name: "Webhook", icon: "webhook", subtitle: "Push-Based Events · HMAC · Real-Time", zone: "sources", x: 1050, y: 450, details: {
+      notes: "Push-based HTTP callback that sends event payloads when something happens in the source system.\n\nUse when: Real-time event notifications (payment completed, ticket created) need immediate ingestion.",
+      encryption: "In transit: TLS | Auth: HMAC signature verification for payload integrity, source-specific auth",
+      monitoring: "Webhook delivery rate, signature validation failures, Pub/Sub backlog depth",
+      alerting: "Signature validation failure spike → Security P1 | Delivery gap > 15 min → PagerDuty P2",
+      cost: "Cloud Function/Run: ~$0.40/million invocations. Pub/Sub: $40/TB",
+      guardrails: "HMAC signature verification mandatory, Pub/Sub buffer for durability (31-day retention), dead-letter topic for failures",
+      compliance: "SOC2"
+    }},
+
+    // ── Legacy (row 4) ──
+    { id: "src_onprem", name: "On-Prem Server", icon: "onprem_server", subtitle: "Hybrid Connectivity · VPN · Interconnect", zone: "sources", x: 100, y: 600, details: {
+      notes: "On-premises application or database server requiring hybrid connectivity to GCP for data extraction.\n\nUse when: Legacy on-prem systems need connectivity to GCP via VPN or Interconnect.",
+      encryption: "In transit: IPsec (VPN) or MACsec (Interconnect) | At rest: varies by on-prem system | Auth: on-prem credentials in CyberArk → Secret Manager",
+      monitoring: "VPN tunnel status, Interconnect link utilization, extraction job success",
+      alerting: "VPN tunnel down → PagerDuty P1 | Interconnect utilization > 80% → P2",
+      cost: "Cloud VPN: ~$0.075/hr per tunnel. Interconnect: $0.05-0.08/hr (VLAN attachment)",
+      guardrails: "Redundant VPN tunnels or Interconnect attachments, VPC Service Controls, no direct public IP exposure",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "src_mainframe", name: "Mainframe", icon: "mainframe", subtitle: "z/OS · DB2 · VSAM · COBOL · EBCDIC", zone: "sources", x: 250, y: 600, details: {
+      notes: "Legacy IBM z/OS or AS/400 systems exposing data via VSAM, DB2, IMS, or batch file extracts (EBCDIC).\n\nUse when: Mainframe data (COBOL copybooks, DB2 tables, VSAM files) needs to land in GCP.",
+      encryption: "In transit: z/OS dataset encryption (DFSMS), TLS for network, SNA encryption for legacy protocols | Auth: RACF/ACF2 credentials in CyberArk → Secret Manager",
+      monitoring: "Batch job completion (JES2), MIPS consumption during extraction, file transfer byte counts",
+      alerting: "Batch job ABEND → PagerDuty P1 | MIPS budget exceeded → P1",
+      cost: "MIPS-based mainframe cost (most expensive source). Interconnect: ~$0.05-0.08/hr",
+      guardrails: "Extract during batch windows only, MIPS budgeting with mainframe team, EBCDIC→UTF-8 conversion, COBOL copybook parser",
+      compliance: "SOC2, PCI-DSS (financial mainframe)"
+    }},
+
+    // ── CONNECTIVITY BOUNDARY (next layer) ──
+    { id: "boundary_conn", name: "🔒 Layer 2: Connectivity", icon: null, subtitle: "VPN · Auth · Secrets · Firewall · mTLS · Rate Limiting", zone: "connectivity", x: 600, y: 750, details: {
       notes: "★ TRUST BOUNDARY\n\nAll sources must pass through connectivity controls before entering the platform.\n\n• VPN / Interconnect (on-prem, cross-cloud)\n• Authentication (OAuth, SAML, API keys)\n• Secrets Manager (CyberArk → Secret Manager chain)\n• Firewall Rules (IP allowlist, port control)\n• mTLS (certificate-based mutual auth)\n• Rate Limiting (throttle, backoff, quotas)",
       encryption: "IPsec (VPN) | TLS 1.3 | mTLS for high-security",
       compliance: "SOC2, ISO 27001"
@@ -622,22 +760,40 @@ const SOURCES_LAYER: Diagram = {
   ],
 
   edges: [
-    { id: "s1", from: "src_rdb", to: "boundary_conn", label: "JDBC / CDC", step: 1, security: { transport: "TLS 1.2+", auth: "Service Account", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
-    { id: "s2", from: "src_nosql", to: "boundary_conn", label: "Change Streams", step: 1, security: { transport: "TLS", auth: "Connection String", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
-    { id: "s3", from: "src_saas", to: "boundary_conn", label: "OAuth API", step: 1, security: { transport: "TLS 1.3", auth: "OAuth 2.0", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
-    { id: "s4", from: "src_files", to: "boundary_conn", label: "SFTP / S3", step: 1, security: { transport: "SSH / TLS", auth: "SSH Keys", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
-    { id: "s5", from: "src_apis", to: "boundary_conn", label: "HTTPS", step: 1, security: { transport: "TLS 1.2+", auth: "API Key / OAuth", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
-    { id: "s6", from: "src_stream", to: "boundary_conn", label: "SASL / mTLS", step: 1, security: { transport: "TLS", auth: "SASL / mTLS", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
-    { id: "s7", from: "src_unstructured", to: "boundary_conn", label: "Upload / SFTP", step: 1, security: { transport: "TLS / SSH", auth: "Service Account", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
-    { id: "s8", from: "src_legacy", to: "boundary_conn", label: "Interconnect", step: 1, security: { transport: "IPsec / MACsec", auth: "Mainframe Creds", classification: "restricted", private: true }, crossesBoundary: true, edgeType: "data" },
+    // SaaS → Connectivity
+    { id: "s1", from: "src_salesforce", to: "boundary_conn", label: "OAuth REST", step: 1, security: { transport: "TLS 1.3", auth: "OAuth 2.0", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "s2", from: "src_workday", to: "boundary_conn", label: "OAuth/SOAP", step: 1, security: { transport: "TLS 1.2+", auth: "OAuth 2.0 / WS-Security", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "s3", from: "src_servicenow", to: "boundary_conn", label: "OAuth REST", step: 1, security: { transport: "TLS 1.2+", auth: "OAuth 2.0", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "s4", from: "src_sap", to: "boundary_conn", label: "OData / SLT", step: 1, security: { transport: "TLS 1.2+", auth: "X.509 / OAuth", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    // Databases → Connectivity
+    { id: "s5", from: "src_oracle", to: "boundary_conn", label: "LogMiner CDC", step: 1, security: { transport: "TLS / NNE", auth: "JDBC Wallet", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    { id: "s6", from: "src_sqlserver", to: "boundary_conn", label: "CT CDC", step: 1, security: { transport: "TLS 1.2+", auth: "SQL / Windows Auth", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    { id: "s7", from: "src_postgresql", to: "boundary_conn", label: "WAL CDC", step: 1, security: { transport: "SSL/TLS", auth: "SCRAM-SHA-256", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    { id: "s8", from: "src_mongodb", to: "boundary_conn", label: "Change Streams", step: 1, security: { transport: "TLS", auth: "SCRAM-SHA-256", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    { id: "s9", from: "src_cloud_sql", to: "boundary_conn", label: "Auth Proxy", step: 1, security: { transport: "TLS 1.2+", auth: "IAM DB Auth", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    { id: "s10", from: "src_cloud_spanner", to: "boundary_conn", label: "IAM gRPC", step: 1, security: { transport: "TLS", auth: "IAM", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    // Streams → Connectivity
+    { id: "s11", from: "src_kafka", to: "boundary_conn", label: "SASL / mTLS", step: 1, security: { transport: "TLS", auth: "SASL / mTLS", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    { id: "s12", from: "src_confluent", to: "boundary_conn", label: "API Key / RBAC", step: 1, security: { transport: "TLS 1.2+", auth: "API Keys", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "s13", from: "src_kinesis", to: "boundary_conn", label: "STS Cross-Cloud", step: 1, security: { transport: "TLS", auth: "AWS IAM STS", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    // File → Connectivity
+    { id: "s14", from: "src_sftp", to: "boundary_conn", label: "SSH/SFTP", step: 1, security: { transport: "SSH", auth: "SSH Key Pair", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "s15", from: "src_s3", to: "boundary_conn", label: "STS Transfer", step: 1, security: { transport: "TLS", auth: "STS Temp Creds", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
+    // APIs → Connectivity
+    { id: "s16", from: "src_rest_api", to: "boundary_conn", label: "HTTPS", step: 1, security: { transport: "TLS 1.2+", auth: "API Key / OAuth", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "s17", from: "src_webhook", to: "boundary_conn", label: "HMAC Push", step: 1, security: { transport: "TLS", auth: "HMAC Signature", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    // Legacy → Connectivity
+    { id: "s18", from: "src_onprem", to: "boundary_conn", label: "VPN/Interconnect", step: 1, security: { transport: "IPsec", auth: "On-Prem Creds", classification: "restricted", private: true }, crossesBoundary: true, edgeType: "data" },
+    { id: "s19", from: "src_mainframe", to: "boundary_conn", label: "Interconnect", step: 1, security: { transport: "IPsec / MACsec", auth: "RACF via CyberArk", classification: "restricted", private: true }, crossesBoundary: true, edgeType: "data" },
   ],
 
   threats: [
-    { id: "t1", target: "src_saas", stride: "Spoofing", severity: "high", title: "OAuth Token Theft", description: "Stolen OAuth refresh tokens used to impersonate extraction service", impact: "Unauthorized data extraction from SaaS source", mitigation: "Short-lived tokens, token rotation, IP allowlisting at SaaS provider, Secret Manager versioning", compliance: "SOC2 CC6.1" },
-    { id: "t2", target: "src_rdb", stride: "Information Disclosure", severity: "critical", title: "Credential Leakage", description: "Database credentials exposed in code, logs, or environment variables", impact: "Direct access to source database, data exfiltration", mitigation: "All credentials in Secret Manager, no plaintext in code or CI/CD, audit logging on secret access", compliance: "SOC2 CC6.1, ISO 27001" },
-    { id: "t3", target: "src_stream", stride: "Tampering", severity: "high", title: "Message Injection", description: "Malicious events injected into Kafka/streaming source", impact: "Poisoned data flowing into data lake", mitigation: "mTLS for producer auth, schema validation via Schema Registry, input validation at ingestion", compliance: "SOC2 CC8.1" },
-    { id: "t4", target: "src_legacy", stride: "Denial of Service", severity: "medium", title: "Mainframe Overload", description: "Extraction jobs overwhelm mainframe MIPS capacity", impact: "Production mainframe degradation affecting business operations", mitigation: "Scheduled extraction during batch windows, rate limiting, MIPS budgeting with mainframe team", compliance: null },
-    { id: "t5", target: "boundary_conn", stride: "Elevation of Privilege", severity: "high", title: "VPN Tunnel Compromise", description: "Compromised VPN endpoint grants network access to GCP", impact: "Lateral movement from on-prem to cloud resources", mitigation: "VPC Service Controls, micro-segmentation, Zero Trust (BeyondCorp), no broad network trust", compliance: "SOC2 CC6.6" },
+    { id: "t1", target: "src_salesforce", stride: "Spoofing", severity: "high", title: "OAuth Token Theft", description: "Stolen OAuth refresh tokens used to impersonate extraction service", impact: "Unauthorized CRM data extraction, customer data exfiltration", mitigation: "Short-lived tokens, token rotation, IP allowlisting at Salesforce, Secret Manager versioning", compliance: "SOC2 CC6.1" },
+    { id: "t2", target: "src_oracle", stride: "Information Disclosure", severity: "critical", title: "Database Credential Leakage", description: "JDBC credentials exposed in code, logs, or environment variables", impact: "Direct access to production Oracle database, data exfiltration", mitigation: "All credentials in Secret Manager (via CyberArk sync), no plaintext in code/CI, audit logging on secret access", compliance: "SOC2 CC6.1, ISO 27001" },
+    { id: "t3", target: "src_kafka", stride: "Tampering", severity: "high", title: "Message Injection", description: "Malicious events injected into Kafka topic by compromised producer", impact: "Poisoned data flowing into data lake, downstream corruption", mitigation: "mTLS for all producers, Schema Registry enforcement, input validation at ingestion layer", compliance: "SOC2 CC8.1" },
+    { id: "t4", target: "src_mainframe", stride: "Denial of Service", severity: "medium", title: "Mainframe MIPS Overload", description: "Extraction jobs consume excessive MIPS during peak hours", impact: "Production mainframe degradation affecting core business transactions", mitigation: "Scheduled extraction during batch windows only, MIPS budgeting with mainframe team, rate limiting", compliance: null },
+    { id: "t5", target: "boundary_conn", stride: "Elevation of Privilege", severity: "high", title: "VPN Tunnel Compromise", description: "Compromised VPN endpoint grants network-level access to GCP VPC", impact: "Lateral movement from on-prem to cloud resources", mitigation: "VPC Service Controls, micro-segmentation, Zero Trust (BeyondCorp), no broad network trust", compliance: "SOC2 CC6.6" },
+    { id: "t6", target: "src_cloud_spanner", stride: "Information Disclosure", severity: "high", title: "Over-Privileged Federated Query", description: "BigQuery federated query exposes Spanner data beyond intended scope", impact: "Sensitive transactional data accessible to unauthorized analysts", mitigation: "Fine-grained IAM on Spanner, authorized views in BigQuery, column-level security, audit logs", compliance: "SOC2, HIPAA" },
   ],
 };
 
