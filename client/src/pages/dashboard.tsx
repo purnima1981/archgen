@@ -377,48 +377,88 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-        {/* ═══ UPPER: Platform + Connectors + Pillars ═══ */}
-        <div style={{ display: "flex", gap: 0, alignItems: "stretch" }}>
+        {/* ═══ MAIN ROW: Sources | Connectivity → Platform + Pillars ═══ */}
+        <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
 
-          {/* Platform Group Box */}
-          <div style={{ flex: 1, border: "2px solid #94a3b8", borderRadius: 14, padding: 14, background: "#f8fafc", position: "relative" }}>
-            <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#64748b", letterSpacing: 1.5, textTransform: "uppercase" as const }}>YOUR DATA PLATFORM</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {BP_LAYERS.map((layer, li) => {
-                const isLast = li === BP_LAYERS.length - 1;
-                const isMedallion = layer.prefix === "medal_";
-                return (
-                  <div key={layer.prefix}>
-                    <div style={{ borderRadius: 10, padding: "10px 14px", border: `1.5px solid ${layer.border}`, background: layer.bg }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
-                        <div style={{ width: 18, height: 18, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", background: layer.numBg, flexShrink: 0 }}>{layer.num}</div>
-                        <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: layer.nameC }}>{layer.name}</div>
-                        <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, letterSpacing: 0.4, textTransform: "uppercase" as const, background: layer.tagBg, color: layer.tagC }}>{layer.tag}</div>
-                      </div>
-                      {isMedallion ? (
-                        <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-                          {MEDAL_ZONES.map((mz, mi) => (
-                            <div key={mz.id} style={{ display: "flex", alignItems: "center", gap: 5, flex: 1 }}>
-                              <div onClick={() => capClick(mz.id)} style={{ flex: 1, padding: "12px 10px", borderRadius: 8, textAlign: "center", border: `2px solid ${mz.bd}`, background: mz.bg, cursor: "pointer", outline: selectedCap === mz.id ? "2px solid #1a73e8" : "none", outlineOffset: 1 }}>
-                                <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: mz.lblC }}>{mz.id.toUpperCase()}</div>
-                                <div style={{ fontSize: 8, opacity: 0.45, marginTop: 2 }}>{getNode(mz.id)?.subtitle || mz.desc}</div>
+          {/* === LEFT: Sources (vertical box, 2 cols) === */}
+          <div style={{ width: 200, minWidth: 200, flexShrink: 0, border: "2px dashed #d1d5db", borderRadius: 12, padding: "10px 12px", background: "#f9fafb", position: "relative" }}>
+            <div style={{ position: "absolute", top: -9, left: 14, background: "#fff", padding: "0 8px", fontSize: 8, fontWeight: 800, color: "#6b7280", letterSpacing: 1, textTransform: "uppercase" as const }}>EXTERNAL SOURCES</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 8, paddingTop: 4 }}>
+              <div style={{ width: 16, height: 16, borderRadius: 4, background: "#4b5563", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 900, color: "#fff", flexShrink: 0 }}>①</div>
+              <div style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase" as const, color: "#4b5563" }}>Source Systems</div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+              {srcNodes.map(n => (
+                <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #e5e7eb", color: "#374151", minWidth: 0 }} />
+              ))}
+            </div>
+          </div>
+
+          {/* === MIDDLE: Connectivity + Platform === */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 0 }}>
+
+            {/* Platform Group Box (Layers 3-8) */}
+            <div style={{ flex: 1, border: "2px solid #94a3b8", borderRadius: 14, padding: 14, background: "#f8fafc", position: "relative" }}>
+              <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#64748b", letterSpacing: 1.5, textTransform: "uppercase" as const }}>YOUR DATA PLATFORM</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {BP_LAYERS.map((layer, li) => {
+                  const isLast = li === BP_LAYERS.length - 1;
+                  const isMedallion = layer.prefix === "medal_";
+                  return (
+                    <div key={layer.prefix}>
+                      <div style={{ borderRadius: 10, padding: "10px 14px", border: `1.5px solid ${layer.border}`, background: layer.bg }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
+                          <div style={{ width: 18, height: 18, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", background: layer.numBg, flexShrink: 0 }}>{layer.num}</div>
+                          <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: layer.nameC }}>{layer.name}</div>
+                          <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, letterSpacing: 0.4, textTransform: "uppercase" as const, background: layer.tagBg, color: layer.tagC }}>{layer.tag}</div>
+                        </div>
+                        {isMedallion ? (
+                          <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+                            {MEDAL_ZONES.map((mz, mi) => (
+                              <div key={mz.id} style={{ display: "flex", alignItems: "center", gap: 5, flex: 1 }}>
+                                <div onClick={() => capClick(mz.id)} style={{ flex: 1, padding: "12px 10px", borderRadius: 8, textAlign: "center", border: `2px solid ${mz.bd}`, background: mz.bg, cursor: "pointer", outline: selectedCap === mz.id ? "2px solid #1a73e8" : "none", outlineOffset: 1 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 1, color: mz.lblC }}>{mz.id.toUpperCase()}</div>
+                                  <div style={{ fontSize: 8, opacity: 0.45, marginTop: 2 }}>{getNode(mz.id)?.subtitle || mz.desc}</div>
+                                </div>
+                                {mi < MEDAL_ZONES.length - 1 && <div style={{ fontSize: 16, color: "#d0d0d0", flexShrink: 0 }}>→</div>}
                               </div>
-                              {mi < MEDAL_ZONES.length - 1 && <div style={{ fontSize: 16, color: "#d0d0d0", flexShrink: 0 }}>→</div>}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                          {nodesByPrefix(layer.prefix).map(n => (
-                            <CapBox key={n.id} nodeId={n.id} style={{ background: layer.capBg, border: `1px solid ${layer.capBd}`, color: layer.capC, ...(layer.prefix === "lake_" ? { flex: 2 } : {}) }} />
-                          ))}
-                        </div>
-                      )}
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                            {nodesByPrefix(layer.prefix).map(n => (
+                              <CapBox key={n.id} nodeId={n.id} style={{ background: layer.capBg, border: `1px solid ${layer.capBd}`, color: layer.capC, ...(layer.prefix === "lake_" ? { flex: 2 } : {}) }} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {!isLast && <FlowArrow />}
                     </div>
-                    {!isLast && <FlowArrow />}
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Trust Boundary */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "4px 0" }}>
+              <div style={{ flex: 1, borderTop: "2px dashed #e11d48", opacity: 0.3 }} />
+              <div style={{ padding: "2px 14px", fontSize: 7.5, fontWeight: 800, color: "#e11d48", letterSpacing: 1.5, textTransform: "uppercase" as const, whiteSpace: "nowrap" }}>▲ Trust Boundary ▲</div>
+              <div style={{ flex: 1, borderTop: "2px dashed #e11d48", opacity: 0.3 }} />
+            </div>
+
+            {/* Connectivity Layer */}
+            <div style={{ border: "2px solid #f472b6", borderRadius: 12, padding: "10px 14px", background: "#fdf2f8", position: "relative" }}>
+              <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#be185d", letterSpacing: 1.2, textTransform: "uppercase" as const }}>CONNECTIVITY & ACCESS — HANDSHAKE LAYER</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
+                <div style={{ width: 18, height: 18, borderRadius: 5, background: "#be185d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", flexShrink: 0 }}>②</div>
+                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: "#be185d" }}>Connectivity & Access</div>
+                <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#fce7f3", color: "#9d174d", letterSpacing: 0.4, textTransform: "uppercase" as const }}>Trust Boundary</div>
+              </div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                {connNodes.map(n => (
+                  <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #f9a8d4", color: "#831843" }} />
+                ))}
+              </div>
             </div>
           </div>
 
@@ -453,82 +493,6 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
               );
             })}
           </div>
-        </div>
-
-        {/* ═══ LOWER: Aligned to platform width only ═══ */}
-        <div style={{ display: "flex" }}>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-            {/* Trust Boundary */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "4px 0" }}>
-              <div style={{ flex: 1, borderTop: "2px dashed #e11d48", opacity: 0.3 }} />
-              <div style={{ padding: "2px 14px", fontSize: 7.5, fontWeight: 800, color: "#e11d48", letterSpacing: 1.5, textTransform: "uppercase" as const, whiteSpace: "nowrap" }}>▲ Trust Boundary ▲</div>
-              <div style={{ flex: 1, borderTop: "2px dashed #e11d48", opacity: 0.3 }} />
-            </div>
-
-            {/* Connectivity Layer */}
-            <div style={{ border: "2px solid #f472b6", borderRadius: 12, padding: "10px 14px", background: "#fdf2f8", position: "relative" }}>
-              <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#be185d", letterSpacing: 1.2, textTransform: "uppercase" as const }}>CONNECTIVITY & ACCESS — HANDSHAKE LAYER</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
-                <div style={{ width: 18, height: 18, borderRadius: 5, background: "#be185d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", flexShrink: 0 }}>②</div>
-                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: "#be185d" }}>Connectivity & Access</div>
-                <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#fce7f3", color: "#9d174d", letterSpacing: 0.4, textTransform: "uppercase" as const }}>Trust Boundary</div>
-              </div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {connNodes.map(n => (
-                  <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #f9a8d4", color: "#831843" }} />
-                ))}
-              </div>
-            </div>
-
-            {/* Flow arrow */}
-            <div style={{ display: "flex", justifyContent: "center", gap: 24, padding: "5px 0" }}>
-              {[0,1,2].map(i => (
-                <svg key={i} width="2" height="22" viewBox="0 0 2 22" style={{ overflow: "visible" }}>
-                  <line x1="1" y1="22" x2="1" y2="6" stroke="#94a3b8" strokeWidth="1.5" />
-                  <polygon points="1,0 -3.5,8 5.5,8" fill="#94a3b8" />
-                </svg>
-              ))}
-            </div>
-
-            {/* Sources (external) — vertical grouped */}
-            <div style={{ border: "2px dashed #d1d5db", borderRadius: 12, padding: "10px 14px", background: "#f9fafb", position: "relative" }}>
-              <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#6b7280", letterSpacing: 1.2, textTransform: "uppercase" as const }}>EXTERNAL — SOURCE SYSTEMS (YOU DON'T OWN THESE)</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8, padding: "4px 0 0" }}>
-                <div style={{ width: 18, height: 18, borderRadius: 5, background: "#4b5563", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", flexShrink: 0 }}>①</div>
-                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: "#4b5563" }}>Source Systems</div>
-                <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#f3f4f6", color: "#6b7280", letterSpacing: 0.4, textTransform: "uppercase" as const }}>{srcNodes.length} Sources</div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {(() => {
-                  const cats: Record<string, typeof srcNodes> = {};
-                  srcNodes.forEach(n => {
-                    const sub = (n.subtitle || "").toLowerCase();
-                    let cat = "Other";
-                    if (["crm","hcm","itsm","erp","hrm","finance"].some(k => sub.includes(k))) cat = "SaaS / Business Apps";
-                    else if (["rdbms","sql","nosql","database","db","document"].some(k => sub.includes(k))) cat = "Databases";
-                    else if (["stream","event","kafka","kinesis","pub"].some(k => sub.includes(k))) cat = "Event Streams";
-                    else if (["file","sftp","s3","ftp","object","batch","bulk"].some(k => sub.includes(k))) cat = "Files & Objects";
-                    else if (["api","rest","webhook","http","push"].some(k => sub.includes(k))) cat = "APIs & Webhooks";
-                    else if (["legacy","mainframe","cobol","as400"].some(k => sub.includes(k))) cat = "Legacy Systems";
-                    if (!cats[cat]) cats[cat] = [];
-                    cats[cat].push(n);
-                  });
-                  return Object.entries(cats).map(([cat, nodes]) => (
-                    <div key={cat}>
-                      <div style={{ fontSize: 7.5, fontWeight: 700, color: "#6b7280", textTransform: "uppercase" as const, letterSpacing: 0.5, marginBottom: 4, paddingLeft: 2 }}>{cat}</div>
-                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                        {nodes.map(n => (
-                          <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #e5e7eb", color: "#374151" }} />
-                        ))}
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-          </div>
-          {/* Spacer to match connector + pillar width */}
-          <div style={{ width: 324, flexShrink: 0 }} />
         </div>
       </div>
 
