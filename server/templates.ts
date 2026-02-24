@@ -1021,7 +1021,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     // ══════════════════════════════════════════════════
 
     // ── Identity & Auth (row 3) ──
-    { id: "conn_entra_id", name: "Entra ID", icon: "entra_id", subtitle: "Enterprise IdP · SSO · MFA · Conditional Access", zone: "sources", x: 650, y: 100, details: {
+    { id: "conn_entra_id", name: "Entra ID", icon: "entra_id", subtitle: "Enterprise IdP · SSO · MFA · Conditional Access", zone: "connectivity", x: 650, y: 100, details: {
       notes: "Microsoft cloud identity platform providing SSO, MFA, conditional access, and user/group directory. Federates into GCP Cloud Identity via SAML 2.0.\n\nUse when: Organization uses Microsoft 365 and needs SSO into GCP console, Looker, and SaaS tools.",
       encryption: "In transit: TLS 1.2+ | Tokens: SAML signed + encrypted | Auth: SAML 2.0 / OIDC",
       monitoring: "Sign-in failure rate, conditional access blocks, risky sign-in detections",
@@ -1050,7 +1050,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     }},
 
     // ── Credential & Secrets (row 3, continued) ──
-    { id: "conn_cyberark", name: "CyberArk", icon: "cyberark", subtitle: "Enterprise PAM · Vault · Auto-Rotation · Secrets Hub", zone: "sources", x: 650, y: 460, details: {
+    { id: "conn_cyberark", name: "CyberArk", icon: "cyberark", subtitle: "Enterprise PAM · Vault · Auto-Rotation · Secrets Hub", zone: "connectivity", x: 650, y: 460, details: {
       notes: "Enterprise PAM platform: privileged credential vault, automated rotation, session recording, JIT access. Secrets Hub syncs secrets to GCP Secret Manager.\n\nUse when: Master vault for all privileged credentials (SA keys, DB passwords, API tokens). Source of truth; Secret Manager is runtime accessor.",
       encryption: "At rest: AES-256 vault | In transit: TLS 1.2+ | HSM for master key",
       monitoring: "Credential rotation success, vault access audit, session recordings",
@@ -1059,7 +1059,7 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       guardrails: "All privileged creds in CyberArk. Secrets Hub auto-syncs to Secret Manager. No manual secret management.",
       compliance: "SOC2, ISO 27001, PCI-DSS, HIPAA"
     }},
-    { id: "conn_keeper", name: "Keeper", icon: "keeper", subtitle: "Team Passwords · Zero-Knowledge · Sharing", zone: "sources", x: 850, y: 460, details: {
+    { id: "conn_keeper", name: "Keeper", icon: "keeper", subtitle: "Team Passwords · Zero-Knowledge · Sharing", zone: "connectivity", x: 850, y: 460, details: {
       notes: "Zero-knowledge password management for team/personal credential storage, sharing, and basic rotation.\n\nUse when: Team-level secrets and developer credentials not requiring full PAM.",
       encryption: "AES-256 + PBKDF2 client-side. Zero-knowledge: Keeper never sees plaintext. TLS in transit.",
       monitoring: "Vault access logs, sharing audit, password strength reports",
