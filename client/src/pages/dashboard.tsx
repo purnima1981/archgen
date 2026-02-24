@@ -1420,7 +1420,7 @@ export default function Dashboard({ user }: { user: User }) {
           {TABS.map(t => (<button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "8px 16px", background: tab === t.id ? "#f0f7ff" : "none", border: tab === t.id ? "1px solid #4285f4" : "1px solid transparent", borderRadius: 8, fontSize: 12, fontWeight: tab === t.id ? 700 : 500, color: tab === t.id ? "#1a73e8" : "#888", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, transition: "all .12s" }}>
             <span>{t.icon}</span>{t.l}</button>))}
           <div style={{ flex: 1 }} />
-          {source && diag?.layout !== "blueprint" && diag?.layout !== "gcp_blueprint" && <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 14, background: source === "template" ? "#e8f5e9" : "#fff3e0", color: source === "template" ? "#2e7d32" : "#e65100", fontWeight: 700 }}>{source === "template" ? "⚡ Template — instant, $0" : "🤖 AI Generated"}</span>}
+          {source && diag?.layout !== "blueprint" && <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 14, background: source === "template" ? "#e8f5e9" : "#fff3e0", color: source === "template" ? "#2e7d32" : "#e65100", fontWeight: 700 }}>{source === "template" ? "⚡ Template — instant, $0" : "🤖 AI Generated"}</span>}
         </div>}
         {!diag && !loading && (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: THEMES[theme]?.bg || "#f8f9fa" }}>
@@ -1436,13 +1436,13 @@ export default function Dashboard({ user }: { user: User }) {
             <div style={{ color: "#999", fontSize: 13 }}>Building your architecture...</div>
           </div>
         )}
-        {diag && tab === "diagram" && diag.layout === "blueprint" && (
+        {diag && tab === "diagram" && diag.layout === "blueprint" && !diag.nodes.some(n => n.id === "conn_cloud_identity") && (
           <BlueprintView diag={diag} popover={popover} setPopover={setPopover} />
         )}
-        {diag && tab === "diagram" && diag.layout === "gcp_blueprint" && (
+        {diag && tab === "diagram" && diag.layout === "blueprint" && diag.nodes.some(n => n.id === "conn_cloud_identity") && (
           <GCPBlueprintView diag={diag} popover={popover} setPopover={setPopover} />
         )}
-        {diag && tab === "diagram" && diag.layout !== "blueprint" && diag.layout !== "gcp_blueprint" && (
+        {diag && tab === "diagram" && diag.layout !== "blueprint" && (
           <div ref={diagAreaRef} style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", background: THEMES[theme]?.bg || "#f8f9fa", overflow: "hidden" }}>
             
             {/* Edit Mode Toggle Button */}
