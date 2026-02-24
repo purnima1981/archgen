@@ -1029,7 +1029,7 @@ export default function Dashboard({ user }: { user: User }) {
               { icon: "📊", name: "Enterprise Streaming", id: "streaming-analytics", p: "enterprise streaming analytics platform with comprehensive security governance disaster recovery and cost management" },
               { icon: "🔄", name: "CDC Migration", id: "cdc-migration", p: "migrate from AWS RDS to BigQuery CDC" },
               { icon: "🤖", name: "RAG / GenAI", id: "rag-genai", p: "RAG chatbot with Gemini and vector search" },
-              { icon: "🗄️", name: "Sources Layer", id: "sources-layer", p: "layer 1 sources database saas kafka sftp api webhook mainframe legacy" },
+              { icon: "🗄️", name: "GCP Technical Blueprint", id: "gcp-technical-blueprint", p: "gcp technical blueprint sources connectivity identity secrets network vpn" },
             ].map((t, i) => (<button key={i} onClick={() => { setPrompt(t.p); loadTemplate(t.id); }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#fafafa", border: "1px solid #eee", borderRadius: 10, cursor: "pointer", textAlign: "left", transition: "all .12s" }} onMouseEnter={e => { e.currentTarget.style.background = "#f0f7ff"; e.currentTarget.style.borderColor = "#4285f4"; }} onMouseLeave={e => { e.currentTarget.style.background = "#fafafa"; e.currentTarget.style.borderColor = "#eee"; }}>
               <span style={{ fontSize: 22 }}>{t.icon}</span>
               <div><div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{t.name}</div></div>

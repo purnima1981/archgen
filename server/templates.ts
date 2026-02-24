@@ -553,19 +553,25 @@ const BLUEPRINT: Diagram = {
   ],
 };
 // ═══ TEMPLATE 5: SOURCES LAYER (LAYER 1) — TECHNICAL BLUEPRINT ═══
-const SOURCES_LAYER: Diagram = {
-  title: "Layer 1: Sources — GCP Technical Blueprint",
-  subtitle: "19 Approved Tools · 6 Categories · All external systems feeding data into the GCP platform",
+const GCP_TECHNICAL_BLUEPRINT: Diagram = {
+  title: "GCP Technical Blueprint",
+  subtitle: "33 Approved Tools · Layer 1: Sources (19) + Layer 2: Connectivity (14)",
 
   phases: [
-    { id: "saas", name: "SaaS / ERP", nodeIds: ["src_salesforce", "src_workday", "src_servicenow", "src_sap"] },
-    { id: "databases", name: "Databases", nodeIds: ["src_oracle", "src_sqlserver", "src_postgresql", "src_mongodb", "src_cloud_sql", "src_cloud_spanner"] },
-    { id: "streaming", name: "Event Streams", nodeIds: ["src_kafka", "src_confluent", "src_kinesis"] },
-    { id: "file", name: "File / Object", nodeIds: ["src_sftp", "src_s3"] },
-    { id: "api", name: "APIs", nodeIds: ["src_rest_api", "src_webhook"] },
-    { id: "legacy", name: "Legacy", nodeIds: ["src_onprem", "src_mainframe"] },
+    // Layer 1: Sources
+    { id: "saas", name: "L1 · SaaS / ERP", nodeIds: ["src_salesforce", "src_workday", "src_servicenow", "src_sap"] },
+    { id: "databases", name: "L1 · Databases", nodeIds: ["src_oracle", "src_sqlserver", "src_postgresql", "src_mongodb", "src_cloud_sql", "src_cloud_spanner"] },
+    { id: "streaming", name: "L1 · Event Streams", nodeIds: ["src_kafka", "src_confluent", "src_kinesis"] },
+    { id: "file", name: "L1 · File / Object", nodeIds: ["src_sftp", "src_s3"] },
+    { id: "api", name: "L1 · APIs", nodeIds: ["src_rest_api", "src_webhook"] },
+    { id: "legacy", name: "L1 · Legacy", nodeIds: ["src_onprem", "src_mainframe"] },
+    // Layer 2: Connectivity
+    { id: "identity", name: "L2 · Identity & Auth", nodeIds: ["conn_entra_id", "conn_cloud_identity", "conn_identity_platform"] },
+    { id: "secrets", name: "L2 · Credential & Secrets", nodeIds: ["conn_cyberark", "conn_keeper", "conn_secret_manager"] },
+    { id: "network", name: "L2 · Network", nodeIds: ["conn_vpn", "conn_interconnect", "conn_vpc", "conn_vpc_sc", "conn_armor", "conn_dns"] },
+    { id: "api_mgmt", name: "L2 · API Management", nodeIds: ["conn_apigee", "conn_api_gateway"] },
   ],
-  opsGroup: { name: "Next Layer", nodeIds: ["boundary_conn"] },
+  opsGroup: { name: "Next Layer", nodeIds: ["boundary_ingestion"] },
 
   nodes: [
     // ── SaaS / ERP (row 1) ──
@@ -751,49 +757,207 @@ const SOURCES_LAYER: Diagram = {
       compliance: "SOC2, PCI-DSS (financial mainframe)"
     }},
 
-    // ── CONNECTIVITY BOUNDARY (next layer) ──
-    { id: "boundary_conn", name: "🔒 Layer 2: Connectivity", icon: null, subtitle: "VPN · Auth · Secrets · Firewall · mTLS · Rate Limiting", zone: "connectivity", x: 800, y: 600, details: {
-      notes: "★ TRUST BOUNDARY\n\nAll sources must pass through connectivity controls before entering the platform.\n\n• VPN / Interconnect (on-prem, cross-cloud)\n• Authentication (OAuth, SAML, API keys)\n• Secrets Manager (CyberArk → Secret Manager chain)\n• Firewall Rules (IP allowlist, port control)\n• mTLS (certificate-based mutual auth)\n• Rate Limiting (throttle, backoff, quotas)",
-      encryption: "IPsec (VPN) | TLS 1.3 | mTLS for high-security",
+    // ══════════════════════════════════════════════════
+    // ── LAYER 2: CONNECTIVITY (14 tools) ─────────────
+    // ══════════════════════════════════════════════════
+
+    // ── Identity & Auth (row 3) ──
+    { id: "conn_entra_id", name: "Entra ID", icon: "entra_id", subtitle: "Enterprise IdP · SSO · MFA · Conditional Access", zone: "connectivity", x: 100, y: 700, details: {
+      notes: "Microsoft cloud identity platform providing SSO, MFA, conditional access, and user/group directory. Federates into GCP Cloud Identity via SAML 2.0.\n\nUse when: Organization uses Microsoft 365 and needs SSO into GCP console, Looker, and SaaS tools.",
+      encryption: "In transit: TLS 1.2+ | Tokens: SAML signed + encrypted | Auth: SAML 2.0 / OIDC",
+      monitoring: "Sign-in failure rate, conditional access blocks, risky sign-in detections",
+      alerting: "Risky sign-in → Security P1 | MFA bypass attempt → Security P1",
+      cost: "Free (basic SSO). Premium P1: $6/user/mo. P2: $9/user/mo",
+      guardrails: "Conditional access: require MFA + compliant device for GCP. Block legacy auth protocols.",
+      compliance: "SOC2, ISO 27001, HIPAA"
+    }},
+    { id: "conn_cloud_identity", name: "Cloud Identity", icon: "identity_and_access_management", subtitle: "GCP Identity Broker · SAML Federation · Group Sync", zone: "connectivity", x: 250, y: 700, details: {
+      notes: "Google-managed identity service receiving SAML federation from Entra ID, mapping users/groups to GCP IAM roles.\n\nUse when: Required layer between enterprise IdP and GCP IAM. All GCP access flows through Cloud Identity.",
+      encryption: "In transit: Google-managed TLS | Tokens: SAML encrypted",
+      monitoring: "GCDS sync status, login audit events, admin activity logs",
+      alerting: "GCDS sync failure → PagerDuty P2 | Super admin login → Security P1",
+      cost: "Free: unlimited users. Premium: $7.20/user/mo (device mgmt)",
+      guardrails: "GCDS or SCIM provisioning. No local passwords — federated only.",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "conn_identity_platform", name: "Identity Platform", icon: "identity_platform", subtitle: "Customer Auth · OIDC · Social Login · Phone MFA", zone: "connectivity", x: 400, y: 700, details: {
+      notes: "Customer-facing auth service supporting OIDC, SAML, social logins, email/password, and phone auth for app end-users.\n\nUse when: External users (patients, partners, customers) authenticate to consume data via apps or embedded BI.",
+      encryption: "In transit: TLS | Tokens: JWT | At rest: Google-managed",
+      monitoring: "Auth success/failure rate, sign-up volume, MFA enrollment",
+      alerting: "Auth failure > 10% → P2 | Brute force detected → Security P1",
+      cost: "Free: 50K MAU. Then $0.0055/MAU",
+      guardrails: "Enable MFA, block disposable emails, rate limit auth attempts",
+      compliance: "SOC2"
+    }},
+
+    // ── Credential & Secrets (row 3, continued) ──
+    { id: "conn_cyberark", name: "CyberArk", icon: "cyberark", subtitle: "Enterprise PAM · Vault · Auto-Rotation · Secrets Hub", zone: "connectivity", x: 600, y: 700, details: {
+      notes: "Enterprise PAM platform: privileged credential vault, automated rotation, session recording, JIT access. Secrets Hub syncs secrets to GCP Secret Manager.\n\nUse when: Master vault for all privileged credentials (SA keys, DB passwords, API tokens). Source of truth; Secret Manager is runtime accessor.",
+      encryption: "At rest: AES-256 vault | In transit: TLS 1.2+ | HSM for master key",
+      monitoring: "Credential rotation success, vault access audit, session recordings",
+      alerting: "Rotation failure → PagerDuty P1 | Unauthorized vault access → Security P1",
+      cost: "CyberArk license (per-user PAM). Privilege Cloud SaaS pricing varies.",
+      guardrails: "All privileged creds in CyberArk. Secrets Hub auto-syncs to Secret Manager. No manual secret management.",
+      compliance: "SOC2, ISO 27001, PCI-DSS, HIPAA"
+    }},
+    { id: "conn_keeper", name: "Keeper", icon: "keeper", subtitle: "Team Passwords · Zero-Knowledge · Sharing", zone: "connectivity", x: 750, y: 700, details: {
+      notes: "Zero-knowledge password management for team/personal credential storage, sharing, and basic rotation.\n\nUse when: Team-level secrets and developer credentials not requiring full PAM.",
+      encryption: "AES-256 + PBKDF2 client-side. Zero-knowledge: Keeper never sees plaintext. TLS in transit.",
+      monitoring: "Vault access logs, sharing audit, password strength reports",
+      alerting: "Breach watch alert → Security P2",
+      cost: "Business: $3.75/user/mo. Enterprise: $5/user/mo",
+      guardrails: "SSO via Entra ID. Enforce password policies. No direct GCP integration — human-use only.",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "conn_secret_manager", name: "Secret Manager", icon: "secret_manager", subtitle: "Runtime Secrets · Versioning · IAM · CMEK", zone: "connectivity", x: 900, y: 700, details: {
+      notes: "GCP-native secret storage with versioning, automatic replication, and IAM-controlled access. Apps read secrets at runtime via API.\n\nUse when: Runtime secret access for Cloud Functions, Cloud Run, Composer DAGs. Receives synced secrets from CyberArk Secrets Hub.",
+      encryption: "At rest: CMEK via Cloud KMS (AES-256) | In transit: TLS | Auth: IAM",
+      monitoring: "Secret access audit logs, version count, replication lag",
+      alerting: "Unauthorized access attempt → Security P1 | Secret not rotated > 90 days → P2",
+      cost: "$0.06/10K access ops. $0.06/secret version/mo. Replication: free.",
+      guardrails: "CyberArk Secrets Hub is sole writer. Applications are readers only. IAM per-secret. Audit every access.",
+      compliance: "SOC2, ISO 27001, HIPAA"
+    }},
+
+    // ── Network (row 4) ──
+    { id: "conn_vpn", name: "Cloud VPN", icon: "cloud_vpn", subtitle: "IPsec Tunnels · HA VPN · 99.99% SLA", zone: "connectivity", x: 100, y: 900, details: {
+      notes: "Managed IPsec VPN tunnels connecting on-prem or other cloud networks to GCP VPC over public internet.\n\nUse when: Hybrid connectivity for low-to-medium bandwidth (<3 Gbps/tunnel). HA VPN provides 99.99% SLA with 2 tunnels.",
+      encryption: "IPsec with IKEv2. AES-128/256-CBC or AES-128/256-GCM.",
+      monitoring: "Tunnel status (up/down), bandwidth utilization, packet loss",
+      alerting: "Tunnel down → PagerDuty P1 | Bandwidth > 80% → P2",
+      cost: "~$0.075/hr per tunnel. HA VPN: 2 tunnels minimum = ~$0.15/hr",
+      guardrails: "Always use HA VPN (2 tunnels). BGP via Cloud Router. No Classic VPN for production.",
+      compliance: "SOC2"
+    }},
+    { id: "conn_interconnect", name: "Cloud Interconnect", icon: "cloud_interconnect", subtitle: "Dedicated/Partner · 10-100 Gbps · MACsec", zone: "connectivity", x: 250, y: 900, details: {
+      notes: "Dedicated (10/100 Gbps) or Partner (50 Mbps–50 Gbps) physical link between on-prem and GCP, bypassing public internet.\n\nUse when: High bandwidth (>1 Gbps), low latency, or data must not traverse public internet.",
+      encryption: "MACsec (802.1AE) for Dedicated. IPsec over Interconnect also supported.",
+      monitoring: "Link utilization, BGP session status, light levels (Dedicated)",
+      alerting: "Link down → PagerDuty P1 | Utilization > 80% → P2",
+      cost: "Dedicated: $0.05-0.08/hr per VLAN attachment. Partner: varies by provider.",
+      guardrails: "Redundant attachments across 2 edge availability domains for 99.99% SLA.",
+      compliance: "SOC2, ISO 27001"
+    }},
+    { id: "conn_vpc", name: "VPC", icon: "virtual_private_cloud", subtitle: "Global Network · Subnets · Firewall Rules · Private Access", zone: "connectivity", x: 400, y: 900, details: {
+      notes: "Global virtual network with regional subnets, firewall rules, Private Google Access, and VPC Peering.\n\nUse when: Foundation for all GCP networking. Every project needs at least one VPC.",
+      encryption: "Google encrypts all VM-to-VM traffic within VPC automatically.",
+      monitoring: "Firewall rule hit counts, VPC Flow Logs, Private Google Access usage",
+      alerting: "Firewall deny spike → Security P2 | Unexpected egress → P1",
+      cost: "VPC: free. VPC Flow Logs: $0.50/GB ingested into Logging.",
+      guardrails: "Shared VPC for central management. Private Google Access enabled. No default network.",
+      compliance: "SOC2"
+    }},
+    { id: "conn_vpc_sc", name: "VPC Service Controls", icon: "security_command_center", subtitle: "Data Exfiltration Prevention · Service Perimeter", zone: "connectivity", x: 550, y: 900, details: {
+      notes: "Service perimeter preventing data exfiltration from GCP APIs (BQ, GCS, etc.) to unauthorized networks or projects.\n\nUse when: Required for sensitive data workloads (PHI, PII, financial). Prevents BQ data from being copied outside perimeter.",
+      encryption: "Policy enforcement layer — works with CMEK on underlying services.",
+      monitoring: "Perimeter violations (dry-run mode), access level evaluations",
+      alerting: "Perimeter violation → Security P1 | New ingress/egress policy change → audit alert",
+      cost: "Free (included with GCP).",
+      guardrails: "Dry-run before enforce. Perimeter around all data projects. Access levels for CI/CD.",
+      compliance: "SOC2, HIPAA, PCI-DSS, FedRAMP"
+    }},
+    { id: "conn_armor", name: "Cloud Armor", icon: "cloud_armor", subtitle: "WAF · DDoS Protection · Geo-Blocking", zone: "connectivity", x: 700, y: 900, details: {
+      notes: "WAF and DDoS protection at Google's network edge, applied to external HTTP(S) load balancers.\n\nUse when: External-facing APIs or web apps need DDoS, SQLi, XSS, or geo-based blocking.",
+      encryption: "TLS termination at load balancer. Policies applied before traffic reaches backends.",
+      monitoring: "Request rate, blocked requests by rule, DDoS attack events",
+      alerting: "DDoS attack detected → Security P1 | Rule block rate > threshold → P2",
+      cost: "Standard: $0.75/policy/mo + $0.01/10K requests. Plus: $200/mo + $0.01/10K req.",
+      guardrails: "OWASP top-10 rules enabled. Geo-blocking for non-served regions. Rate limiting per IP.",
+      compliance: "SOC2"
+    }},
+    { id: "conn_dns", name: "Cloud DNS", icon: "cloud_dns", subtitle: "Managed DNS · Private Zones · DNSSEC · 100% SLA", zone: "connectivity", x: 850, y: 900, details: {
+      notes: "Managed DNS with public zones, private zones, forwarding, and peering. 100% availability SLA.\n\nUse when: Name resolution for all GCP services, hybrid DNS with on-prem, private zones for internal service discovery.",
+      encryption: "DNSSEC for public zones. Internal DNS over Google encrypted backbone.",
+      monitoring: "Query rate, NXDOMAIN rate, DNSSEC validation failures",
+      alerting: "DNSSEC validation failure → P2 | Query latency spike → P2",
+      cost: "$0.20/zone/mo + $0.40/million queries.",
+      guardrails: "DNSSEC enabled for public zones. Private zones for internal. DNS forwarding for hybrid.",
+      compliance: "SOC2"
+    }},
+
+    // ── API Management (row 4, continued) ──
+    { id: "conn_apigee", name: "Apigee", icon: "apigee_api_platform", subtitle: "Full API Lifecycle · Portal · Analytics · Monetization", zone: "connectivity", x: 1050, y: 900, details: {
+      notes: "Full-lifecycle API management: gateway, developer portal, analytics, monetization, rate limiting, and policy enforcement.\n\nUse when: Curated data exposed as managed, monetized APIs with developer portal and analytics.",
+      encryption: "TLS 1.2+ at edge. CMEK for analytics. OAuth 2.0, API keys, JWT for auth.",
+      monitoring: "API latency, error rate, traffic by consumer, quota usage",
+      alerting: "Error rate > 5% → PagerDuty P2 | Latency P99 > 2s → P2",
+      cost: "Evaluation: free. Standard: $500/mo. Enterprise: custom pricing.",
+      guardrails: "Rate limiting per consumer. OAuth enforcement. Threat protection policies. No API key in URL.",
+      compliance: "SOC2, PCI-DSS"
+    }},
+    { id: "conn_api_gateway", name: "API Gateway", icon: "cloud_api_gateway", subtitle: "Serverless Proxy · Cloud Functions / Cloud Run", zone: "connectivity", x: 1200, y: 900, details: {
+      notes: "Lightweight serverless API gateway for routing, auth, and rate limiting in front of Cloud Functions or Cloud Run.\n\nUse when: Simple API proxy when Apigee is overkill. Quick setup for internal or low-complexity APIs.",
+      encryption: "TLS in transit. API keys, JWT, or Google ID tokens for auth.",
+      monitoring: "Request count, latency, 4xx/5xx rates",
+      alerting: "5xx rate > 5% → P2 | Latency > 1s → P2",
+      cost: "$3.50/million calls (first 2M free).",
+      guardrails: "Use for internal APIs only. External APIs → Apigee.",
+      compliance: "SOC2"
+    }},
+
+    // ── LAYER 3 BOUNDARY (next layer hint) ──
+    { id: "boundary_ingestion", name: "🔽 Layer 3: Ingestion", icon: null, subtitle: "Datastream · Pub/Sub · Dataflow · Cloud Functions · Fivetran", zone: "cloud", x: 600, y: 1100, details: {
+      notes: "★ NEXT LAYER\n\nData passes through connectivity controls and enters ingestion pipelines.\n\n• Batch Pull (BigQuery DTS, Cloud Functions)\n• CDC (Datastream)\n• Stream (Pub/Sub → Dataflow)\n• File Transfer (Storage Transfer Service)\n• Managed ETL (Fivetran)",
+      encryption: "Google-managed encryption in transit and at rest across all ingestion services.",
       compliance: "SOC2, ISO 27001"
     }},
   ],
 
   edges: [
-    // SaaS → Connectivity
-    { id: "s1", from: "src_salesforce", to: "boundary_conn", label: "OAuth REST", step: 1, security: { transport: "TLS 1.3", auth: "OAuth 2.0", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
-    { id: "s2", from: "src_workday", to: "boundary_conn", label: "OAuth/SOAP", step: 1, security: { transport: "TLS 1.2+", auth: "OAuth 2.0 / WS-Security", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
-    { id: "s3", from: "src_servicenow", to: "boundary_conn", label: "OAuth REST", step: 1, security: { transport: "TLS 1.2+", auth: "OAuth 2.0", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
-    { id: "s4", from: "src_sap", to: "boundary_conn", label: "OData / SLT", step: 1, security: { transport: "TLS 1.2+", auth: "X.509 / OAuth", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
-    // Databases → Connectivity
-    { id: "s5", from: "src_oracle", to: "boundary_conn", label: "LogMiner CDC", step: 1, security: { transport: "TLS / NNE", auth: "JDBC Wallet", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
-    { id: "s6", from: "src_sqlserver", to: "boundary_conn", label: "CT CDC", step: 1, security: { transport: "TLS 1.2+", auth: "SQL / Windows Auth", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
-    { id: "s7", from: "src_postgresql", to: "boundary_conn", label: "WAL CDC", step: 1, security: { transport: "SSL/TLS", auth: "SCRAM-SHA-256", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
-    { id: "s8", from: "src_mongodb", to: "boundary_conn", label: "Change Streams", step: 1, security: { transport: "TLS", auth: "SCRAM-SHA-256", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
-    { id: "s9", from: "src_cloud_sql", to: "boundary_conn", label: "Auth Proxy", step: 1, security: { transport: "TLS 1.2+", auth: "IAM DB Auth", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
-    { id: "s10", from: "src_cloud_spanner", to: "boundary_conn", label: "IAM gRPC", step: 1, security: { transport: "TLS", auth: "IAM", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
-    // Streams → Connectivity
-    { id: "s11", from: "src_kafka", to: "boundary_conn", label: "SASL / mTLS", step: 1, security: { transport: "TLS", auth: "SASL / mTLS", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
-    { id: "s12", from: "src_confluent", to: "boundary_conn", label: "API Key / RBAC", step: 1, security: { transport: "TLS 1.2+", auth: "API Keys", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
-    { id: "s13", from: "src_kinesis", to: "boundary_conn", label: "STS Cross-Cloud", step: 1, security: { transport: "TLS", auth: "AWS IAM STS", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
-    // File → Connectivity
-    { id: "s14", from: "src_sftp", to: "boundary_conn", label: "SSH/SFTP", step: 1, security: { transport: "SSH", auth: "SSH Key Pair", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
-    { id: "s15", from: "src_s3", to: "boundary_conn", label: "STS Transfer", step: 1, security: { transport: "TLS", auth: "STS Temp Creds", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
-    // APIs → Connectivity
-    { id: "s16", from: "src_rest_api", to: "boundary_conn", label: "HTTPS", step: 1, security: { transport: "TLS 1.2+", auth: "API Key / OAuth", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
-    { id: "s17", from: "src_webhook", to: "boundary_conn", label: "HMAC Push", step: 1, security: { transport: "TLS", auth: "HMAC Signature", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
-    // Legacy → Connectivity
-    { id: "s18", from: "src_onprem", to: "boundary_conn", label: "VPN/Interconnect", step: 1, security: { transport: "IPsec", auth: "On-Prem Creds", classification: "restricted", private: true }, crossesBoundary: true, edgeType: "data" },
-    { id: "s19", from: "src_mainframe", to: "boundary_conn", label: "Interconnect", step: 1, security: { transport: "IPsec / MACsec", auth: "RACF via CyberArk", classification: "restricted", private: true }, crossesBoundary: true, edgeType: "data" },
+    // ── Layer 1: Sources → Layer 2: Connectivity ──
+    // SaaS → Identity/Secrets
+    { id: "s1", from: "src_salesforce", to: "conn_secret_manager", label: "OAuth Token", step: 1, security: { transport: "TLS 1.3", auth: "OAuth 2.0", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "s2", from: "src_workday", to: "conn_secret_manager", label: "OAuth/SOAP", step: 1, security: { transport: "TLS 1.2+", auth: "OAuth 2.0", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "s3", from: "src_servicenow", to: "conn_secret_manager", label: "OAuth Token", step: 1, security: { transport: "TLS 1.2+", auth: "OAuth 2.0", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "s4", from: "src_sap", to: "conn_secret_manager", label: "X.509 / SLT", step: 1, security: { transport: "TLS 1.2+", auth: "X.509 / OAuth", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    // Databases → VPN/Interconnect + Secret Manager
+    { id: "s5", from: "src_oracle", to: "conn_vpn", label: "VPN + CDC", step: 1, security: { transport: "IPsec + TLS", auth: "JDBC Wallet", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    { id: "s6", from: "src_sqlserver", to: "conn_vpn", label: "VPN + CT", step: 1, security: { transport: "IPsec + TLS", auth: "SQL Auth", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    { id: "s7", from: "src_postgresql", to: "conn_vpn", label: "VPN + WAL", step: 1, security: { transport: "IPsec + TLS", auth: "SCRAM-SHA-256", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    { id: "s8", from: "src_mongodb", to: "conn_vpn", label: "VPN + Streams", step: 1, security: { transport: "IPsec + TLS", auth: "SCRAM-SHA-256", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    { id: "s9", from: "src_cloud_sql", to: "conn_vpc", label: "Private IP", step: 1, security: { transport: "TLS 1.2+", auth: "IAM Auth Proxy", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    { id: "s10", from: "src_cloud_spanner", to: "conn_vpc", label: "Private gRPC", step: 1, security: { transport: "TLS", auth: "IAM", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    // Streams → VPN/VPC
+    { id: "s11", from: "src_kafka", to: "conn_vpn", label: "VPN + mTLS", step: 1, security: { transport: "IPsec + TLS", auth: "SASL / mTLS", classification: "confidential", private: true }, crossesBoundary: true, edgeType: "data" },
+    { id: "s12", from: "src_confluent", to: "conn_vpc", label: "Private Link", step: 1, security: { transport: "TLS 1.2+", auth: "API Keys", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "s13", from: "src_kinesis", to: "conn_vpc", label: "Cross-Cloud", step: 1, security: { transport: "TLS", auth: "AWS STS", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    // File → VPN/VPC
+    { id: "s14", from: "src_sftp", to: "conn_vpn", label: "VPN + SSH", step: 1, security: { transport: "IPsec + SSH", auth: "SSH Keys", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "s15", from: "src_s3", to: "conn_vpc", label: "STS Transfer", step: 1, security: { transport: "TLS", auth: "STS Temp Creds", classification: "internal", private: false }, crossesBoundary: true, edgeType: "data" },
+    // APIs → Armor/API Gateway
+    { id: "s16", from: "src_rest_api", to: "conn_api_gateway", label: "HTTPS", step: 1, security: { transport: "TLS 1.2+", auth: "API Key / OAuth", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    { id: "s17", from: "src_webhook", to: "conn_armor", label: "HMAC Push", step: 1, security: { transport: "TLS", auth: "HMAC Signature", classification: "confidential", private: false }, crossesBoundary: true, edgeType: "data" },
+    // Legacy → Interconnect
+    { id: "s18", from: "src_onprem", to: "conn_interconnect", label: "Interconnect", step: 1, security: { transport: "MACsec", auth: "On-Prem Creds", classification: "restricted", private: true }, crossesBoundary: true, edgeType: "data" },
+    { id: "s19", from: "src_mainframe", to: "conn_interconnect", label: "Interconnect", step: 1, security: { transport: "MACsec", auth: "RACF via CyberArk", classification: "restricted", private: true }, crossesBoundary: true, edgeType: "data" },
+
+    // ── Layer 2 internal wiring ──
+    { id: "c1", from: "conn_entra_id", to: "conn_cloud_identity", label: "SAML Federation", step: 2, security: { transport: "TLS 1.2+", auth: "SAML 2.0", classification: "confidential", private: false }, edgeType: "control" },
+    { id: "c2", from: "conn_cyberark", to: "conn_secret_manager", label: "Secrets Hub Sync", step: 2, security: { transport: "TLS 1.2+", auth: "Service Account", classification: "restricted", private: true }, edgeType: "control" },
+    { id: "c3", from: "conn_vpn", to: "conn_vpc", label: "Tunnel → VPC", step: 2, security: { transport: "IPsec", auth: "IKEv2", classification: "confidential", private: true }, edgeType: "data" },
+    { id: "c4", from: "conn_interconnect", to: "conn_vpc", label: "VLAN → VPC", step: 2, security: { transport: "MACsec", auth: "BGP Peering", classification: "confidential", private: true }, edgeType: "data" },
+    { id: "c5", from: "conn_armor", to: "conn_apigee", label: "WAF → Gateway", step: 2, security: { transport: "TLS", auth: "Internal", classification: "internal", private: true }, edgeType: "data" },
+    { id: "c6", from: "conn_vpc", to: "conn_vpc_sc", label: "Perimeter Check", step: 2, security: { transport: "Internal", auth: "Policy", classification: "internal", private: true }, edgeType: "control" },
+
+    // ── Layer 2 → Layer 3 boundary ──
+    { id: "c7", from: "conn_vpc", to: "boundary_ingestion", label: "Private Access", step: 3, security: { transport: "Google Internal", auth: "IAM", classification: "confidential", private: true }, edgeType: "data" },
+    { id: "c8", from: "conn_secret_manager", to: "boundary_ingestion", label: "Runtime Secrets", step: 3, security: { transport: "TLS", auth: "IAM", classification: "restricted", private: true }, edgeType: "control" },
+    { id: "c9", from: "conn_apigee", to: "boundary_ingestion", label: "API Proxy", step: 3, security: { transport: "TLS", auth: "OAuth / JWT", classification: "confidential", private: true }, edgeType: "data" },
+    { id: "c10", from: "conn_api_gateway", to: "boundary_ingestion", label: "Serverless Proxy", step: 3, security: { transport: "TLS", auth: "JWT / ID Token", classification: "confidential", private: true }, edgeType: "data" },
   ],
 
   threats: [
+    // Layer 1 threats
     { id: "t1", target: "src_salesforce", stride: "Spoofing", severity: "high", title: "OAuth Token Theft", description: "Stolen OAuth refresh tokens used to impersonate extraction service", impact: "Unauthorized CRM data extraction, customer data exfiltration", mitigation: "Short-lived tokens, token rotation, IP allowlisting at Salesforce, Secret Manager versioning", compliance: "SOC2 CC6.1" },
     { id: "t2", target: "src_oracle", stride: "Information Disclosure", severity: "critical", title: "Database Credential Leakage", description: "JDBC credentials exposed in code, logs, or environment variables", impact: "Direct access to production Oracle database, data exfiltration", mitigation: "All credentials in Secret Manager (via CyberArk sync), no plaintext in code/CI, audit logging on secret access", compliance: "SOC2 CC6.1, ISO 27001" },
     { id: "t3", target: "src_kafka", stride: "Tampering", severity: "high", title: "Message Injection", description: "Malicious events injected into Kafka topic by compromised producer", impact: "Poisoned data flowing into data lake, downstream corruption", mitigation: "mTLS for all producers, Schema Registry enforcement, input validation at ingestion layer", compliance: "SOC2 CC8.1" },
     { id: "t4", target: "src_mainframe", stride: "Denial of Service", severity: "medium", title: "Mainframe MIPS Overload", description: "Extraction jobs consume excessive MIPS during peak hours", impact: "Production mainframe degradation affecting core business transactions", mitigation: "Scheduled extraction during batch windows only, MIPS budgeting with mainframe team, rate limiting", compliance: null },
-    { id: "t5", target: "boundary_conn", stride: "Elevation of Privilege", severity: "high", title: "VPN Tunnel Compromise", description: "Compromised VPN endpoint grants network-level access to GCP VPC", impact: "Lateral movement from on-prem to cloud resources", mitigation: "VPC Service Controls, micro-segmentation, Zero Trust (BeyondCorp), no broad network trust", compliance: "SOC2 CC6.6" },
-    { id: "t6", target: "src_cloud_spanner", stride: "Information Disclosure", severity: "high", title: "Over-Privileged Federated Query", description: "BigQuery federated query exposes Spanner data beyond intended scope", impact: "Sensitive transactional data accessible to unauthorized analysts", mitigation: "Fine-grained IAM on Spanner, authorized views in BigQuery, column-level security, audit logs", compliance: "SOC2, HIPAA" },
+    // Layer 2 threats
+    { id: "t5", target: "conn_vpn", stride: "Elevation of Privilege", severity: "high", title: "VPN Tunnel Compromise", description: "Compromised VPN endpoint grants network-level access to GCP VPC", impact: "Lateral movement from on-prem to cloud resources", mitigation: "VPC Service Controls, micro-segmentation, Zero Trust (BeyondCorp), no broad network trust", compliance: "SOC2 CC6.6" },
+    { id: "t6", target: "conn_entra_id", stride: "Spoofing", severity: "critical", title: "Federated Identity Hijack", description: "Compromised Entra ID tenant federates malicious users into GCP", impact: "Full GCP access via spoofed SAML assertions", mitigation: "Conditional access (MFA + device compliance), SAML assertion signing verification, Cloud Audit Logs monitoring", compliance: "SOC2 CC6.1, ISO 27001" },
+    { id: "t7", target: "conn_secret_manager", stride: "Information Disclosure", severity: "critical", title: "Secret Exfiltration", description: "Over-privileged service account reads secrets beyond its scope", impact: "Credential theft enabling lateral access across systems", mitigation: "Least-privilege IAM per-secret, CyberArk as sole writer, audit every access, VPC-SC perimeter", compliance: "SOC2 CC6.3, HIPAA" },
+    { id: "t8", target: "conn_vpc_sc", stride: "Tampering", severity: "high", title: "Service Perimeter Bypass", description: "Data exfiltrated via misconfigured ingress/egress rules or access levels", impact: "Sensitive data (PHI, PII) copied outside the perimeter", mitigation: "Dry-run validation before enforcement, regular perimeter audit, restrict egress to known projects only", compliance: "SOC2, HIPAA, PCI-DSS" },
+    { id: "t9", target: "conn_cyberark", stride: "Denial of Service", severity: "high", title: "Vault Sync Failure", description: "CyberArk Secrets Hub fails to sync credentials to Secret Manager", impact: "Pipeline failures across all sources using rotated credentials", mitigation: "Monitoring on sync job status, alerting on staleness > 1hr, fallback to previous secret version", compliance: "SOC2 CC7.2" },
   ],
 };
 
@@ -811,7 +975,7 @@ export const TEMPLATES: Template[] = [
   { id: "rag-genai", name: "RAG / GenAI", icon: "🤖", description: "Document RAG chatbot with Vertex AI Gemini",
     tags: ["rag", "genai", "gen ai", "generative", "chatbot", "assistant", "copilot", "llm", "gemini", "gpt", "embedding", "vector", "pgvector", "document", "knowledge base", "ai assistant", "question answering"],
     diagram: RAG_GENAI },
-  { id: "sources-layer", name: "Layer 1: Sources — Technical Blueprint", icon: "🗄️", description: "All 8 external source categories feeding data into the enterprise data platform: databases, SaaS, files, APIs, streams, unstructured, and legacy",
-    tags: ["sources", "source", "layer 1", "ingestion sources", "external", "database", "saas", "crm", "erp", "salesforce", "oracle", "kafka", "sftp", "api", "webhook", "mainframe", "legacy", "nosql", "mongodb", "postgresql", "sql server", "workday", "servicenow", "sap", "unstructured", "files", "streaming", "event", "data sources"],
-    diagram: SOURCES_LAYER },
+  { id: "gcp-technical-blueprint", name: "GCP Technical Blueprint", icon: "🏗️", description: "Enterprise GCP technical blueprint with real tools: Layer 1 Sources (19 tools) + Layer 2 Connectivity (14 tools) — identity, secrets, network, API management",
+    tags: ["gcp", "technical blueprint", "gcp blueprint", "sources", "source", "connectivity", "layer 1", "layer 2", "identity", "secrets", "network", "vpn", "interconnect", "vpc", "entra", "cyberark", "secret manager", "apigee", "database", "saas", "crm", "erp", "salesforce", "oracle", "kafka", "sftp", "api", "webhook", "mainframe", "legacy", "nosql", "mongodb", "postgresql", "sql server", "workday", "servicenow", "sap", "cloud armor", "dns", "firewall"],
+    diagram: GCP_TECHNICAL_BLUEPRINT },
 ];
