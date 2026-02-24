@@ -333,12 +333,10 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
     if (!n) return null;
     const isSel = selectedCap === nodeId;
     return (
-      <div onClick={() => capClick(nodeId)} style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 7, cursor: "pointer", transition: "all 0.12s", outline: isSel ? "2px solid #1a73e8" : "none", outlineOffset: 1, display: "flex", alignItems: "center", gap: 8, ...style }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 3px 8px rgba(0,0,0,0.06)"; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ""; (e.currentTarget as HTMLDivElement).style.boxShadow = ""; }}>
-        {n.icon && (() => { const src = iconUrl(n.name, n.icon); return src ? <img src={src} alt="" style={{ width: 22, height: 22, flexShrink: 0 }} /> : null; })()}
-        <div>
-          <div style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.2 }}>{n.name}</div>
-          {n.subtitle && <div style={{ fontSize: 8, opacity: 0.5, marginTop: 1 }}>{n.subtitle}</div>}
-        </div>
+      <div onClick={() => capClick(nodeId)} style={{ flex: "0 0 auto", minWidth: 80, padding: "8px 10px", borderRadius: 7, cursor: "pointer", transition: "all 0.12s", outline: isSel ? "2px solid #1a73e8" : "none", outlineOffset: 1, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 4, ...style }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 3px 8px rgba(0,0,0,0.06)"; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ""; (e.currentTarget as HTMLDivElement).style.boxShadow = ""; }}>
+        {(() => { const src = n.icon ? iconUrl(n.name, n.icon) : null; return src ? <img src={src} alt="" style={{ width: 32, height: 32 }} /> : null; })()}
+        <div style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.2 }}>{n.name}</div>
+        {n.subtitle && <div style={{ fontSize: 8, opacity: 0.5 }}>{n.subtitle}</div>}
       </div>
     );
   };
@@ -492,18 +490,40 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
               ))}
             </div>
 
-            {/* Sources (external) */}
+            {/* Sources (external) — vertical grouped */}
             <div style={{ border: "2px dashed #d1d5db", borderRadius: 12, padding: "10px 14px", background: "#f9fafb", position: "relative" }}>
               <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#6b7280", letterSpacing: 1.2, textTransform: "uppercase" as const }}>EXTERNAL — SOURCE SYSTEMS (YOU DON'T OWN THESE)</div>
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8, padding: "4px 0 0" }}>
                 <div style={{ width: 18, height: 18, borderRadius: 5, background: "#4b5563", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", flexShrink: 0 }}>①</div>
                 <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: "#4b5563" }}>Source Systems</div>
-                <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#f3f4f6", color: "#6b7280", letterSpacing: 0.4, textTransform: "uppercase" as const }}>8 Categories</div>
+                <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#f3f4f6", color: "#6b7280", letterSpacing: 0.4, textTransform: "uppercase" as const }}>{srcNodes.length} Sources</div>
               </div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {srcNodes.map(n => (
-                  <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #e5e7eb", color: "#374151" }} />
-                ))}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {(() => {
+                  const cats: Record<string, typeof srcNodes> = {};
+                  srcNodes.forEach(n => {
+                    const sub = (n.subtitle || "").toLowerCase();
+                    let cat = "Other";
+                    if (["crm","hcm","itsm","erp","hrm","finance"].some(k => sub.includes(k))) cat = "SaaS / Business Apps";
+                    else if (["rdbms","sql","nosql","database","db","document"].some(k => sub.includes(k))) cat = "Databases";
+                    else if (["stream","event","kafka","kinesis","pub"].some(k => sub.includes(k))) cat = "Event Streams";
+                    else if (["file","sftp","s3","ftp","object","batch","bulk"].some(k => sub.includes(k))) cat = "Files & Objects";
+                    else if (["api","rest","webhook","http","push"].some(k => sub.includes(k))) cat = "APIs & Webhooks";
+                    else if (["legacy","mainframe","cobol","as400"].some(k => sub.includes(k))) cat = "Legacy Systems";
+                    if (!cats[cat]) cats[cat] = [];
+                    cats[cat].push(n);
+                  });
+                  return Object.entries(cats).map(([cat, nodes]) => (
+                    <div key={cat}>
+                      <div style={{ fontSize: 7.5, fontWeight: 700, color: "#6b7280", textTransform: "uppercase" as const, letterSpacing: 0.5, marginBottom: 4, paddingLeft: 2 }}>{cat}</div>
+                      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                        {nodes.map(n => (
+                          <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #e5e7eb", color: "#374151" }} />
+                        ))}
+                      </div>
+                    </div>
+                  ));
+                })()}
               </div>
             </div>
           </div>
