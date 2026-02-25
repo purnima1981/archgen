@@ -696,24 +696,26 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
             </div>
 
             {/* Pillars (right side) */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 2, width: 170, flexShrink: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 2, width: 190, flexShrink: 0 }}>
               {pillars.map(p => {
                 const node = g(p.id);
                 const items = pillarItems(p.id);
                 const pic = node?.icon ? iconUrl(node.name, node.icon) : null;
                 return (
                   <div key={p.id} onClick={() => click(p.id)} style={{ flex: 1, background: p.bg, borderRadius: 8, border: `1.5px solid ${p.color}35`, padding: "6px 8px", cursor: "pointer", outline: selBorder(p.id), outlineOffset: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 3 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4, paddingBottom: 3, borderBottom: `1px solid ${p.color}20` }}>
                       {pic && <img src={pic} alt="" style={{ width: 18, height: 18 }} />}
                       <div style={{ fontSize: 7, fontWeight: 800, color: p.color, letterSpacing: 0.3 }}>{node?.name || p.id}</div>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                       {items.map((item, j) => {
                         const icoPath = item.icon ? iconUrl(item.name, item.icon) : null;
                         return (
-                          <div key={j} style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 6, fontWeight: 600, color: `${p.color}BB`, lineHeight: 1.2 }}>
-                            {icoPath ? <img src={icoPath} alt="" style={{ width: 12, height: 12, flexShrink: 0 }} /> : <span style={{ width: 12, textAlign: "center", flexShrink: 0 }}>•</span>}
-                            {item.name}
+                          <div key={j} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, width: 48 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: `${p.color}10`, border: `1px solid ${p.color}30`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
+                              {icoPath ? <img src={icoPath} alt="" style={{ width: 22, height: 22 }} /> : <div style={{ fontSize: 6, fontWeight: 800, color: p.color, opacity: 0.5, textAlign: "center", lineHeight: 1 }}>{item.name.split(/[\s\/]/)[0]}</div>}
+                            </div>
+                            <div style={{ fontSize: 5.5, fontWeight: 700, color: `${p.color}BB`, textAlign: "center", lineHeight: 1.1, maxWidth: 48 }}>{item.name}</div>
                           </div>
                         );
                       })}
