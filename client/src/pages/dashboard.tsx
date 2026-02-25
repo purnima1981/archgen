@@ -573,11 +573,11 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
     const ic = n.icon ? iconUrl(n.name, n.icon) : null;
     const cat = getCat(n.icon, n.id);
     return (
-      <div onClick={() => click(id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, cursor: "pointer", width: 68, outline: selBorder(id), outlineOffset: 2, borderRadius: 8, padding: 2 }}>
+      <div onClick={() => click(id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, cursor: "pointer", outline: selBorder(id), outlineOffset: 2, borderRadius: 8, padding: 2 }}>
         <div style={{ width: 44, height: 44, borderRadius: 10, background: bg || cat.bg, border: `1.5px solid ${bd || cat.border}`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
           {ic ? <img src={ic} alt="" style={{ width: 30, height: 30 }} /> : <div style={{ fontSize: 7, fontWeight: 800, color: "#666", textAlign: "center", lineHeight: 1.1 }}>{n.name.split(/[\s\/]/)[0]}</div>}
         </div>
-        <div style={{ fontSize: 7, fontWeight: 700, color: "#333", textAlign: "center", lineHeight: 1.15, maxWidth: 68 }}>{n.name}</div>
+        <div style={{ fontSize: 7, fontWeight: 700, color: "#333", textAlign: "center", lineHeight: 1.15 }}>{n.name}</div>
       </div>
     );
   };
@@ -647,7 +647,7 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
               return (
                 <div key={grp.label} style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 6, padding: "4px 6px" }}>
                   <div style={{ fontSize: 6.5, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3, paddingBottom: 2, borderBottom: "1px solid #F3F4F6" }}>{grp.label}</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, justifyItems: "center" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: 4, justifyItems: "center" }}>
                     {nodes.map((n: any) => <IC key={n.id} id={n.id} />)}
                   </div>
                 </div>
@@ -666,7 +666,7 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
               return (
                 <div key={grp.label} style={{ background: grp.vendor ? "#FFF8E1" : "#FFF", border: `1px ${grp.vendor ? "dashed" : "solid"} ${grp.vendor ? "#33415150" : "#7C3AED20"}`, borderRadius: 6, padding: "4px 6px" }}>
                   <div style={{ fontSize: 6.5, fontWeight: 800, color: grp.vendor ? "#334151" : "#7C3AED", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3, paddingBottom: 2, borderBottom: "1px solid #F3F4F6" }}>{grp.label}</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, justifyItems: "center" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: 4, justifyItems: "center" }}>
                     {nodes.map((n: any) => <IC key={n.id} id={n.id} bg={grp.vendor ? "#FFF8E1" : undefined} border={grp.vendor ? "#33415140" : undefined} />)}
                   </div>
                 </div>
@@ -689,7 +689,7 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
                       <span style={{ fontSize: 9, fontWeight: 800, color: layer.color }}>{layer.num}</span>
                       <span style={{ fontSize: 8, fontWeight: 700, color: layer.color, textTransform: "uppercase", letterSpacing: 0.3 }}>{layer.title}</span>
                     </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: 6, justifyItems: "center" }}>
                       {layer.ids.map(id => g(id) ? <IC key={id} id={id} bg={`${layer.color}08`} border={`${layer.color}40`} /> : null)}
                     </div>
                   </div>
@@ -717,15 +717,15 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
                       {pic && <img src={pic} alt="" style={{ width: 18, height: 18 }} />}
                       <div style={{ fontSize: 7, fontWeight: 800, color: p.color, letterSpacing: 0.3 }}>{node?.name || p.id}</div>
                     </div>
-                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: 4, justifyItems: "center" }}>
                       {items.map((item, j) => {
                         const icoPath = item.icon ? iconUrl(item.name, item.icon) : null;
                         return (
-                          <div key={j} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, width: 68 }}>
+                          <div key={j} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                             <div style={{ width: 44, height: 44, borderRadius: 10, background: `${p.color}10`, border: `1.5px solid ${p.color}30`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
                               {icoPath ? <img src={icoPath} alt="" style={{ width: 30, height: 30 }} /> : <div style={{ fontSize: 7, fontWeight: 800, color: p.color, opacity: 0.5, textAlign: "center", lineHeight: 1.1 }}>{item.name.split(/[\s\/]/)[0]}</div>}
                             </div>
-                            <div style={{ fontSize: 7, fontWeight: 700, color: `${p.color}BB`, textAlign: "center", lineHeight: 1.15, maxWidth: 68 }}>{item.name}</div>
+                            <div style={{ fontSize: 7, fontWeight: 700, color: `${p.color}BB`, textAlign: "center", lineHeight: 1.15 }}>{item.name}</div>
                           </div>
                         );
                       })}
