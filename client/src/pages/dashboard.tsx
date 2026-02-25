@@ -636,7 +636,7 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
         <p style={{ fontSize: 9, color: "#6B7280", margin: "2px 0 0 0" }}>{diag.subtitle}</p>
       </div>
 
-      <div style={{ width: "100%", maxWidth: 1400, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ width: "100%", maxWidth: 1700, display: "flex", flexDirection: "column", gap: 6 }}>
 
         {/* ═══ MAIN ROW: Sources → Connectivity → GCP Box ═══ */}
         <div style={{ display: "flex", gap: 4, alignItems: "stretch" }}>
