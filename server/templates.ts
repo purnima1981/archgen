@@ -803,7 +803,7 @@ const SOURCES_LAYER: Diagram = {
 const GCP_TECHNICAL_BLUEPRINT: Diagram = {
   title: "GCP Enterprise Data Analytics Platform",
   subtitle: "8 Layers · 4 Pillars · GCP-Native Services · Vendor Integration · Users & Personas",
-  layout: "blueprint",
+  layout: "gcp_blueprint",
 
   phases: [
     { id: "connectivity", name: "Layer 2: Connectivity & Access", nodeIds: ["conn_cloud_identity","conn_identity_platform","conn_iam","conn_entra_id","conn_cyberark","conn_keeper","conn_secret_manager","conn_vpn","conn_interconnect","conn_vpc","conn_armor","conn_dns","conn_apigee","conn_api_gateway"] },
@@ -1092,22 +1092,22 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
     // ══════════════════════════════════════════════════
     // ── CROSSCUTTING PILLARS (4 nodes) ───────────────
     // ══════════════════════════════════════════════════
-    { id: "pillar_sec", name: "🔒 Security & Identity", icon: null, subtitle: "IAM · Encryption · Secrets · Network · mTLS", zone: "cloud", x: 1700, y: 100, details: {
+    { id: "pillar_sec", name: "🔒 Security & Identity", icon: "security_command_center", subtitle: "IAM · Encryption · Secrets · Network · mTLS", zone: "cloud", x: 1700, y: 100, details: {
       notes: "★ NON-NEGOTIABLE PILLAR\n\n• Cloud IAM · KMS · CMEK (Identity & key management, least-privilege, CMEK encryption)\n• VPC Service Controls (Data exfiltration prevention, service perimeter)\n• Security Command Center (Asset inventory, vulnerability scanning, threat detection)\n• Cloud Armor (WAF, DDoS protection, geo-blocking)\n• Wiz (Agentless CSPM, misconfiguration scanning — Vendor)\n• Splunk SIEM (Log correlation, threat detection, compliance — Vendor)",
       encryption: "CMEK via Cloud KMS (AES-256) for all data services. HSM for master keys.",
       compliance: "SOC2, ISO 27001, HIPAA, PCI-DSS, FedRAMP, CIS"
     }},
-    { id: "pillar_gov", name: "📋 Governance & Quality", icon: null, subtitle: "Catalog · Lineage · DLP · Quality · Classify", zone: "cloud", x: 1700, y: 400, details: {
+    { id: "pillar_gov", name: "📋 Governance & Quality", icon: "dataplex", subtitle: "Catalog · Lineage · DLP · Quality · Classify", zone: "cloud", x: 1700, y: 400, details: {
       notes: "★ NON-NEGOTIABLE PILLAR\n\n• Dataplex (Auto data quality, profiling, validation at every medallion gate)\n• Data Catalog (Metadata management, search, discovery)\n• Data Lineage (Column-level lineage across BQ, GCS, Dataflow)\n• Cloud DLP (PII/PHI detection, tokenization, classification, masking)",
       cost: "Dataplex: $0.05/GB scanned | DLP: $1–3/GB inspected",
       compliance: "GDPR, CCPA, HIPAA, DATA MESH"
     }},
-    { id: "pillar_obs", name: "📡 Observability & Ops", icon: null, subtitle: "Monitor · Logging · Alerting · SLA · Freshness", zone: "cloud", x: 1700, y: 700, details: {
+    { id: "pillar_obs", name: "📡 Observability & Ops", icon: "cloud_monitoring", subtitle: "Monitor · Logging · Alerting · SLA · Freshness", zone: "cloud", x: 1700, y: 700, details: {
       notes: "★ NON-NEGOTIABLE PILLAR\n\n• Cloud Monitoring (Pipeline metrics, SLO tracking, custom dashboards)\n• Cloud Logging (Centralized audit trails, debug logs, compliance evidence)\n• Error Reporting (Auto error grouping, stack traces, exception tracking)\n• Alerting → PagerDuty (Severity-based routing, on-call rotation)\n• Dynatrace (Full-stack APM, AI root cause analysis — Vendor)\n• Datadog (Unified metrics, traces, GCP integration — Vendor)\n• Grafana (Open-source dashboarding, Prometheus — Vendor)",
       monitoring: "Pipeline SLOs, data freshness, cost burn rate, error budgets",
       compliance: "SLO/SLA, MTTR, DORA"
     }},
-    { id: "pillar_orch", name: "⚙️ Orchestration & Cost", icon: null, subtitle: "DAGs · Scheduling · Budget · Chargeback", zone: "cloud", x: 1700, y: 950, details: {
+    { id: "pillar_orch", name: "⚙️ Orchestration & Cost", icon: "cloud_composer", subtitle: "DAGs · Scheduling · Budget · Chargeback", zone: "cloud", x: 1700, y: 950, details: {
       notes: "★ NON-NEGOTIABLE PILLAR\n\n• Cloud Composer (Managed Airflow, DAG orchestration, dependency management)\n• Cloud Scheduler (Cron jobs, HTTP triggers)\n• Budget Alerts (80%/100% thresholds per team/project)\n• Cost Attribution (Label-based chargeback per BU, FinOps tagging)",
       cost: "Composer: $0.35/vCPU·hr | Budget alerts at 80%/100% threshold",
       compliance: "FINOPS, TAGGING, QUOTAS"

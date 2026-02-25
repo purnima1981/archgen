@@ -532,6 +532,197 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
   );
 }
 
+/* ═══ GCP BLUEPRINT VIEW — STANDALONE, NO SHARED CODE WITH ENTERPRISE ═══ */
+function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: any; setPopover: (p: any) => void }) {
+  const [sel, setSel] = useState<string | null>(null);
+  const g = (id: string) => diag.nodes.find(n => n.id === id);
+  const byPfx = (p: string) => diag.nodes.filter(n => n.id.startsWith(p));
+  const click = (id: string) => { if (sel === id) { setSel(null); setPopover(null); } else { setSel(id); setPopover({ type: "node", id }); } };
+  const selBorder = (id: string) => sel === id ? "2px solid #1a73e8" : "none";
+
+  // Parse pillar bullet items
+  const pillarItems = (id: string) => {
+    const n = g(id);
+    if (!n?.details?.notes) return [];
+    return n.details.notes.split("\n").filter(l => l.trim().startsWith("•")).map(l => {
+      const c = l.replace(/^[•\s]+/, "").trim();
+      const m = c.match(/^([^(]+)\(([^)]+)\)/);
+      return m ? m[1].trim() : c;
+    });
+  };
+
+  // Icon card — the core reusable piece
+  const IC = ({ id, bg, border: bd }: { id: string; bg?: string; border?: string }) => {
+    const n = g(id);
+    if (!n) return null;
+    const ic = n.icon ? iconUrl(n.name, n.icon) : null;
+    const cat = getCat(n.icon, n.id);
+    return (
+      <div onClick={() => click(id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, cursor: "pointer", width: 68, outline: selBorder(id), outlineOffset: 2, borderRadius: 8, padding: 2 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 10, background: bg || cat.bg, border: `1.5px solid ${bd || cat.border}`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+          {ic ? <img src={ic} alt="" style={{ width: 30, height: 30 }} /> : <div style={{ fontSize: 7, fontWeight: 800, color: "#666", textAlign: "center", lineHeight: 1.1 }}>{n.name.split(/[\s\/]/)[0]}</div>}
+        </div>
+        <div style={{ fontSize: 7, fontWeight: 700, color: "#333", textAlign: "center", lineHeight: 1.15, maxWidth: 68 }}>{n.name}</div>
+      </div>
+    );
+  };
+
+  // Source groups
+  const srcGroups = [
+    { label: "SaaS / ERP", ids: ["src_salesforce", "src_workday", "src_servicenow", "src_sap"] },
+    { label: "Databases", ids: ["src_oracle", "src_sqlserver", "src_postgresql", "src_mongodb"] },
+    { label: "Streaming", ids: ["src_kafka"] },
+    { label: "Files", ids: ["src_sftp"] },
+    { label: "APIs", ids: ["src_rest_api"] },
+    { label: "Legacy", ids: ["src_mainframe"] },
+  ];
+
+  // Connectivity groups
+  const connGroups = [
+    { label: "Identity & Auth", ids: ["conn_cloud_identity", "conn_identity_platform", "conn_iam"] },
+    { label: "Vendor Identity", ids: ["conn_entra_id", "conn_cyberark", "conn_keeper"], vendor: true },
+    { label: "Secrets & Network", ids: ["conn_secret_manager", "conn_vpn", "conn_interconnect", "conn_vpc", "conn_armor", "conn_dns"] },
+    { label: "API Management", ids: ["conn_apigee", "conn_api_gateway"] },
+  ];
+
+  // GCP layers
+  const layers = [
+    { num: "L3", title: "Ingestion", color: "#0369A1", ids: ["ing_datastream", "ing_pubsub", "ing_dataflow", "ing_functions", "ing_fivetran", "ing_matillion"] },
+    { num: "L4", title: "Data Lake", color: "#047857", ids: ["lake_gcs", "lake_bq_staging"] },
+    { num: "L5", title: "Processing", color: "#6D28D9", ids: ["proc_dataflow", "proc_dataproc", "proc_bq_sql", "proc_dlp", "proc_matillion"] },
+    { num: "L6", title: "Medallion", color: "#D97706", ids: ["bronze", "silver", "gold"] },
+    { num: "L7", title: "Serving", color: "#C2410C", ids: ["serve_looker", "serve_run", "serve_hub", "serve_bi_engine"] },
+    { num: "L8", title: "Consumers", color: "#0E7490", ids: ["con_looker", "con_sheets", "con_vertex", "con_run", "con_hub", "con_powerbi", "con_tableau", "con_slicer"] },
+  ];
+
+  // Pillars
+  const pillars = [
+    { id: "pillar_sec", color: "#DC2626", bg: "#FEF2F2" },
+    { id: "pillar_gov", color: "#2563EB", bg: "#EFF6FF" },
+    { id: "pillar_obs", color: "#D97706", bg: "#FFFBEB" },
+    { id: "pillar_orch", color: "#7C3AED", bg: "#F5F3FF" },
+  ];
+
+  // Arrow
+  const Arr = ({ color = "#94A3B8" }: { color?: string }) => (
+    <div style={{ display: "flex", alignItems: "center", padding: "0 2px", flexShrink: 0 }}>
+      <svg width="16" height="10"><line x1="0" y1="5" x2="10" y2="5" stroke={color} strokeWidth="1.5" strokeDasharray="3 2"/><polygon points="10,1.5 16,5 10,8.5" fill={color}/></svg>
+    </div>
+  );
+
+  return (
+    <div style={{ fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif", background: "#FAFAFD", flex: 1, overflow: "auto", padding: "16px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+      {/* Title */}
+      <div style={{ textAlign: "center", marginBottom: 10 }}>
+        <h1 style={{ fontSize: 18, fontWeight: 800, color: "#1F2937", margin: 0, letterSpacing: -0.3 }}>{diag.title}</h1>
+        <p style={{ fontSize: 9, color: "#6B7280", margin: "2px 0 0 0" }}>{diag.subtitle}</p>
+      </div>
+
+      <div style={{ width: "100%", maxWidth: 1400, display: "flex", flexDirection: "column", gap: 6 }}>
+
+        {/* ═══ MAIN ROW: Sources → Connectivity → GCP Box ═══ */}
+        <div style={{ display: "flex", gap: 4, alignItems: "stretch" }}>
+
+          {/* ── SOURCES (Layer 1) ── */}
+          <div style={{ width: 160, minWidth: 160, borderRadius: 10, border: "2px solid #D1D5DB", background: "#F9FAFB", padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ fontSize: 8, fontWeight: 800, color: "#4B5563", textAlign: "center", textTransform: "uppercase", letterSpacing: 0.8, paddingBottom: 4, borderBottom: "1.5px solid #E5E7EB" }}>Layer 1 — Sources</div>
+            {srcGroups.map(grp => {
+              const nodes = grp.ids.map(id => g(id)).filter(Boolean);
+              if (!nodes.length) return null;
+              return (
+                <div key={grp.label} style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 6, padding: "4px 6px" }}>
+                  <div style={{ fontSize: 6.5, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3, paddingBottom: 2, borderBottom: "1px solid #F3F4F6" }}>{grp.label}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, justifyItems: "center" }}>
+                    {nodes.map((n: any) => <IC key={n.id} id={n.id} />)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <Arr color="#6B7280" />
+
+          {/* ── CONNECTIVITY (Layer 2) ── */}
+          <div style={{ width: 160, minWidth: 160, borderRadius: 10, border: "2px dashed #7C3AED40", background: "#7C3AED05", padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ fontSize: 8, fontWeight: 800, color: "#7C3AED", textAlign: "center", textTransform: "uppercase", letterSpacing: 0.8, paddingBottom: 4, borderBottom: "1.5px solid #7C3AED20" }}>Layer 2 — Connectivity</div>
+            {connGroups.map(grp => {
+              const nodes = grp.ids.map(id => g(id)).filter(Boolean);
+              if (!nodes.length) return null;
+              return (
+                <div key={grp.label} style={{ background: grp.vendor ? "#FFF8E1" : "#FFF", border: `1px ${grp.vendor ? "dashed" : "solid"} ${grp.vendor ? "#33415150" : "#7C3AED20"}`, borderRadius: 6, padding: "4px 6px" }}>
+                  <div style={{ fontSize: 6.5, fontWeight: 800, color: grp.vendor ? "#334151" : "#7C3AED", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3, paddingBottom: 2, borderBottom: "1px solid #F3F4F6" }}>{grp.label}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, justifyItems: "center" }}>
+                    {nodes.map((n: any) => <IC key={n.id} id={n.id} bg={grp.vendor ? "#FFF8E1" : undefined} border={grp.vendor ? "#33415140" : undefined} />)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <Arr color="#4285F4" />
+
+          {/* ── GCP CLOUD BOX (Layers 3–8 + Pillars) ── */}
+          <div style={{ flex: 1, borderRadius: 12, border: "3px solid #4285F4", background: "#F0F6FF", padding: "14px 10px 10px 10px", position: "relative", display: "flex", gap: 6 }}>
+            <div style={{ position: "absolute", top: -11, left: 14, background: "#4285F4", color: "#FFF", fontSize: 8, fontWeight: 800, padding: "2px 10px", borderRadius: 14, letterSpacing: 0.6 }}>☁️ GOOGLE CLOUD PLATFORM — Layers 3–8</div>
+
+            {/* Layers stack */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, marginTop: 2 }}>
+              {layers.map(layer => (
+                <div key={layer.num} style={{ background: `${layer.color}06`, borderRadius: 8, border: `1.5px solid ${layer.color}30`, padding: "6px 8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4, paddingBottom: 3, borderBottom: `1px solid ${layer.color}20` }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: layer.color }}>{layer.num}</span>
+                    <span style={{ fontSize: 8, fontWeight: 700, color: layer.color, textTransform: "uppercase", letterSpacing: 0.3 }}>{layer.title}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {layer.ids.map(id => g(id) ? <IC key={id} id={id} bg={`${layer.color}08`} border={`${layer.color}40`} /> : null)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pillars (right side) */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 2, width: 170, flexShrink: 0 }}>
+              {pillars.map(p => {
+                const node = g(p.id);
+                const items = pillarItems(p.id);
+                const pic = node?.icon ? iconUrl(node.name, node.icon) : null;
+                return (
+                  <div key={p.id} onClick={() => click(p.id)} style={{ flex: 1, background: p.bg, borderRadius: 8, border: `1.5px solid ${p.color}35`, padding: "6px 8px", cursor: "pointer", outline: selBorder(p.id), outlineOffset: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 3 }}>
+                      {pic && <img src={pic} alt="" style={{ width: 18, height: 18 }} />}
+                      <div style={{ fontSize: 7, fontWeight: 800, color: p.color, letterSpacing: 0.3 }}>{node?.name || p.id}</div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      {items.map((item, j) => (
+                        <div key={j} style={{ fontSize: 6, fontWeight: 600, color: `${p.color}BB`, lineHeight: 1.2 }}>• {item}</div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ LEGEND ═══ */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 14, padding: "4px 0", borderTop: "1px solid #E5E7EB" }}>
+          {[
+            { color: "#4285F4", label: "GCP (Layers 3–8)", style: "solid", w: 3 },
+            { color: "#6B7280", label: "L1 Sources (External)", style: "solid", w: 2 },
+            { color: "#7C3AED", label: "L2 Connectivity", style: "dashed", w: 2 },
+            { color: "#334151", label: "⬡ Vendor (non-GCP)", style: "dashed", w: 1.5 },
+          ].map((item, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ width: 14, height: 7, borderRadius: 2, border: `${item.w}px ${item.style} ${item.color}`, background: item.style === "solid" ? `${item.color}12` : "transparent" }} />
+              <span style={{ fontSize: 7, fontWeight: 600, color: "#6B7280" }}>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ═══ SVG CANVAS ═══════════════════════════════════ */
 function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, connectMode, connectSource, onConnectClick }: { diag: Diagram; setDiag: (d: Diagram) => void; popover: any; setPopover: (p: any) => void; theme: string; onDragEnd?: (d: Diagram) => void; connectMode?: boolean; connectSource?: string | null; onConnectClick?: (nodeId: string) => void }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -1190,7 +1381,10 @@ export default function Dashboard({ user }: { user: User }) {
         {diag && tab === "diagram" && diag.layout === "blueprint" && (
           <BlueprintView diag={diag} popover={popover} setPopover={setPopover} />
         )}
-        {diag && tab === "diagram" && diag.layout !== "blueprint" && (
+        {diag && tab === "diagram" && diag.layout === "gcp_blueprint" && (
+          <GCPBlueprintView diag={diag} popover={popover} setPopover={setPopover} />
+        )}
+        {diag && tab === "diagram" && diag.layout !== "blueprint" && diag.layout !== "gcp_blueprint" && (
           <div ref={diagAreaRef} style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", background: THEMES[theme]?.bg || "#f8f9fa", overflow: "hidden" }}>
             
             {/* Edit Mode Toggle Button */}
