@@ -696,7 +696,7 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
             </div>
 
             {/* Pillars (right side) */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 2, width: 190, flexShrink: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 2, width: 220, flexShrink: 0 }}>
               {pillars.map(p => {
                 const node = g(p.id);
                 const items = pillarItems(p.id);
@@ -711,11 +711,11 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
                       {items.map((item, j) => {
                         const icoPath = item.icon ? iconUrl(item.name, item.icon) : null;
                         return (
-                          <div key={j} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, width: 48 }}>
-                            <div style={{ width: 32, height: 32, borderRadius: 8, background: `${p.color}10`, border: `1px solid ${p.color}30`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
-                              {icoPath ? <img src={icoPath} alt="" style={{ width: 22, height: 22 }} /> : <div style={{ fontSize: 6, fontWeight: 800, color: p.color, opacity: 0.5, textAlign: "center", lineHeight: 1 }}>{item.name.split(/[\s\/]/)[0]}</div>}
+                          <div key={j} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, width: 68 }}>
+                            <div style={{ width: 44, height: 44, borderRadius: 10, background: `${p.color}10`, border: `1.5px solid ${p.color}30`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                              {icoPath ? <img src={icoPath} alt="" style={{ width: 30, height: 30 }} /> : <div style={{ fontSize: 7, fontWeight: 800, color: p.color, opacity: 0.5, textAlign: "center", lineHeight: 1.1 }}>{item.name.split(/[\s\/]/)[0]}</div>}
                             </div>
-                            <div style={{ fontSize: 5.5, fontWeight: 700, color: `${p.color}BB`, textAlign: "center", lineHeight: 1.1, maxWidth: 48 }}>{item.name}</div>
+                            <div style={{ fontSize: 7, fontWeight: 700, color: `${p.color}BB`, textAlign: "center", lineHeight: 1.15, maxWidth: 68 }}>{item.name}</div>
                           </div>
                         );
                       })}
