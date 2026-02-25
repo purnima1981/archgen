@@ -540,6 +540,17 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
   const click = (id: string) => { if (sel === id) { setSel(null); setPopover(null); } else { setSel(id); setPopover({ type: "node", id }); } };
   const selBorder = (id: string) => sel === id ? "2px solid #1a73e8" : "none";
 
+  // Icon lookup for pillar sub-items
+  const pillarIconMap: Record<string, string> = {
+    "Cloud IAM": "identity_and_access_management", "KMS": "key_management_service", "CMEK": "key_management_service",
+    "VPC Service Controls": "virtual_private_cloud", "Security Command Center": "security_command_center",
+    "Cloud Armor": "cloud_armor", "Wiz": "wiz", "Splunk SIEM": "splunk", "Splunk": "splunk",
+    "Dataplex": "dataplex", "Data Catalog": "data_catalog", "Data Lineage": "data_catalog", "Cloud DLP": "cloud_natural_language_api",
+    "Cloud Monitoring": "cloud_monitoring", "Cloud Logging": "cloud_logging", "Error Reporting": "error_reporting",
+    "PagerDuty": "pagerduty", "Dynatrace": "dynatrace", "Datadog": "datadog", "Grafana": "grafana",
+    "Cloud Composer": "cloud_composer", "Cloud Scheduler": "cloud_scheduler",
+  };
+
   // Parse pillar bullet items
   const pillarItems = (id: string) => {
     const n = g(id);
@@ -547,7 +558,11 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
     return n.details.notes.split("\n").filter(l => l.trim().startsWith("•")).map(l => {
       const c = l.replace(/^[•\s]+/, "").trim();
       const m = c.match(/^([^(]+)\(([^)]+)\)/);
-      return m ? m[1].trim() : c;
+      const name = m ? m[1].trim() : c;
+      // Find icon: try full name first, then first word before " · "
+      const firstName = name.split(/\s*·\s*/)[0].trim();
+      const ico = pillarIconMap[firstName] || pillarIconMap[name] || null;
+      return { name: firstName, icon: ico };
     });
   };
 
@@ -692,10 +707,16 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
                       {pic && <img src={pic} alt="" style={{ width: 18, height: 18 }} />}
                       <div style={{ fontSize: 7, fontWeight: 800, color: p.color, letterSpacing: 0.3 }}>{node?.name || p.id}</div>
                     </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                      {items.map((item, j) => (
-                        <div key={j} style={{ fontSize: 6, fontWeight: 600, color: `${p.color}BB`, lineHeight: 1.2 }}>• {item}</div>
-                      ))}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                      {items.map((item, j) => {
+                        const icoPath = item.icon ? iconUrl(item.name, item.icon) : null;
+                        return (
+                          <div key={j} style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 6, fontWeight: 600, color: `${p.color}BB`, lineHeight: 1.2 }}>
+                            {icoPath ? <img src={icoPath} alt="" style={{ width: 12, height: 12, flexShrink: 0 }} /> : <span style={{ width: 12, textAlign: "center", flexShrink: 0 }}>•</span>}
+                            {item.name}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );
