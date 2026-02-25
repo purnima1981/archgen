@@ -1097,6 +1097,375 @@
         "dag orchestration",
         "workflow orchestration"
       ]
+    },
+    {
+      "id": "hubspot",
+      "name": "HubSpot",
+      "path": "/icons/vendor/hubspot.svg",
+      "aliases": [
+        "hubspot crm"
+      ]
+    },
+    {
+      "id": "dynamics365",
+      "name": "Dynamics 365",
+      "path": "/icons/vendor/dynamics365.svg",
+      "aliases": [
+        "d365",
+        "microsoft dynamics"
+      ]
+    },
+    {
+      "id": "netsuite",
+      "name": "NetSuite",
+      "path": "/icons/vendor/netsuite.svg",
+      "aliases": [
+        "oracle netsuite"
+      ]
+    },
+    {
+      "id": "adp",
+      "name": "ADP",
+      "path": "/icons/vendor/adp.svg",
+      "aliases": [
+        "adp payroll"
+      ]
+    },
+    {
+      "id": "bamboohr",
+      "name": "BambooHR",
+      "path": "/icons/vendor/bamboohr.svg",
+      "aliases": [
+        "bamboo"
+      ]
+    },
+    {
+      "id": "google_ads",
+      "name": "Google Ads",
+      "path": "/icons/vendor/google_ads.svg",
+      "aliases": [
+        "adwords",
+        "gads"
+      ]
+    },
+    {
+      "id": "facebook_ads",
+      "name": "Facebook Ads",
+      "path": "/icons/vendor/facebook_ads.svg",
+      "aliases": [
+        "meta ads"
+      ]
+    },
+    {
+      "id": "google_analytics",
+      "name": "Google Analytics",
+      "path": "/icons/vendor/google_analytics.svg",
+      "aliases": [
+        "ga4",
+        "ga"
+      ]
+    },
+    {
+      "id": "adobe_analytics",
+      "name": "Adobe Analytics",
+      "path": "/icons/vendor/adobe_analytics.svg",
+      "aliases": [
+        "omniture"
+      ]
+    },
+    {
+      "id": "marketo",
+      "name": "Marketo",
+      "path": "/icons/vendor/marketo.svg",
+      "aliases": [
+        "adobe marketo"
+      ]
+    },
+    {
+      "id": "facebook",
+      "name": "Facebook",
+      "path": "/icons/vendor/facebook.svg",
+      "aliases": [
+        "meta",
+        "fb"
+      ]
+    },
+    {
+      "id": "twitter",
+      "name": "Twitter / X",
+      "path": "/icons/vendor/twitter.svg",
+      "aliases": [
+        "x",
+        "x.com"
+      ]
+    },
+    {
+      "id": "linkedin",
+      "name": "LinkedIn",
+      "path": "/icons/vendor/linkedin.svg",
+      "aliases": [
+        "li"
+      ]
+    },
+    {
+      "id": "instagram",
+      "name": "Instagram",
+      "path": "/icons/vendor/instagram.svg",
+      "aliases": [
+        "ig"
+      ]
+    },
+    {
+      "id": "tiktok",
+      "name": "TikTok",
+      "path": "/icons/vendor/tiktok.svg",
+      "aliases": [
+        "tt"
+      ]
+    },
+    {
+      "id": "apple_store",
+      "name": "Apple App Store",
+      "path": "/icons/vendor/apple_store.svg",
+      "aliases": [
+        "ios store"
+      ]
+    },
+    {
+      "id": "google_play",
+      "name": "Google Play",
+      "path": "/icons/vendor/google_play.svg",
+      "aliases": [
+        "play store"
+      ]
+    },
+    {
+      "id": "youtube",
+      "name": "YouTube",
+      "path": "/icons/vendor/youtube.svg",
+      "aliases": [
+        "yt"
+      ]
+    },
+    {
+      "id": "jira",
+      "name": "Jira",
+      "path": "/icons/vendor/jira.svg",
+      "aliases": [
+        "jira software"
+      ]
+    },
+    {
+      "id": "zendesk",
+      "name": "Zendesk",
+      "path": "/icons/vendor/zendesk.svg",
+      "aliases": [
+        "zd"
+      ]
+    },
+    {
+      "id": "shopify",
+      "name": "Shopify",
+      "path": "/icons/vendor/shopify.svg",
+      "aliases": [
+        "shopify store"
+      ]
+    },
+    {
+      "id": "stripe",
+      "name": "Stripe",
+      "path": "/icons/vendor/stripe.svg",
+      "aliases": [
+        "stripe payments"
+      ]
+    },
+    {
+      "id": "square",
+      "name": "Square",
+      "path": "/icons/vendor/square.svg",
+      "aliases": [
+        "square pos"
+      ]
+    },
+    {
+      "id": "cassandra",
+      "name": "Cassandra",
+      "path": "/icons/vendor/cassandra.svg",
+      "aliases": [
+        "c*"
+      ]
+    },
+    {
+      "id": "elasticsearch",
+      "name": "Elasticsearch",
+      "path": "/icons/vendor/elasticsearch.svg",
+      "aliases": [
+        "elastic",
+        "es"
+      ]
+    },
+    {
+      "id": "dynamodb",
+      "name": "DynamoDB",
+      "path": "/icons/vendor/dynamodb.svg",
+      "aliases": [
+        "ddb"
+      ]
+    },
+    {
+      "id": "couchbase",
+      "name": "Couchbase",
+      "path": "/icons/vendor/couchbase.svg",
+      "aliases": [
+        "cb"
+      ]
+    },
+    {
+      "id": "neo4j",
+      "name": "Neo4j",
+      "path": "/icons/vendor/neo4j.svg",
+      "aliases": [
+        "graph db"
+      ]
+    },
+    {
+      "id": "event_hubs",
+      "name": "Azure Event Hubs",
+      "path": "/icons/vendor/event_hubs.svg",
+      "aliases": [
+        "eventhubs"
+      ]
+    },
+    {
+      "id": "mqtt",
+      "name": "MQTT",
+      "path": "/icons/vendor/mqtt.svg",
+      "aliases": [
+        "iot"
+      ]
+    },
+    {
+      "id": "rabbitmq",
+      "name": "RabbitMQ",
+      "path": "/icons/vendor/rabbitmq.svg",
+      "aliases": [
+        "rmq"
+      ]
+    },
+    {
+      "id": "sharepoint",
+      "name": "SharePoint",
+      "path": "/icons/vendor/sharepoint.svg",
+      "aliases": [
+        "sp"
+      ]
+    },
+    {
+      "id": "azure_blob",
+      "name": "Azure Blob",
+      "path": "/icons/vendor/azure_blob.svg",
+      "aliases": [
+        "adls"
+      ]
+    },
+    {
+      "id": "gcs_external",
+      "name": "GCS External",
+      "path": "/icons/vendor/gcs_external.svg",
+      "aliases": []
+    },
+    {
+      "id": "box",
+      "name": "Box",
+      "path": "/icons/vendor/box.svg",
+      "aliases": [
+        "box.com"
+      ]
+    },
+    {
+      "id": "dropbox",
+      "name": "Dropbox",
+      "path": "/icons/vendor/dropbox.svg",
+      "aliases": [
+        "dbx"
+      ]
+    },
+    {
+      "id": "azure_sql",
+      "name": "Azure SQL",
+      "path": "/icons/vendor/azure_sql.svg",
+      "aliases": []
+    },
+    {
+      "id": "aws_aurora",
+      "name": "AWS Aurora",
+      "path": "/icons/vendor/aws_aurora.svg",
+      "aliases": [
+        "aurora"
+      ]
+    },
+    {
+      "id": "graphql",
+      "name": "GraphQL",
+      "path": "/icons/vendor/graphql.svg",
+      "aliases": [
+        "gql"
+      ]
+    },
+    {
+      "id": "grpc",
+      "name": "gRPC",
+      "path": "/icons/vendor/grpc.svg",
+      "aliases": [
+        "protobuf"
+      ]
+    },
+    {
+      "id": "as400",
+      "name": "AS/400",
+      "path": "/icons/vendor/as400.svg",
+      "aliases": [
+        "ibm i",
+        "iseries"
+      ]
+    },
+    {
+      "id": "mq_series",
+      "name": "MQ Series",
+      "path": "/icons/vendor/mq_series.svg",
+      "aliases": [
+        "ibm mq"
+      ]
+    },
+    {
+      "id": "ftp",
+      "name": "FTP",
+      "path": "/icons/vendor/ftp.svg",
+      "aliases": [
+        "ftp server"
+      ]
+    },
+    {
+      "id": "flat_file",
+      "name": "Flat File",
+      "path": "/icons/vendor/flat_file.svg",
+      "aliases": [
+        "csv"
+      ]
+    },
+    {
+      "id": "databricks",
+      "name": "Databricks",
+      "path": "/icons/vendor/databricks.svg",
+      "aliases": [
+        "dbr"
+      ]
+    },
+    {
+      "id": "pagerduty_src",
+      "name": "PagerDuty",
+      "path": "/icons/vendor/pagerduty_src.svg",
+      "aliases": []
     }
   ]
 }

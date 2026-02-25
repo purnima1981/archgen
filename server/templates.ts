@@ -873,6 +873,79 @@ const GCP_TECHNICAL_BLUEPRINT: Diagram = {
       compliance: "SOC2, PCI-DSS"
     }},
 
+    // ── CRM & Sales (additional) ──
+    { id: "src_hubspot", name: "HubSpot", icon: "hubspot", subtitle: "CRM", zone: "sources", x: 200, y: 100, details: { notes: "Cloud CRM/Marketing platform via REST API v3, webhooks, and HubDB.", compliance: "SOC2, GDPR" }},
+    { id: "src_dynamics365", name: "Dynamics 365", icon: "dynamics365", subtitle: "CRM/ERP", zone: "sources", x: 200, y: 200, details: { notes: "Microsoft CRM/ERP via Dataverse Web API, OData endpoints.", compliance: "SOC2, GDPR, HIPAA" }},
+
+    // ── HR & Finance (additional) ──
+    { id: "src_netsuite", name: "NetSuite", icon: "netsuite", subtitle: "ERP", zone: "sources", x: 200, y: 300, details: { notes: "Oracle NetSuite ERP/financials via SuiteScript REST, SuiteTalk SOAP.", compliance: "SOC2, SOX" }},
+    { id: "src_adp", name: "ADP", icon: "adp", subtitle: "Payroll", zone: "sources", x: 200, y: 400, details: { notes: "ADP payroll and workforce management via ADP Marketplace APIs.", compliance: "SOC2, GDPR" }},
+    { id: "src_bamboohr", name: "BambooHR", icon: "bamboohr", subtitle: "HR", zone: "sources", x: 200, y: 500, details: { notes: "Cloud HRIS for employee data, time-off, onboarding via REST API.", compliance: "SOC2" }},
+
+    // ── ITSM & Ops (additional) ──
+    { id: "src_jira", name: "Jira", icon: "jira", subtitle: "Projects", zone: "sources", x: 200, y: 600, details: { notes: "Atlassian Jira for issues, sprints, boards via REST API v3 and webhooks.", compliance: "SOC2" }},
+    { id: "src_zendesk", name: "Zendesk", icon: "zendesk", subtitle: "Support", zone: "sources", x: 200, y: 700, details: { notes: "Customer support platform: tickets, agents, satisfaction via REST API.", compliance: "SOC2, HIPAA" }},
+
+    // ── Marketing & Ads ──
+    { id: "src_google_ads", name: "Google Ads", icon: "google_ads", subtitle: "Ads", zone: "sources", x: 300, y: 100, details: { notes: "Google Ads campaigns, ad groups, keywords, conversions via Google Ads API.", compliance: "SOC2" }},
+    { id: "src_facebook_ads", name: "Facebook Ads", icon: "facebook_ads", subtitle: "Ads", zone: "sources", x: 300, y: 200, details: { notes: "Meta Ads Manager: campaigns, ad sets, creatives, conversions via Marketing API.", compliance: "SOC2" }},
+    { id: "src_google_analytics", name: "Google Analytics", icon: "google_analytics", subtitle: "Web", zone: "sources", x: 300, y: 300, details: { notes: "GA4 event-based analytics: sessions, pageviews, conversions via Data API v1.", compliance: "SOC2, GDPR" }},
+    { id: "src_adobe_analytics", name: "Adobe Analytics", icon: "adobe_analytics", subtitle: "Web", zone: "sources", x: 300, y: 400, details: { notes: "Adobe Analytics for web/app analytics via Reporting API 2.0, data feeds.", compliance: "SOC2" }},
+    { id: "src_marketo", name: "Marketo", icon: "marketo", subtitle: "Marketing", zone: "sources", x: 300, y: 500, details: { notes: "Adobe Marketo Engage for leads, campaigns, email via REST/Bulk API.", compliance: "SOC2, GDPR" }},
+
+    // ── Social & Apps ──
+    { id: "src_facebook", name: "Facebook", icon: "facebook", subtitle: "Social", zone: "sources", x: 400, y: 100, details: { notes: "Meta Graph API for pages, posts, comments, insights.", compliance: "SOC2" }},
+    { id: "src_twitter", name: "Twitter / X", icon: "twitter", subtitle: "Social", zone: "sources", x: 400, y: 200, details: { notes: "X API v2 for tweets, users, spaces, streaming endpoints.", compliance: "SOC2" }},
+    { id: "src_linkedin", name: "LinkedIn", icon: "linkedin", subtitle: "Social", zone: "sources", x: 400, y: 300, details: { notes: "LinkedIn Marketing API for company pages, ads, leads, analytics.", compliance: "SOC2" }},
+    { id: "src_instagram", name: "Instagram", icon: "instagram", subtitle: "Social", zone: "sources", x: 400, y: 400, details: { notes: "Instagram Graph API for media, stories, insights, comments.", compliance: "SOC2" }},
+    { id: "src_youtube", name: "YouTube", icon: "youtube", subtitle: "Video", zone: "sources", x: 400, y: 500, details: { notes: "YouTube Data API v3 for channels, videos, analytics, comments.", compliance: "SOC2" }},
+    { id: "src_tiktok", name: "TikTok", icon: "tiktok", subtitle: "Social", zone: "sources", x: 400, y: 600, details: { notes: "TikTok for Business API for ad campaigns, audiences, reporting.", compliance: "SOC2" }},
+
+    // ── App Stores ──
+    { id: "src_apple_store", name: "App Store", icon: "apple_store", subtitle: "iOS", zone: "sources", x: 500, y: 100, details: { notes: "App Store Connect API for downloads, ratings, revenue, subscriptions.", compliance: "SOC2" }},
+    { id: "src_google_play", name: "Google Play", icon: "google_play", subtitle: "Android", zone: "sources", x: 500, y: 200, details: { notes: "Google Play Developer API for installs, ratings, revenue, reviews.", compliance: "SOC2" }},
+
+    // ── Commerce & Payments ──
+    { id: "src_shopify", name: "Shopify", icon: "shopify", subtitle: "eComm", zone: "sources", x: 500, y: 300, details: { notes: "Shopify Admin API for orders, products, customers, inventory.", compliance: "SOC2, PCI-DSS" }},
+    { id: "src_stripe", name: "Stripe", icon: "stripe", subtitle: "Payments", zone: "sources", x: 500, y: 400, details: { notes: "Stripe API for charges, subscriptions, invoices, payouts, disputes.", compliance: "SOC2, PCI-DSS" }},
+
+    // ── RDBMS (additional) ──
+    { id: "src_mysql", name: "MySQL", icon: "mysql", subtitle: "RDBMS", zone: "sources", x: 500, y: 500, details: { notes: "Open-source RDBMS via JDBC, binlog CDC replication.", compliance: "SOC2" }},
+    { id: "src_cloud_sql", name: "Cloud SQL", icon: "cloud_sql", subtitle: "GCP DB", zone: "sources", x: 500, y: 600, details: { notes: "Managed MySQL/PG/SQL Server on GCP. Direct BQ federation or Datastream CDC.", compliance: "SOC2" }},
+    { id: "src_alloydb", name: "AlloyDB", icon: "alloydb", subtitle: "GCP DB", zone: "sources", x: 500, y: 700, details: { notes: "Google's PostgreSQL-compatible DB. Direct federation with BigQuery.", compliance: "SOC2" }},
+
+    // ── NoSQL & Search (additional) ──
+    { id: "src_cassandra", name: "Cassandra", icon: "cassandra", subtitle: "NoSQL", zone: "sources", x: 600, y: 100, details: { notes: "Apache Cassandra wide-column store. Spark connector or CDC.", compliance: "SOC2" }},
+    { id: "src_elasticsearch", name: "Elasticsearch", icon: "elasticsearch", subtitle: "Search", zone: "sources", x: 600, y: 200, details: { notes: "Distributed search/analytics engine. Scroll API or snapshot exports.", compliance: "SOC2" }},
+    { id: "src_redis", name: "Redis", icon: "redis", subtitle: "Cache", zone: "sources", x: 600, y: 300, details: { notes: "In-memory key-value store. RDB snapshots, keyspace notifications.", compliance: "SOC2" }},
+    { id: "src_dynamodb", name: "DynamoDB", icon: "dynamodb", subtitle: "AWS NoSQL", zone: "sources", x: 600, y: 400, details: { notes: "AWS managed NoSQL. DynamoDB Streams for CDC, exports to S3.", compliance: "SOC2" }},
+    { id: "src_firestore", name: "Firestore", icon: "firestore", subtitle: "GCP NoSQL", zone: "sources", x: 600, y: 500, details: { notes: "Google Firestore document DB. BQ export or real-time listeners.", compliance: "SOC2" }},
+    { id: "src_neo4j", name: "Neo4j", icon: "neo4j", subtitle: "Graph", zone: "sources", x: 600, y: 600, details: { notes: "Graph database. Cypher queries, APOC export, Spark connector.", compliance: "SOC2" }},
+
+    // ── Streaming (additional) ──
+    { id: "src_confluent", name: "Confluent", icon: "confluent", subtitle: "Kafka SaaS", zone: "sources", x: 700, y: 100, details: { notes: "Managed Kafka. GCS/BQ Sink Connector, Schema Registry.", compliance: "SOC2" }},
+    { id: "src_kinesis", name: "AWS Kinesis", icon: "aws_kinesis", subtitle: "AWS Stream", zone: "sources", x: 700, y: 200, details: { notes: "AWS real-time data streaming. Cross-cloud via Dataflow consumer.", compliance: "SOC2" }},
+    { id: "src_event_hubs", name: "Event Hubs", icon: "event_hubs", subtitle: "Azure Stream", zone: "sources", x: 700, y: 300, details: { notes: "Azure event streaming. Kafka-compatible endpoint for cross-cloud.", compliance: "SOC2" }},
+    { id: "src_rabbitmq", name: "RabbitMQ", icon: "rabbitmq", subtitle: "Message Q", zone: "sources", x: 700, y: 400, details: { notes: "AMQP message broker. Shovel/Federation plugins for cloud forwarding.", compliance: "SOC2" }},
+    { id: "src_mqtt", name: "IoT / MQTT", icon: "mqtt", subtitle: "IoT", zone: "sources", x: 700, y: 500, details: { notes: "MQTT protocol for IoT device telemetry. GCP IoT Core or Pub/Sub bridge.", compliance: "SOC2" }},
+
+    // ── Files & Storage (additional) ──
+    { id: "src_s3", name: "AWS S3", icon: "aws_s3", subtitle: "Object", zone: "sources", x: 800, y: 100, details: { notes: "AWS object storage. Storage Transfer Service or S3-compatible API.", compliance: "SOC2" }},
+    { id: "src_azure_blob", name: "Azure Blob", icon: "azure_blob", subtitle: "Object", zone: "sources", x: 800, y: 200, details: { notes: "Azure Blob/ADLS Gen2. Storage Transfer Service or AzCopy.", compliance: "SOC2" }},
+    { id: "src_sharepoint", name: "SharePoint", icon: "sharepoint", subtitle: "Docs", zone: "sources", x: 800, y: 300, details: { notes: "Microsoft SharePoint Online for documents, lists via Graph API.", compliance: "SOC2, GDPR" }},
+    { id: "src_gcs", name: "GCS External", icon: "gcs_external", subtitle: "Object", zone: "sources", x: 800, y: 400, details: { notes: "External GCS buckets from other GCP projects or orgs.", compliance: "SOC2" }},
+
+    // ── Cloud DB (additional) ──
+    { id: "src_aws_rds", name: "AWS RDS", icon: "aws_rds", subtitle: "AWS DB", zone: "sources", x: 800, y: 500, details: { notes: "AWS managed RDBMS. DMS or Datastream for cross-cloud CDC.", compliance: "SOC2" }},
+    { id: "src_snowflake", name: "Snowflake", icon: "snowflake", subtitle: "Cloud DW", zone: "sources", x: 800, y: 600, details: { notes: "Snowflake data warehouse. Data sharing, COPY INTO, or external tables.", compliance: "SOC2, HIPAA" }},
+    { id: "src_databricks", name: "Databricks", icon: "databricks", subtitle: "Lakehouse", zone: "sources", x: 800, y: 700, details: { notes: "Databricks Lakehouse. Delta Sharing protocol or JDBC/Spark.", compliance: "SOC2" }},
+
+    // ── Legacy (additional) ──
+    { id: "src_as400", name: "AS/400", icon: "as400", subtitle: "Legacy", zone: "sources", x: 900, y: 100, details: { notes: "IBM iSeries (AS/400). DB2 for i via JDBC, data queues, or IFS file drops.", compliance: "SOC2" }},
+    { id: "src_mq_series", name: "MQ Series", icon: "mq_series", subtitle: "MOM", zone: "sources", x: 900, y: 200, details: { notes: "IBM MQ message-oriented middleware. MQ-to-Pub/Sub bridge.", compliance: "SOC2" }},
+    { id: "src_ftp", name: "FTP / FTPS", icon: "ftp", subtitle: "Legacy Files", zone: "sources", x: 900, y: 300, details: { notes: "Legacy file transfer. Cloud Storage FUSE or Transfer Service.", compliance: "SOC2" }},
+    { id: "src_flat_file", name: "Flat Files", icon: "flat_file", subtitle: "CSV/TSV", zone: "sources", x: 900, y: 400, details: { notes: "CSV, TSV, fixed-width files from partners or legacy batch jobs.", compliance: "SOC2" }},
+
     // ══════════════════════════════════════════════════
     // ── LAYER 2: CONNECTIVITY (14 nodes) ─────────────
     // ══════════════════════════════════════════════════

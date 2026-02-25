@@ -605,12 +605,20 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
 
   // Source groups
   const srcGroups = [
-    { label: "SaaS / ERP", ids: ["src_salesforce", "src_workday", "src_servicenow", "src_sap"] },
-    { label: "Databases", ids: ["src_oracle", "src_sqlserver", "src_postgresql", "src_mongodb"] },
-    { label: "Streaming", ids: ["src_kafka"] },
-    { label: "Files", ids: ["src_sftp"] },
+    { label: "CRM & Sales", ids: ["src_salesforce", "src_hubspot", "src_dynamics365"] },
+    { label: "HR & Finance", ids: ["src_workday", "src_sap", "src_netsuite", "src_adp", "src_bamboohr"] },
+    { label: "ITSM & Ops", ids: ["src_servicenow", "src_jira", "src_zendesk"] },
+    { label: "Marketing & Ads", ids: ["src_google_ads", "src_facebook_ads", "src_google_analytics", "src_adobe_analytics", "src_marketo"] },
+    { label: "Social & Apps", ids: ["src_facebook", "src_twitter", "src_linkedin", "src_instagram", "src_youtube", "src_tiktok"] },
+    { label: "App Stores", ids: ["src_apple_store", "src_google_play"] },
+    { label: "Commerce", ids: ["src_shopify", "src_stripe"] },
+    { label: "RDBMS", ids: ["src_oracle", "src_sqlserver", "src_postgresql", "src_mysql", "src_cloud_sql", "src_alloydb"] },
+    { label: "NoSQL & Search", ids: ["src_mongodb", "src_cassandra", "src_elasticsearch", "src_redis", "src_dynamodb", "src_firestore", "src_neo4j"] },
+    { label: "Streaming", ids: ["src_kafka", "src_confluent", "src_kinesis", "src_event_hubs", "src_rabbitmq", "src_mqtt"] },
+    { label: "Files & Storage", ids: ["src_sftp", "src_s3", "src_azure_blob", "src_sharepoint", "src_gcs"] },
+    { label: "Cloud DW", ids: ["src_aws_rds", "src_snowflake", "src_databricks"] },
     { label: "APIs", ids: ["src_rest_api"] },
-    { label: "Legacy", ids: ["src_mainframe"] },
+    { label: "Legacy", ids: ["src_mainframe", "src_as400", "src_mq_series", "src_ftp", "src_flat_file"] },
   ];
 
   // Connectivity groups
@@ -677,21 +685,21 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
         <p style={{ fontSize: 9, color: "#6B7280", margin: "2px 0 0 0" }}>{diag.subtitle}</p>
       </div>
 
-      <div style={{ width: 1500, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ width: 1620, display: "flex", flexDirection: "column", gap: 6 }}>
 
         {/* ═══ MAIN ROW: Sources → Connectivity → GCP Box ═══ */}
         <div style={{ display: "flex", gap: 4, alignItems: "stretch" }}>
 
           {/* ── SOURCES (Layer 1) ── */}
-          <div style={{ width: 160, minWidth: 160, borderRadius: 10, border: "2px solid #D1D5DB", background: "#F9FAFB", padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ width: 280, minWidth: 280, borderRadius: 10, border: "2px solid #D1D5DB", background: "#F9FAFB", padding: 8, display: "flex", flexDirection: "column", gap: 3 }}>
             <div style={{ fontSize: 8, fontWeight: 800, color: "#4B5563", textAlign: "center", textTransform: "uppercase", letterSpacing: 0.8, paddingBottom: 4, borderBottom: "1.5px solid #E5E7EB" }}>Layer 1 — Sources</div>
             {srcGroups.map(grp => {
               const nodes = grp.ids.map(id => g(id)).filter(Boolean);
               if (!nodes.length) return null;
               return (
-                <div key={grp.label} style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 6, padding: "4px 6px" }}>
-                  <div style={{ fontSize: 6.5, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3, paddingBottom: 2, borderBottom: "1px solid #F3F4F6" }}>{grp.label}</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(52px, 1fr))", gap: 4, justifyItems: "center" }}>
+                <div key={grp.label} style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 6, padding: "3px 4px" }}>
+                  <div style={{ fontSize: 6, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 2, paddingBottom: 2, borderBottom: "1px solid #F3F4F6" }}>{grp.label}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(44px, 1fr))", gap: 3, justifyItems: "center" }}>
                     {nodes.map((n: any) => <IC key={n.id} id={n.id} />)}
                   </div>
                 </div>
