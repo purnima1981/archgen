@@ -602,12 +602,12 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
 
   // GCP layers
   const layers = [
-    { num: "L8", title: "Consumers", color: "#0E7490", ids: ["con_looker", "con_sheets", "con_vertex", "con_run", "con_hub", "con_powerbi", "con_tableau", "con_slicer"] },
-    { num: "L7", title: "Serving", color: "#C2410C", ids: ["serve_looker", "serve_run", "serve_hub", "serve_bi_engine"] },
-    { num: "L6", title: "Medallion", color: "#D97706", ids: ["bronze", "silver", "gold"] },
-    { num: "L5", title: "Processing", color: "#6D28D9", ids: ["proc_dataflow", "proc_dataproc", "proc_bq_sql", "proc_dlp", "proc_matillion"] },
-    { num: "L4", title: "Data Lake", color: "#047857", ids: ["lake_gcs", "lake_bq_staging"] },
     { num: "L3", title: "Ingestion", color: "#0369A1", ids: ["ing_datastream", "ing_pubsub", "ing_dataflow", "ing_functions", "ing_fivetran", "ing_matillion"] },
+    { num: "L4", title: "Data Lake", color: "#047857", ids: ["lake_gcs", "lake_bq_staging"] },
+    { num: "L5", title: "Processing", color: "#6D28D9", ids: ["proc_dataflow", "proc_dataproc", "proc_bq_sql", "proc_dlp", "proc_matillion"] },
+    { num: "L6", title: "Medallion", color: "#D97706", ids: ["bronze", "silver", "gold"] },
+    { num: "L7", title: "Serving", color: "#C2410C", ids: ["serve_looker", "serve_run", "serve_hub", "serve_bi_engine"] },
+    { num: "L8", title: "Consumers", color: "#0E7490", ids: ["con_looker", "con_sheets", "con_vertex", "con_run", "con_hub", "con_powerbi", "con_tableau", "con_slicer"] },
   ];
 
   // Pillars
@@ -681,26 +681,16 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
             <div style={{ position: "absolute", top: -11, left: 14, background: "#4285F4", color: "#FFF", fontSize: 8, fontWeight: 800, padding: "2px 10px", borderRadius: 14, letterSpacing: 0.6 }}>☁️ GOOGLE CLOUD PLATFORM — Layers 3–8</div>
 
             {/* Layers stack */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 0, marginTop: 2 }}>
-              {layers.map((layer, li) => (
-                <div key={layer.num}>
-                  <div style={{ background: `${layer.color}06`, borderRadius: 8, border: `1.5px solid ${layer.color}30`, padding: "6px 8px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4, paddingBottom: 3, borderBottom: `1px solid ${layer.color}20` }}>
-                      <span style={{ fontSize: 9, fontWeight: 800, color: layer.color }}>{layer.num}</span>
-                      <span style={{ fontSize: 8, fontWeight: 700, color: layer.color, textTransform: "uppercase", letterSpacing: 0.3 }}>{layer.title}</span>
-                    </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {layer.ids.map(id => g(id) ? <IC key={id} id={id} bg={`${layer.color}08`} border={`${layer.color}40`} /> : null)}
-                    </div>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, marginTop: 2 }}>
+              {layers.map(layer => (
+                <div key={layer.num} style={{ background: `${layer.color}06`, borderRadius: 8, border: `1.5px solid ${layer.color}30`, padding: "6px 8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4, paddingBottom: 3, borderBottom: `1px solid ${layer.color}20` }}>
+                    <span style={{ fontSize: 9, fontWeight: 800, color: layer.color }}>{layer.num}</span>
+                    <span style={{ fontSize: 8, fontWeight: 700, color: layer.color, textTransform: "uppercase", letterSpacing: 0.3 }}>{layer.title}</span>
                   </div>
-                  {li < layers.length - 1 && (
-                    <div style={{ display: "flex", justifyContent: "center", padding: "3px 0" }}>
-                      <svg width="2" height="18" viewBox="0 0 2 18" style={{ overflow: "visible" }}>
-                        <line x1="1" y1="18" x2="1" y2="6" stroke="#94A3B8" strokeWidth="1.5" />
-                        <polygon points="1,0 -2.5,8 4.5,8" fill="#94A3B8" />
-                      </svg>
-                    </div>
-                  )}
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {layer.ids.map(id => g(id) ? <IC key={id} id={id} bg={`${layer.color}08`} border={`${layer.color}40`} /> : null)}
+                  </div>
                 </div>
               ))}
             </div>
