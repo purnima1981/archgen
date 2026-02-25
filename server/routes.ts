@@ -1,406 +1,636 @@
-// ═══ ENHANCED ROUTES WITH CHAIN OF THOUGHT ═══
-
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { isAuthenticated } from "./auth";
-import { db } from "./db";
-import { diagrams } from "@shared/schema";
-import { eq, and, desc } from "drizzle-orm";
-import { matchTemplate, TEMPLATES } from "./templates";
-import { 
-  REQUIREMENTS_PROMPT, 
-  PRINCIPLES_PROMPT, 
-  COMPONENTS_PROMPT, 
-  ASSEMBLY_PROMPT, 
-  DIAGRAM_PROMPT,
-  type ChainOfThoughtStep,
-  type ArchitectureReasoning 
-} from "./chain-of-thought-generator";
+import { storage } from "./storage";
+import { insertMemorySchema, insertChildSchema } from "@shared/schema";
+import { z } from "zod";
+import { isAuthenticated } from "./replit_integrations/auth";
+import { randomUUID } from "crypto";
+import path from "path";
+import fs from "fs";
+import sharp from "sharp";
 
-// In-memory storage for chain-of-thought sessions (could be moved to database)
-const reasoningSessions = new Map<string, ArchitectureReasoning>();
+export async function registerRoutes(
+  httpServer: Server,
+  app: Express
+): Promise<Server> {
 
-async function callClaude(prompt: string): Promise<string> {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error("No Anthropic API key configured");
+  // ---- Local File Upload ----
+  const uploadsDir = process.env.UPLOADS_DIR || (process.env.NODE_ENV === "production" ? "/app/uploads" : path.join(process.cwd(), "uploads"));
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
   }
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { 
-      "Content-Type": "application/json", 
-      "x-api-key": process.env.ANTHROPIC_API_KEY!, 
-      "anthropic-version": "2023-06-01" 
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514", 
-      max_tokens: 4000,
-      messages: [{ role: "user", content: prompt }]
-    }),
+  // Serve uploaded files
+  app.use("/uploads", (req, res, next) => {
+    const filePath = path.join(uploadsDir, req.path);
+    if (fs.existsSync(filePath)) {
+      res.sendFile(filePath);
+    } else {
+      res.status(404).json({ error: "File not found" });
+    }
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || "API error");
-  }
-
-  const data = await response.json();
-  return data.content?.[0]?.text || "";
-}
-
-export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
-
-  // GET templates list
-  app.get("/api/templates", isAuthenticated, (_req, res) => {
-    res.json(TEMPLATES.map(t => ({ id: t.id, name: t.name, icon: t.icon, description: t.description })));
-  });
-
-  // GET specific template by ID
-  app.get("/api/templates/:id", isAuthenticated, (req, res) => {
-    const t = TEMPLATES.find(t => t.id === req.params.id);
-    t ? res.json(t.diagram) : res.status(404).json({ error: "Template not found" });
-  });
-
-  // POST generate — ORIGINAL simple generation (keyword match + LLM fallback)
-  app.post("/api/diagrams/generate", isAuthenticated, async (req: any, res) => {
+  // Upload request URL (replaces Replit Object Storage)
+  app.post("/api/uploads/request-url", isAuthenticated, (req: any, res) => {
     try {
-      const { prompt } = req.body;
-      if (!prompt) return res.status(400).json({ error: "Prompt is required" });
+      const { name, contentType } = req.body;
+      const ext = path.extname(name) || ".bin";
+      const filename = `${randomUUID()}${ext}`;
+      const objectPath = `/uploads/${filename}`;
+      const uploadURL = `/api/uploads/file/${filename}`;
+      res.json({ uploadURL, objectPath });
+    } catch (error) {
+      console.error("Error creating upload URL:", error);
+      res.status(500).json({ error: "Failed to create upload URL" });
+    }
+  });
 
-      // Step 1: Try keyword matching (instant, free)
-      const matched = matchTemplate(prompt);
-      if (matched) {
-        const diagram = JSON.parse(JSON.stringify(matched.diagram));
-        const userId = req.user.claims.sub;
-        const [saved] = await db.insert(diagrams).values({
-          title: diagram.title, prompt, diagramJson: JSON.stringify(diagram), userId
-        }).returning();
-        return res.json({ diagram, saved, source: "template", templateId: matched.id });
+  // Actual file upload endpoint
+  app.put("/api/uploads/file/:filename", isAuthenticated, (req: any, res) => {
+    try {
+      const { filename } = req.params;
+      const filePath = path.join(uploadsDir, filename);
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk: Buffer) => chunks.push(chunk));
+      req.on("end", () => {
+        const buffer = Buffer.concat(chunks);
+        fs.writeFileSync(filePath, buffer);
+        res.json({ success: true });
+      });
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      res.status(500).json({ error: "Failed to upload file" });
+    }
+  });
+
+  // Get memories for a child (authenticated parent only)
+  app.get("/api/memories/:childId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { childId } = req.params;
+      const parentId = req.user?.claims?.sub;
+      const child = await storage.getChild(childId);
+      if (!child || child.parentId !== parentId) {
+        return res.status(403).json({ error: "Access denied" });
       }
+      const memories = await storage.getMemories(childId);
+      res.json(memories);
+    } catch (error) {
+      console.error("Error fetching memories:", error);
+      res.status(500).json({ error: "Failed to fetch memories" });
+    }
+  });
 
-      // Step 2: LLM fallback (simple single-shot)
+  // Get single memory
+  app.get("/api/memory/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const parentId = req.user?.claims?.sub;
+      const memory = await storage.getMemory(id);
+      if (!memory) return res.status(404).json({ error: "Memory not found" });
+      if (memory.parentId !== parentId) return res.status(403).json({ error: "Access denied" });
+      res.json(memory);
+    } catch (error) {
+      console.error("Error fetching memory:", error);
+      res.status(500).json({ error: "Failed to fetch memory" });
+    }
+  });
+
+  // Create memory
+  app.post("/api/memories", isAuthenticated, async (req: any, res) => {
+    try {
+      const parentId = req.user?.claims?.sub;
+      const validatedData = insertMemorySchema.parse({ ...req.body, parentId });
+      const memory = await storage.createMemory(validatedData);
+      res.status(201).json(memory);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid memory data", details: error.errors });
+      }
+      console.error("Error creating memory:", error);
+      res.status(500).json({ error: "Failed to create memory" });
+    }
+  });
+
+  // Update memory
+  app.patch("/api/memories/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const parentId = req.user?.claims?.sub;
+      const memory = await storage.getMemory(id);
+      if (!memory) return res.status(404).json({ error: "Memory not found" });
+      if (memory.parentId !== parentId) return res.status(403).json({ error: "Access denied" });
+      const allowedFields = ['rawNote', 'refinedNote', 'shared', 'from', 'source', 'keepsakeType', 'date'] as const;
+      const updates: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) updates[field] = req.body[field];
+      }
+      const updatedMemory = await storage.updateMemory(id, updates);
+      res.json(updatedMemory);
+    } catch (error) {
+      console.error("Error updating memory:", error);
+      res.status(500).json({ error: "Failed to update memory" });
+    }
+  });
+
+  // Delete memory
+  app.delete("/api/memories/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const parentId = req.user?.claims?.sub;
+      const memory = await storage.getMemory(id);
+      if (!memory) return res.status(404).json({ error: "Memory not found" });
+      if (memory.parentId !== parentId) return res.status(403).json({ error: "Access denied" });
+      await storage.deleteMemory(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting memory:", error);
+      res.status(500).json({ error: "Failed to delete memory" });
+    }
+  });
+
+  // Get child profile
+  app.get("/api/children/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const parentId = req.user?.claims?.sub;
+      const child = await storage.getChild(id);
+      if (!child) return res.status(404).json({ error: "Child not found" });
+      if (child.parentId !== parentId) return res.status(403).json({ error: "Access denied" });
+      res.json(child);
+    } catch (error) {
+      console.error("Error fetching child:", error);
+      res.status(500).json({ error: "Failed to fetch child" });
+    }
+  });
+
+  // Get all children for current parent
+  app.get("/api/children", isAuthenticated, async (req: any, res) => {
+    try {
+      const parentId = req.user?.claims?.sub;
+      const children = await storage.getChildrenByParent(parentId);
+      res.json(children);
+    } catch (error) {
+      console.error("Error fetching children:", error);
+      res.status(500).json({ error: "Failed to fetch children" });
+    }
+  });
+
+  // Create child
+  app.post("/api/children", isAuthenticated, async (req: any, res) => {
+    try {
+      const parentId = req.user?.claims?.sub;
+      const validatedData = insertChildSchema.parse({ ...req.body, parentId });
+      const child = await storage.createChild(validatedData);
+      res.status(201).json(child);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid child data", details: error.errors });
+      }
+      console.error("Error creating child:", error);
+      res.status(500).json({ error: "Failed to create child" });
+    }
+  });
+
+  // Update child (profile photo, name, etc.)
+  app.patch("/api/children/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const parentId = req.user?.claims?.sub;
+      const child = await storage.getChild(id);
+      if (!child) return res.status(404).json({ error: "Child not found" });
+      if (child.parentId !== parentId) return res.status(403).json({ error: "Access denied" });
+      const updates: Record<string, any> = {};
+      const allowedFields = ['name', 'nickname', 'birthday', 'age', 'profilePhoto'] as const;
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) updates[field] = req.body[field];
+      }
+      const updatedChild = await storage.updateChild(id, updates);
+      res.json(updatedChild);
+    } catch (error) {
+      console.error("Error updating child:", error);
+      res.status(500).json({ error: "Failed to update child" });
+    }
+  });
+
+  // Public garden view
+  app.get("/api/garden/:childId", async (req, res) => {
+    try {
+      const { childId } = req.params;
+      const child = await storage.getChild(childId);
+      if (!child) return res.status(404).json({ error: "Garden not found" });
+      const memories = await storage.getMemories(childId);
+      const sharedMemories = memories.filter(m => m.shared);
+      res.json({ child, memories: sharedMemories });
+    } catch (error) {
+      console.error("Error fetching garden:", error);
+      res.status(500).json({ error: "Failed to fetch garden" });
+    }
+  });
+
+  // Note refinement using Anthropic Claude
+  app.post("/api/refine-note", isAuthenticated, async (req: any, res) => {
+    try {
+      const { rawNote, childName, childNickname, style = "polish" } = req.body;
+      if (!rawNote) return res.status(400).json({ error: "Raw note is required" });
+
       if (!process.env.ANTHROPIC_API_KEY) {
-        return res.status(400).json({ error: "No matching template found. Add an API key for custom generation." });
+        return res.status(400).json({ error: "Anthropic API key not configured. Add ANTHROPIC_API_KEY to your .env file." });
       }
 
-      const ICONS = `compute_engine,cloud_run,cloud_functions,app_engine,google_kubernetes_engine,cloud_storage,bigquery,cloud_sql,cloud_spanner,firestore,bigtable,memorystore,dataflow,dataproc,pubsub,data_catalog,dataplex,datastream,looker,vertexai,document_ai,cloud_vpn,cloud_armor,cloud_interconnect,virtual_private_cloud,identity_and_access_management,secret_manager,key_management_service,binary_authorization,identity_platform,cloud_build,artifact_registry,cloud_deploy,cloud_monitoring,cloud_logging,cloud_scheduler,apigee_api_platform,cloud_api_gateway,eventarc,workflows`;
+      const childRef = childName ? ` named ${childName}` : '';
+      const nicknameRef = childNickname ? ` (nickname: "${childNickname}")` : '';
+      
+      const systemPrompt = `You are a gentle writing assistant for Memory Garden — an app where parents plant memories for their children. These memories form a living garden that grows with the child. A child might read this today, at age 10, at 15, or at 30. These words help them understand who they are, how special they are, how far they've come, and how deeply they are loved. Humans are made of memories — and you are helping preserve the most important ones.
 
-      const systemPrompt = `You are a principal cloud architect. Generate architecture as JSON.
-Icons: ${ICONS}. Use exact IDs or null for non-GCP.
-Output: {"title":"","subtitle":"","nodes":[{"id":"","name":"","icon":"","subtitle":"","zone":"sources|cloud|consumers","x":0,"y":0,"details":{"project":"","region":"","serviceAccount":"","iamRoles":"","encryption":"","monitoring":"","retry":"","alerting":"","cost":"","troubleshoot":"","guardrails":"","compliance":"","notes":""}}],"edges":[{"id":"","from":"","to":"","label":"","subtitle":"","step":1,"security":{"transport":"","auth":"","classification":"","private":true},"crossesBoundary":false,"edgeType":"data|control|observe|alert"}],"threats":[{"id":"","target":"","stride":"","severity":"","title":"","description":"","impact":"","mitigation":"","compliance":""}],"phases":[{"id":"","name":"","nodeIds":[]}],"opsGroup":{"name":"","nodeIds":[]}}
-Rules: sources x~100, cloud x=350-1050, consumers x~1250. Source edges step=0 (parallel). Internal steps start at 1. Include phases, opsGroup, alert destinations (PagerDuty/Slack in consumers zone). Output ONLY valid JSON.`;
+You are writing for a parent about their child${childRef}${nicknameRef}.${childNickname ? ` The parent sometimes calls their child "${childNickname}" — you may use this nickname naturally if it fits, but don't force it.` : ''}
+
+GUARDRAILS:
+- A CHILD will read these words about themselves. Every word matters.
+- NEVER add negative, critical, or embarrassing content about the child.
+- NEVER invent details, events, or emotions that weren't in the original note.
+- NEVER add content that could be hurtful or uncomfortable for a child to read about themselves.
+- NEVER make it overly dramatic or artificially sentimental — children can tell when something is fake.
+- ALWAYS preserve the parent's authentic voice and intention.
+- ALWAYS write in first person (the parent speaking).
+- Keep the warmth genuine. A real parent writing to their real child.
+- Keep output length proportional to input length. Short input = short output.
+- If the input is 1-5 words, return it with minimal changes.
+- Return ONLY the refined text. No preamble, no quotes, no explanation.`;
+
+      const prompts: Record<string, string> = {
+        fix: `Fix only grammar, spelling, and punctuation in this parent's note about their child${childRef}. Do NOT change meaning, tone, or add words. If 1-3 words, return unchanged.`,
+        polish: `Gently clean up this parent's note about their child${childRef}. Fix grammar, smooth wording, add a touch of warmth — but keep their natural voice. Do NOT expand short notes into long paragraphs. Do NOT add details that weren't there. The child will read this someday, so make it feel loving but honest.`,
+      };
 
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": process.env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 8000,
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 300,
           system: systemPrompt,
-          messages: [{ role: "user", content: prompt }]
+          messages: [{ role: "user", content: `[Style: ${style}] ${rawNote}` }],
         }),
       });
 
-      if (!response.ok) { const e = await response.json(); throw new Error(e.error?.message || "API error"); }
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error?.message || "Anthropic API error");
+      }
+
       const data = await response.json();
-      const dj = JSON.parse((data.content?.[0]?.text || "").replace(/```json\s*/g, "").replace(/```/g, "").trim());
-
-      const userId = req.user.claims.sub;
-      const [saved] = await db.insert(diagrams).values({ title: dj.title || "Untitled", prompt, diagramJson: JSON.stringify(dj), userId }).returning();
-      res.json({ diagram: dj, saved, source: "llm" });
-    } catch (error: any) {
-      console.error("Diagram error:", error?.message || error);
-      res.status(500).json({ error: error?.message || "Failed to generate diagram" });
+      const refinedNote = data.content?.[0]?.text || rawNote;
+      res.json({ refinedNote });
+    } catch (error) {
+      console.error("Error refining note:", error);
+      res.status(500).json({ error: "Failed to refine note. Check your Anthropic API key." });
     }
   });
 
-  // POST NEW: Chain-of-thought architecture generation
-  app.post("/api/diagrams/generate-cot", isAuthenticated, async (req: any, res) => {
-    try {
-      const { prompt } = req.body;
-      if (!prompt) return res.status(400).json({ error: "Prompt is required" });
+  // Rate limit tracking for photo reads (25 per week per user)
+  const photoReadCounts = new Map<string, { count: number; weekStart: number }>();
 
-      const userId = req.user.claims.sub;
-      const sessionId = `${userId}-${Date.now()}`;
-
-      // Initialize chain-of-thought session
-      const reasoning: ArchitectureReasoning = {
-        id: sessionId,
-        prompt,
-        userId,
-        createdAt: new Date(),
-        steps: [
-          { step: 1, title: "Requirements Analysis", content: "", editable: true, completed: false },
-          { step: 2, title: "Architecture Principles", content: "", editable: true, completed: false },
-          { step: 3, title: "Component Design", content: "", editable: true, completed: false },
-          { step: 4, title: "Architecture Assembly", content: "", editable: true, completed: false },
-          { step: 5, title: "Final Diagram", content: "", editable: false, completed: false }
-        ]
-      };
-
-      reasoningSessions.set(sessionId, reasoning);
-
-      res.json({ 
-        sessionId, 
-        reasoning: {
-          id: reasoning.id,
-          prompt: reasoning.prompt,
-          steps: reasoning.steps
-        }
-      });
-    } catch (error: any) {
-      console.error("CoT init error:", error?.message || error);
-      res.status(500).json({ error: error?.message || "Failed to initialize reasoning" });
+  function getPhotoReadCount(userId: string): number {
+    const now = Date.now();
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
+    const entry = photoReadCounts.get(userId);
+    if (!entry || (now - entry.weekStart) > weekMs) {
+      return 0;
     }
-  });
+    return entry.count;
+  }
 
-  // POST execute specific step in chain-of-thought
-  app.post("/api/diagrams/cot-step/:sessionId/:step", isAuthenticated, async (req: any, res) => {
+  function incrementPhotoReadCount(userId: string, imageCount: number): void {
+    const now = Date.now();
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
+    const entry = photoReadCounts.get(userId);
+    if (!entry || (now - entry.weekStart) > weekMs) {
+      photoReadCounts.set(userId, { count: imageCount, weekStart: now });
+    } else {
+      entry.count += imageCount;
+    }
+  }
+
+  // Read photos and generate a memory note using Claude Vision
+  app.post("/api/read-photos", isAuthenticated, async (req: any, res) => {
     try {
-      const { sessionId, step } = req.params;
-      const { customInput } = req.body; // Allow user to override/edit the input
-      const userId = req.user.claims.sub;
-
-      const reasoning = reasoningSessions.get(sessionId);
-      if (!reasoning || reasoning.userId !== userId) {
-        return res.status(404).json({ error: "Reasoning session not found" });
+      const { imageUrls, childName, childNickname } = req.body;
+      if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
+        return res.status(400).json({ error: "Image URLs are required" });
       }
 
-      const stepNum = parseInt(step);
-      const currentStep = reasoning.steps[stepNum - 1];
-      if (!currentStep) {
-        return res.status(400).json({ error: "Invalid step number" });
+      // Only read up to 10 images to keep API costs manageable
+      const imagesToRead = imageUrls.slice(0, 10);
+
+      if (!process.env.ANTHROPIC_API_KEY) {
+        return res.status(400).json({ error: "Anthropic API key not configured." });
       }
 
-      let prompt = "";
-      let content = "";
+      const userId = req.user?.claims?.sub;
+      const currentCount = getPhotoReadCount(userId);
+      if (currentCount + imagesToRead.length > 25) {
+        const remaining = Math.max(0, 25 - currentCount);
+        return res.status(429).json({ 
+          error: `Weekly photo read limit reached. You have ${remaining} photo reads left this week.`,
+          remaining 
+        });
+      }
 
-      // Execute the appropriate reasoning step
-      switch (stepNum) {
-        case 1: // Requirements Analysis
-          prompt = REQUIREMENTS_PROMPT.replace("{prompt}", customInput || reasoning.prompt);
-          content = await callClaude(prompt);
-          break;
+      // Read images from disk, resize if needed, and convert to base64
+      const imageContent: any[] = [];
 
-        case 2: // Architecture Principles  
-          const requirements = reasoning.steps[0].content;
-          if (!requirements) {
-            return res.status(400).json({ error: "Requirements analysis must be completed first" });
-          }
-          prompt = PRINCIPLES_PROMPT.replace("{requirements}", customInput || requirements);
-          content = await callClaude(prompt);
-          break;
-
-        case 3: // Component Design
-          const principles = reasoning.steps[1].content;
-          if (!principles) {
-            return res.status(400).json({ error: "Architecture principles must be completed first" });
-          }
-          prompt = COMPONENTS_PROMPT
-            .replace("{requirements}", reasoning.steps[0].content)
-            .replace("{principles}", customInput || principles);
-          content = await callClaude(prompt);
-          break;
-
-        case 4: // Architecture Assembly
-          const components = reasoning.steps[2].content;
-          if (!components) {
-            return res.status(400).json({ error: "Component design must be completed first" });
-          }
-          prompt = ASSEMBLY_PROMPT
-            .replace("{requirements}", reasoning.steps[0].content)
-            .replace("{principles}", reasoning.steps[1].content)
-            .replace("{components}", customInput || components);
-          content = await callClaude(prompt);
-          break;
-
-        case 5: // Final Diagram Generation
-          const specification = reasoning.steps[3].content;
-          if (!specification) {
-            return res.status(400).json({ error: "Architecture assembly must be completed first" });
+      for (const url of imagesToRead) {
+        const filename = url.replace("/uploads/", "");
+        const filePath = path.join(uploadsDir, filename);
+        if (fs.existsSync(filePath)) {
+          let fileBuffer = fs.readFileSync(filePath);
+          
+          // Resize if over 3MB to stay safely under Claude's 5MB limit
+          if (fileBuffer.length > 3 * 1024 * 1024) {
+            fileBuffer = await sharp(fileBuffer)
+              .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
+              .jpeg({ quality: 70 })
+              .toBuffer();
           }
           
-          const ICONS = `compute_engine,cloud_run,cloud_functions,app_engine,google_kubernetes_engine,cloud_storage,bigquery,cloud_sql,cloud_spanner,firestore,bigtable,memorystore,dataflow,dataproc,pubsub,data_catalog,dataplex,datastream,looker,vertexai,document_ai,cloud_vpn,cloud_armor,cloud_interconnect,virtual_private_cloud,identity_and_access_management,secret_manager,key_management_service,binary_authorization,identity_platform,cloud_build,artifact_registry,cloud_deploy,cloud_monitoring,cloud_logging,cloud_scheduler,apigee_api_platform,cloud_api_gateway,eventarc,workflows`;
-          
-          const diagramPrompt = `${DIAGRAM_PROMPT.replace("{specification}", specification)}
-
-Available GCP icons: ${ICONS}. Use exact IDs or null for external systems.
-
-Output the complete diagram JSON following this exact schema:
-{"title":"","subtitle":"","nodes":[{"id":"","name":"","icon":"","subtitle":"","zone":"sources|cloud|consumers","x":0,"y":0,"details":{"project":"","region":"","serviceAccount":"","iamRoles":"","encryption":"","monitoring":"","retry":"","alerting":"","cost":"","troubleshoot":"","guardrails":"","compliance":"","notes":""}}],"edges":[{"id":"","from":"","to":"","label":"","subtitle":"","step":1,"security":{"transport":"","auth":"","classification":"","private":true},"crossesBoundary":false,"edgeType":"data|control|observe|alert"}],"threats":[{"id":"","target":"","stride":"","severity":"","title":"","description":"","impact":"","mitigation":"","compliance":""}],"phases":[{"id":"","name":"","nodeIds":[]}],"opsGroup":{"name":"","nodeIds":[]}}
-
-Rules: 
-- Sources at x~100, cloud components x=280-1000, consumers x~1180
-- Use diamond flow layout like the examples  
-- Include comprehensive operational details for each component
-- Number main data flow steps sequentially
-- Include security controls, governance, and operations components
-- Output ONLY valid JSON, no markdown formatting.`;
-
-          content = await callClaude(diagramPrompt);
-          
-          try {
-            // Parse the diagram JSON and save it
-            const cleanContent = content.replace(/```json\s*/g, "").replace(/```/g, "").trim();
-            const diagram = JSON.parse(cleanContent);
-            reasoning.finalDiagram = diagram;
-            
-            // Save to database
-            const [saved] = await db.insert(diagrams).values({
-              title: diagram.title || "Chain-of-Thought Architecture",
-              prompt: reasoning.prompt,
-              diagramJson: JSON.stringify(diagram),
-              userId
-            }).returning();
-            
-            content = JSON.stringify({ diagram, saved }, null, 2);
-          } catch (parseError) {
-            console.error("Failed to parse diagram JSON:", parseError);
-            return res.status(500).json({ error: "Failed to generate valid diagram JSON" });
-          }
-          break;
-
-        default:
-          return res.status(400).json({ error: "Invalid step number" });
+          const base64 = fileBuffer.toString("base64");
+          const ext = path.extname(filename).toLowerCase();
+          // If we resized to jpeg, use jpeg type
+          const mediaType = fileBuffer.length < 3 * 1024 * 1024 && ext === ".png" ? "image/png" : 
+                           ext === ".webp" ? "image/webp" : "image/jpeg";
+          imageContent.push({
+            type: "image",
+            source: { type: "base64", media_type: mediaType, data: base64 }
+          });
+        }
       }
 
-      // Update the step
-      currentStep.content = content;
-      currentStep.completed = true;
-      reasoningSessions.set(sessionId, reasoning);
+      if (imageContent.length === 0) {
+        return res.status(400).json({ error: "No valid images found" });
+      }
 
-      res.json({
-        step: currentStep,
-        reasoning: {
-          id: reasoning.id,
-          prompt: reasoning.prompt,
-          steps: reasoning.steps,
-          finalDiagram: reasoning.finalDiagram
-        }
+      const childRef = childName ? ` named ${childName}` : '';
+      const nicknameNote = childNickname ? ` The parent calls them "${childNickname}" — you can use this nickname naturally if it fits.` : '';
+
+      const systemPrompt = `You help parents write short memory notes for their kids in an app called Memory Garden.
+
+A parent uploaded photos of something their child${childRef} received or made.${nicknameNote}
+
+Read the photos and write a quick note AS THE PARENT talking TO THE CHILD (using "you/your"). This is a note the child will read someday.
+
+Rules:
+- 2-3 sentences max.
+- Write TO the child: "you" not "he/she/they"
+- Include how the parent feels — proud, teary, heart full, smiling. Make it real, not cheesy.
+- Don't list every detail. Pick the highlights.
+- Don't be dramatic or poetic. Just a real parent being real.
+- If classmates/friends wrote notes, mention a few standout quotes and names, not all.
+- Return ONLY the note text. Nothing else.`;
+
+      imageContent.push({
+        type: "text",
+        text: "Please read these photos and write a memory note from a parent's perspective."
       });
 
-    } catch (error: any) {
-      console.error("CoT step error:", error?.message || error);
-      res.status(500).json({ error: error?.message || "Failed to execute reasoning step" });
-    }
-  });
-
-  // PUT edit a specific step in chain-of-thought
-  app.put("/api/diagrams/cot-step/:sessionId/:step", isAuthenticated, async (req: any, res) => {
-    try {
-      const { sessionId, step } = req.params;
-      const { content } = req.body;
-      const userId = req.user.claims.sub;
-
-      const reasoning = reasoningSessions.get(sessionId);
-      if (!reasoning || reasoning.userId !== userId) {
-        return res.status(404).json({ error: "Reasoning session not found" });
-      }
-
-      const stepNum = parseInt(step);
-      const currentStep = reasoning.steps[stepNum - 1];
-      if (!currentStep) {
-        return res.status(400).json({ error: "Invalid step number" });
-      }
-
-      // Update the step content
-      currentStep.content = content;
-      currentStep.completed = true;
-      
-      // Mark subsequent steps as incomplete since they may need to be regenerated
-      for (let i = stepNum; i < reasoning.steps.length; i++) {
-        reasoning.steps[i].completed = false;
-        if (i > stepNum - 1) reasoning.steps[i].content = "";
-      }
-
-      reasoningSessions.set(sessionId, reasoning);
-
-      res.json({
-        step: currentStep,
-        reasoning: {
-          id: reasoning.id,
-          prompt: reasoning.prompt,
-          steps: reasoning.steps
-        }
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": process.env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 500,
+          system: systemPrompt,
+          messages: [{ role: "user", content: imageContent }],
+        }),
       });
 
-    } catch (error: any) {
-      console.error("CoT edit error:", error?.message || error);
-      res.status(500).json({ error: error?.message || "Failed to edit step" });
-    }
-  });
-
-  // GET chain-of-thought session
-  app.get("/api/diagrams/cot/:sessionId", isAuthenticated, (req: any, res) => {
-    const { sessionId } = req.params;
-    const userId = req.user.claims.sub;
-
-    const reasoning = reasoningSessions.get(sessionId);
-    if (!reasoning || reasoning.userId !== userId) {
-      return res.status(404).json({ error: "Reasoning session not found" });
-    }
-
-    res.json({
-      reasoning: {
-        id: reasoning.id,
-        prompt: reasoning.prompt,
-        steps: reasoning.steps,
-        finalDiagram: reasoning.finalDiagram
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error?.message || "Anthropic API error");
       }
-    });
+
+      incrementPhotoReadCount(userId, imagesToRead.length);
+
+      const data = await response.json();
+      const generatedNote = data.content?.[0]?.text || "";
+      const remaining = 25 - getPhotoReadCount(userId);
+      res.json({ generatedNote, remaining });
+    } catch (error: any) {
+      console.error("Error reading photos:", error?.message || error);
+      res.status(500).json({ error: error?.message || "Failed to read photos." });
+    }
   });
 
-  // CRUD for saved diagrams (unchanged)
-  app.get("/api/diagrams", isAuthenticated, async (req: any, res) => {
-    try { res.json(await db.select().from(diagrams).where(eq(diagrams.userId, req.user.claims.sub)).orderBy(desc(diagrams.createdAt))); } catch { res.status(500).json({ error: "Failed" }); }
-  });
-  app.get("/api/diagrams/:id", isAuthenticated, async (req: any, res) => {
-    try { const [d] = await db.select().from(diagrams).where(and(eq(diagrams.id, parseInt(req.params.id)), eq(diagrams.userId, req.user.claims.sub))); d ? res.json(d) : res.status(404).json({ error: "Not found" }); } catch { res.status(500).json({ error: "Failed" }); }
-  });
-  app.delete("/api/diagrams/:id", isAuthenticated, async (req: any, res) => {
-    try { await db.delete(diagrams).where(and(eq(diagrams.id, parseInt(req.params.id)), eq(diagrams.userId, req.user.claims.sub))); res.status(204).send(); } catch { res.status(500).json({ error: "Failed" }); }
-  });
-
-  // PUT edit diagram
-  app.put("/api/diagrams/:id/edit", isAuthenticated, async (req: any, res) => {
+  // Generate monthly story summary using Anthropic Claude
+  app.post("/api/generate-story", isAuthenticated, async (req: any, res) => {
     try {
+      const { notes, childName, monthLabel } = req.body;
+      if (!notes) return res.status(400).json({ error: "Notes are required" });
+
+      if (!process.env.ANTHROPIC_API_KEY) {
+        return res.status(400).json({ error: "Anthropic API key not configured." });
+      }
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": process.env.ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 150,
+          system: `Write a 1-2 sentence summary of a child's month based on their parent's memory notes. The child's name is ${childName || "their child"} and this is for ${monthLabel}. Be warm but natural — like a journal entry, not a greeting card. No quotes. Just the summary.`,
+          messages: [{ role: "user", content: notes }],
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error?.message || "API error");
+      }
+
+      const data = await response.json();
+      const summary = data.content?.[0]?.text || "";
+      res.json({ summary });
+    } catch (error) {
+      console.error("Error generating story:", error);
+      res.status(500).json({ error: "Failed to generate story" });
+    }
+  });
+
+  // ========================================
+  // TEACHER ROUTES
+  // ========================================
+
+  const { authStorage } = await import("./replit_integrations/auth/storage");
+
+  // Get children linked to this teacher
+  app.get("/api/teacher/children", isAuthenticated, async (req: any, res) => {
+    try {
+      const teacherId = req.user?.claims?.sub;
+      const children = await storage.getChildrenByTeacher(teacherId);
+      res.json(children);
+    } catch (error) {
+      console.error("Error fetching teacher children:", error);
+      res.status(500).json({ error: "Failed to fetch children" });
+    }
+  });
+
+  // Teacher adds a child (with parent email for linking)
+  app.post("/api/teacher/children", isAuthenticated, async (req: any, res) => {
+    try {
+      const teacherId = req.user?.claims?.sub;
+      const { name, parentEmail, birthday, age } = req.body;
+      if (!name || !parentEmail) {
+        return res.status(400).json({ error: "Child name and parent email are required" });
+      }
+
+      // Check if parent already has an account
+      const existingParent = await authStorage.getUserByEmail(parentEmail);
+      const parentId = existingParent ? existingParent.id : teacherId;
+
+      // Create the child
+      const child = await storage.createChild({
+        name,
+        parentId,
+        parentEmail,
+        nickname: null,
+        birthday: birthday || null,
+        viewMode: "device",
+        age: age || null,
+        profilePhoto: null,
+      });
+
+      // Link teacher to child
+      await storage.linkTeacherToChild(teacherId, child.id);
+
+      res.status(201).json({
+        ...child,
+        parentLinked: !!existingParent,
+      });
+    } catch (error) {
+      console.error("Error adding teacher child:", error);
+      res.status(500).json({ error: "Failed to add child" });
+    }
+  });
+
+  // Teacher removes a child from their list
+  app.delete("/api/teacher/children/:childId", isAuthenticated, async (req: any, res) => {
+    try {
+      const teacherId = req.user?.claims?.sub;
+      const { childId } = req.params;
+
+      // Verify link exists
+      const link = await storage.getTeacherLink(teacherId, childId);
+      if (!link) return res.status(404).json({ error: "Child not linked to you" });
+
+      await storage.unlinkTeacherFromChild(teacherId, childId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error removing teacher child:", error);
+      res.status(500).json({ error: "Failed to remove child" });
+    }
+  });
+
+  // Teacher gets memories they added for a child
+  app.get("/api/teacher/memories/:childId", isAuthenticated, async (req: any, res) => {
+    try {
+      const teacherId = req.user?.claims?.sub;
+      const { childId } = req.params;
+
+      // Verify teacher is linked to this child
+      const link = await storage.getTeacherLink(teacherId, childId);
+      if (!link) return res.status(403).json({ error: "Access denied" });
+
+      const allMemories = await storage.getMemories(childId);
+      // Teacher only sees their own memories
+      const teacherMemories = allMemories.filter(m => m.parentId === teacherId);
+      res.json(teacherMemories);
+    } catch (error) {
+      console.error("Error fetching teacher memories:", error);
+      res.status(500).json({ error: "Failed to fetch memories" });
+    }
+  });
+
+  // Teacher adds a memory for a child
+  app.post("/api/teacher/memories", isAuthenticated, async (req: any, res) => {
+    try {
+      const teacherId = req.user?.claims?.sub;
+      const { childId, rawNote, date, type, source } = req.body;
+      if (!childId || !rawNote) {
+        return res.status(400).json({ error: "childId and rawNote are required" });
+      }
+
+      // Verify teacher is linked to this child
+      const link = await storage.getTeacherLink(teacherId, childId);
+      if (!link) return res.status(403).json({ error: "Access denied" });
+
+      const memory = await storage.createMemory({
+        type: type || "moment",
+        rawNote,
+        refinedNote: null,
+        date: date || new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        mediaUrl: null,
+        mediaType: null,
+        shared: true,
+        from: "Teacher",
+        duration: null,
+        source: source || "teacher",
+        keepsakeType: null,
+        childId,
+        parentId: teacherId,
+      });
+      res.status(201).json(memory);
+    } catch (error) {
+      console.error("Error creating teacher memory:", error);
+      res.status(500).json({ error: "Failed to create memory" });
+    }
+  });
+
+  // Teacher updates their own memory
+  app.patch("/api/teacher/memories/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const teacherId = req.user?.claims?.sub;
       const { id } = req.params;
-      const { diagram } = req.body;
-      const userId = req.user.claims.sub;
+      const memory = await storage.getMemory(id);
+      if (!memory) return res.status(404).json({ error: "Memory not found" });
+      if (memory.parentId !== teacherId) return res.status(403).json({ error: "Access denied" });
 
-      if (!diagram) {
-        return res.status(400).json({ error: "Diagram data is required" });
+      const allowedFields = ['rawNote', 'refinedNote', 'date', 'source'] as const;
+      const updates: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) updates[field] = req.body[field];
       }
+      const updated = await storage.updateMemory(id, updates);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating teacher memory:", error);
+      res.status(500).json({ error: "Failed to update memory" });
+    }
+  });
 
-      // Validate diagram structure
-      if (!diagram.title || !diagram.nodes || !Array.isArray(diagram.nodes)) {
-        return res.status(400).json({ error: "Invalid diagram structure" });
-      }
-
-      // Update the diagram in database
-      const [updated] = await db.update(diagrams)
-        .set({ 
-          diagramJson: JSON.stringify(diagram),
-          title: diagram.title || "Edited Architecture"
-        })
-        .where(and(eq(diagrams.id, parseInt(id)), eq(diagrams.userId, userId)))
-        .returning();
-
-      if (!updated) {
-        return res.status(404).json({ error: "Diagram not found or access denied" });
-      }
-
-      console.log(`✏️ Diagram ${id} edited by user ${userId}`);
-
-      res.json({ 
-        success: true, 
-        diagram,
-        saved: updated,
-        message: "Diagram updated successfully"
-      });
-
-    } catch (error: any) {
-      console.error("Edit diagram error:", error?.message || error);
-      res.status(500).json({ error: "Failed to save diagram changes" });
+  // Teacher deletes their own memory
+  app.delete("/api/teacher/memories/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const teacherId = req.user?.claims?.sub;
+      const { id } = req.params;
+      const memory = await storage.getMemory(id);
+      if (!memory) return res.status(404).json({ error: "Memory not found" });
+      if (memory.parentId !== teacherId) return res.status(403).json({ error: "Access denied" });
+      await storage.deleteMemory(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting teacher memory:", error);
+      res.status(500).json({ error: "Failed to delete memory" });
     }
   });
 
