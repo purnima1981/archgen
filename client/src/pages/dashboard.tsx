@@ -647,7 +647,7 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
               return (
                 <div key={grp.label} style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 6, padding: "4px 6px" }}>
                   <div style={{ fontSize: 6.5, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3, paddingBottom: 2, borderBottom: "1px solid #F3F4F6" }}>{grp.label}</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: 4, justifyItems: "center" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(52px, 1fr))", gap: 4, justifyItems: "center" }}>
                     {nodes.map((n: any) => <IC key={n.id} id={n.id} />)}
                   </div>
                 </div>
@@ -666,7 +666,7 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
               return (
                 <div key={grp.label} style={{ background: grp.vendor ? "#FFF8E1" : "#FFF", border: `1px ${grp.vendor ? "dashed" : "solid"} ${grp.vendor ? "#33415150" : "#7C3AED20"}`, borderRadius: 6, padding: "4px 6px" }}>
                   <div style={{ fontSize: 6.5, fontWeight: 800, color: grp.vendor ? "#334151" : "#7C3AED", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3, paddingBottom: 2, borderBottom: "1px solid #F3F4F6" }}>{grp.label}</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: 4, justifyItems: "center" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(52px, 1fr))", gap: 4, justifyItems: "center" }}>
                     {nodes.map((n: any) => <IC key={n.id} id={n.id} bg={grp.vendor ? "#FFF8E1" : undefined} border={grp.vendor ? "#33415140" : undefined} />)}
                   </div>
                 </div>
