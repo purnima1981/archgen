@@ -624,24 +624,29 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
   // GCP layers
   const layers = [
     { num: "L7–L8", title: "Serving & Consumption", color: "#0E7490", groups: [
-      { label: "Delivery", ids: ["serve_looker", "serve_run", "serve_hub", "serve_bi_engine"] },
-      { label: "APIs", ids: ["conn_apigee", "conn_api_gateway"] },
-      { label: "Consumers", ids: ["con_looker", "con_sheets", "con_vertex", "con_run", "con_hub", "con_powerbi", "con_tableau", "con_slicer"] },
+      { label: "BI", ids: ["serve_looker", "serve_bi_engine", "con_looker", "con_sheets", "con_powerbi", "con_tableau", "con_slicer"] },
+      { label: "AI / ML", ids: ["con_vertex"] },
+      { label: "APIs", ids: ["conn_apigee", "conn_api_gateway", "serve_run", "con_run"] },
+      { label: "Data Sharing", ids: ["serve_hub", "con_hub"] },
     ] },
     { num: "L6", title: "Medallion", color: "#D97706", groups: [
-      { label: "Zones", ids: ["bronze", "silver", "gold"] },
+      { label: "Bronze", ids: ["bronze"] },
+      { label: "Silver", ids: ["silver"] },
+      { label: "Gold", ids: ["gold"] },
     ] },
     { num: "L5", title: "Processing", color: "#6D28D9", groups: [
-      { label: "GCP Compute", ids: ["proc_dataflow", "proc_dataproc", "proc_bq_sql"] },
-      { label: "Governance", ids: ["proc_dlp"] },
+      { label: "Batch / Spark", ids: ["proc_dataproc", "proc_bq_sql"] },
+      { label: "Stream", ids: ["proc_dataflow"] },
+      { label: "Data Quality", ids: ["proc_dlp"] },
       { label: "Vendor ETL", ids: ["proc_matillion"] },
     ] },
     { num: "L4", title: "Data Lake", color: "#047857", groups: [
-      { label: "Object Storage", ids: ["lake_gcs"] },
-      { label: "Staging", ids: ["lake_bq_staging"] },
+      { label: "Object Store", ids: ["lake_gcs"] },
+      { label: "BQ Staging", ids: ["lake_bq_staging"] },
     ] },
     { num: "L3", title: "Ingestion", color: "#0369A1", groups: [
-      { label: "Streaming", ids: ["ing_datastream", "ing_pubsub"] },
+      { label: "CDC", ids: ["ing_datastream"] },
+      { label: "Streaming", ids: ["ing_pubsub"] },
       { label: "Batch / Event", ids: ["ing_dataflow", "ing_functions"] },
       { label: "Vendor CDC", ids: ["ing_fivetran", "ing_matillion"] },
     ] },
