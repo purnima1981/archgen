@@ -7,6 +7,7 @@ import { db } from "./db";
 import { diagrams } from "@shared/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { matchTemplate, TEMPLATES } from "./templates";
+import { sliceBlueprint } from "./blueprint-slicer";
 import { 
   REQUIREMENTS_PROMPT, 
   PRINCIPLES_PROMPT, 
@@ -61,13 +62,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     t ? res.json(t.diagram) : res.status(404).json({ error: "Template not found" });
   });
 
-  // POST generate — ORIGINAL simple generation (keyword match + LLM fallback)
+  // POST generate — keyword match → blueprint slicer → LLM fallback
   app.post("/api/diagrams/generate", isAuthenticated, async (req: any, res) => {
     try {
       const { prompt } = req.body;
       if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
-      // Step 1: Try keyword matching (instant, free)
+      // Step 1: Try exact template match (instant, free)
       const matched = matchTemplate(prompt);
       if (matched) {
         const diagram = JSON.parse(JSON.stringify(matched.diagram));
@@ -78,7 +79,39 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         return res.json({ diagram, saved, source: "template", templateId: matched.id });
       }
 
-      // Step 2: LLM fallback (simple single-shot)
+      // Step 2: Blueprint slicer — Haiku picks nodes from master blueprint ($0.005/req)
+      if (process.env.ANTHROPIC_API_KEY) {
+        try {
+          // Find the GCP master blueprint
+          const gcpTemplate = TEMPLATES.find(t => t.id === "gcp-technical-blueprint");
+          if (gcpTemplate) {
+            const { diagram, tokensUsed } = await sliceBlueprint(
+              gcpTemplate.diagram,
+              prompt,
+              process.env.ANTHROPIC_API_KEY
+            );
+
+            const userId = req.user.claims.sub;
+            const [saved] = await db.insert(diagrams).values({
+              title: diagram.title, prompt, diagramJson: JSON.stringify(diagram), userId
+            }).returning();
+
+            return res.json({
+              diagram, saved, source: "slicer",
+              cost: {
+                inputTokens: tokensUsed.input,
+                outputTokens: tokensUsed.output,
+                estimatedCost: `$${((tokensUsed.input * 0.25 + tokensUsed.output * 1.25) / 1_000_000).toFixed(4)}`
+              }
+            });
+          }
+        } catch (slicerErr: any) {
+          console.warn("Slicer failed, falling back to LLM:", slicerErr?.message);
+          // Fall through to LLM
+        }
+      }
+
+      // Step 3: LLM fallback (full generation from scratch)
       if (!process.env.ANTHROPIC_API_KEY) {
         return res.status(400).json({ error: "No matching template found. Add an API key for custom generation." });
       }
