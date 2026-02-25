@@ -48,56 +48,62 @@ function buildCatalog(blueprint: Diagram): string {
 
 // Build the Haiku prompt
 function buildSlicerPrompt(catalog: string, userPrompt: string): string {
-  return `You are a principal GCP data architect designing production systems. Given a master blueprint catalog and a user request, design the optimal architecture.
+  return `You are an expert GCP data architect. Given a master blueprint catalog and a user request, select ONLY the relevant nodes and define the data flow.
 
 MASTER BLUEPRINT CATALOG:
 ${catalog}
 
 USER REQUEST: "${userPrompt}"
 
-Think through each layer like an architect:
-
-1. SOURCES: Which source systems are involved? Why?
-2. CONNECTIVITY: How do we authenticate and connect? OAuth, service accounts, VPN, mTLS? Which identity provider? Where do secrets live?
-3. INGESTION (L3): CDC vs batch vs streaming? Why this tool over alternatives? (e.g., Datastream vs Fivetran for Salesforce: Datastream = native GCP, no egress cost, VPC-SC compatible; Fivetran = managed, 300+ connectors, faster setup)
-4. DATA LAKE (L4): Raw landing — GCS for files, BQ staging for structured? Partitioning strategy?
-5. PROCESSING (L5): ELT in BigQuery SQL vs Dataflow for streaming? DLP for PII scanning? Vendor ETL?
-6. MEDALLION (L6): Always bronze→silver→gold. What transforms at each stage?
-7. SERVING (L7): BI via Looker? APIs via Cloud Run? Data sharing via Analytics Hub?
-8. CONSUMERS (L8): Who consumes? Analysts (dashboards), data scientists (notebooks), apps (APIs)?
-9. PILLARS: Security (IAM, encryption, DLP), Governance (lineage, catalog, quality), Observability (monitoring, logging, alerting), Orchestration (scheduling, cost)
-10. EDGES: Define the COMPLETE sequential data flow. Every edge must have a descriptive label showing WHAT flows and HOW (protocol, pattern).
+RULES:
+1. Pick ONLY nodes relevant to the user's request
+2. Always include: at least 1 source, relevant connectivity, full data path through layers (L3→L4→L5→L6→L7), at least 1 consumer
+3. Always include bronze, silver, gold (medallion is mandatory)
+4. Include 2-4 relevant pillars
+5. Define edges as sequential flow: source→connectivity→ingestion→lake→processing→medallion→serving→consumer
+6. Step numbers must be sequential: 1, 2, 3, 4... representing the data flow order
+7. Give the diagram a specific title based on the user's request
 
 OUTPUT ONLY THIS JSON (no markdown, no explanation):
 {
-  "title": "specific title",
-  "subtitle": "brief description with key tool choices",
+  "title": "specific title for this pattern",
+  "subtitle": "brief description",
   "nodes": ["node_id_1", "node_id_2", ...],
   "edges": [
-    {"from": "src_x", "to": "conn_y", "label": "OAuth 2.0 REST", "step": 1},
-    {"from": "conn_y", "to": "ing_z", "label": "CDC Stream (WAL)", "step": 2}
-  ],
-  "decisions": [
-    {
-      "layer": "L3 Ingestion",
-      "chosen": "Datastream",
-      "reason": "Native GCP CDC, no egress cost, VPC-SC compatible, auto-backfill",
-      "alternatives": "Fivetran (managed, 300+ connectors), Pub/Sub + Functions (event-driven)"
-    }
-  ],
-  "flow_summary": "Salesforce CRM data flows via OAuth REST → Secret Manager stores tokens → Datastream captures CDC events → lands raw in GCS (Avro) → BigQuery staging → DLP scans PII → bronze (raw, typed) → silver (cleaned, conformed) → gold (aggregated KPIs) → Looker dashboards for sales ops",
-  "security_notes": "OAuth 2.0 with short-lived tokens rotated in Secret Manager, VPC-SC perimeter around BQ+GCS, column-level DLP masking for PII (email, phone), IAM least-privilege per service",
-  "governance_notes": "Dataplex auto-discovery + quality rules at each medallion gate, Data Catalog tags for PII/classification, Cloud Audit Logs for all access",
-  "orchestration_notes": "Cloud Composer DAG: hourly CDC check → quality gate → medallion promotion → SLA monitoring → PagerDuty on breach"
+    {"from": "node_id", "to": "node_id", "label": "short label", "step": 1},
+    {"from": "node_id", "to": "node_id", "label": "short label", "step": 2}
+  ]
 }`;
 }
 
 // Position nodes with no overlaps, no gaps
-// BG=68 (node box), step badges=20px, edges need clearance
-// Minimum center-to-center: 160px horizontal, 180px vertical
+interface PositionConfig {
+  sources: { x: number; startY: number; spacingY: number };
+  connectivity: { x: number; startY: number; spacingY: number };
+  cloud: { startX: number; spacingX: number; startY: number; spacingY: number };
+  consumers: { x: number; startY: number; spacingY: number };
+}
+
+const POS: PositionConfig = {
+  sources:      { x: 100,  startY: 150, spacingY: 120 },
+  connectivity: { x: 320,  startY: 150, spacingY: 120 },
+  cloud:        { startX: 540, spacingX: 160, startY: 150, spacingY: 130 },
+  consumers:    { x: 1200, startY: 150, spacingY: 120 },
+};
+
+// Cloud sub-layers get their own row
+const CLOUD_LAYER_Y: Record<string, number> = {
+  L3: 150,   // Ingestion
+  L4: 300,   // Data Lake
+  L5: 450,   // Processing
+  L6: 600,   // Medallion
+  L7: 750,   // Serving
+  P:  150,   // Pillars (right column, starting same Y as ingestion)
+};
 
 function positionNodes(nodes: DiagNode[], keepIds: Set<string>): DiagNode[] {
   const positioned: DiagNode[] = [];
+  const counters: Record<string, number> = {};
 
   // Group by zone + layer
   const zoneNodes: Record<string, DiagNode[]> = {
@@ -112,84 +118,38 @@ function positionNodes(nodes: DiagNode[], keepIds: Set<string>): DiagNode[] {
     else if (n.zone === "connectivity") zoneNodes.connectivity.push(n);
     else if (n.zone === "consumers") zoneNodes.consumers.push(n);
     else if (layer === "P") zoneNodes.cloud_P.push(n);
-    else if (zoneNodes[`cloud_${layer}`]) zoneNodes[`cloud_${layer}`].push(n);
+    else zoneNodes[`cloud_${layer}`]?.push(n);
   }
 
-  // Constants
-  const SPACING_X = 180;  // horizontal between nodes
-  const SPACING_Y = 180;  // vertical between layers
-  const COL_GAP = 220;    // gap between major columns (sources, connectivity, cloud, pillars, consumers)
-
-  // ── Column 1: Sources (left) ──
-  const srcX = 100;
-  const startY = 200;
+  // Position sources — vertical stack
   zoneNodes.sources.forEach((n, i) => {
-    positioned.push({ ...n, x: srcX, y: startY + i * SPACING_Y });
+    positioned.push({ ...n, x: POS.sources.x, y: POS.sources.startY + i * POS.sources.spacingY });
   });
 
-  // ── Column 2: Connectivity ──
-  const connX = srcX + COL_GAP;
+  // Position connectivity — vertical stack
   zoneNodes.connectivity.forEach((n, i) => {
-    positioned.push({ ...n, x: connX, y: startY + i * SPACING_Y });
+    positioned.push({ ...n, x: POS.connectivity.x, y: POS.connectivity.startY + i * POS.connectivity.spacingY });
   });
 
-  // ── Column 3: Cloud layers (each layer = horizontal row) ──
-  const cloudStartX = connX + COL_GAP;
-  const cloudLayers = ["L3", "L4", "L5", "L6", "L7"];
-
-  // Compute max cloud width for pillar/consumer placement
-  let maxCloudRight = cloudStartX;
-
-  cloudLayers.forEach((layerKey, li) => {
+  // Position cloud layers — each layer is a horizontal row
+  for (const layerKey of ["L3", "L4", "L5", "L6", "L7"]) {
     const layerNodes = zoneNodes[`cloud_${layerKey}`] || [];
-    const layerY = startY + li * SPACING_Y;
-
-    // Center the row: if multiple nodes, spread them evenly
+    const baseY = CLOUD_LAYER_Y[layerKey];
     layerNodes.forEach((n, i) => {
-      const x = cloudStartX + i * SPACING_X;
-      positioned.push({ ...n, x, y: layerY });
-      maxCloudRight = Math.max(maxCloudRight, x);
+      positioned.push({ ...n, x: POS.cloud.startX + i * POS.cloud.spacingX, y: baseY });
     });
-  });
-
-  // ── Column 4: Pillars (right of cloud) ──
-  const pillarX = maxCloudRight + COL_GAP;
-  zoneNodes.cloud_P.forEach((n, i) => {
-    positioned.push({ ...n, x: pillarX, y: startY + i * SPACING_Y });
-  });
-
-  // ── Column 5: Consumers (right of pillars) ──
-  const consumerX = pillarX + COL_GAP;
-  zoneNodes.consumers.forEach((n, i) => {
-    positioned.push({ ...n, x: consumerX, y: startY + i * SPACING_Y });
-  });
-
-  // ── Vertical centering: align shorter columns to the middle of the tallest ──
-  const groups = [
-    { key: "sources", nodes: zoneNodes.sources },
-    { key: "connectivity", nodes: zoneNodes.connectivity },
-    { key: "consumers", nodes: zoneNodes.consumers },
-    { key: "pillars", nodes: zoneNodes.cloud_P },
-  ];
-
-  // Find the cloud total height (tallest column)
-  const cloudHeight = (cloudLayers.length - 1) * SPACING_Y;
-  const cloudCenterY = startY + cloudHeight / 2;
-
-  for (const g of groups) {
-    if (g.nodes.length === 0) continue;
-    const groupHeight = (g.nodes.length - 1) * SPACING_Y;
-    const groupCenterY = startY + groupHeight / 2;
-    const offsetY = cloudCenterY - groupCenterY;
-
-    if (Math.abs(offsetY) > 20) {
-      // Shift this group's positioned nodes to center-align with cloud
-      const ids = new Set(g.nodes.map(n => n.id));
-      for (const p of positioned) {
-        if (ids.has(p.id)) p.y += offsetY;
-      }
-    }
   }
+
+  // Position pillars — right column
+  const pillarX = 1050;
+  zoneNodes.cloud_P.forEach((n, i) => {
+    positioned.push({ ...n, x: pillarX, y: POS.consumers.startY + i * 160 });
+  });
+
+  // Position consumers — vertical stack at right
+  zoneNodes.consumers.forEach((n, i) => {
+    positioned.push({ ...n, x: POS.consumers.x, y: POS.consumers.startY + i * POS.consumers.spacingY });
+  });
 
   return positioned;
 }
@@ -267,7 +227,7 @@ export async function sliceBlueprint(
     },
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 4000,
+      max_tokens: 2000,
       messages: [{ role: "user", content: prompt }],
     }),
   });
@@ -320,45 +280,6 @@ export async function sliceBlueprint(
     phases,
     opsGroup: pillarIds.length > 0 ? { name: "Crosscutting Pillars", nodeIds: pillarIds } : undefined,
   };
-
-  // Embed architectural context into node details where relevant
-  if (result.decisions || result.flow_summary || result.security_notes) {
-    // Add flow summary + decisions to a virtual "architecture" note on the first cloud node
-    const contextNotes: string[] = [];
-    if (result.flow_summary) contextNotes.push(`📋 Flow: ${result.flow_summary}`);
-    if (result.security_notes) contextNotes.push(`🔒 Security: ${result.security_notes}`);
-    if (result.governance_notes) contextNotes.push(`📊 Governance: ${result.governance_notes}`);
-    if (result.orchestration_notes) contextNotes.push(`⚙️ Orchestration: ${result.orchestration_notes}`);
-    if (result.decisions?.length) {
-      contextNotes.push(`\n🏗️ Architecture Decisions:`);
-      for (const d of result.decisions) {
-        contextNotes.push(`• ${d.layer}: ${d.chosen} — ${d.reason}${d.alternatives ? ` (Alt: ${d.alternatives})` : ""}`);
-      }
-    }
-
-    // Attach to diagram subtitle for visibility
-    if (result.flow_summary) {
-      diagram.subtitle = result.flow_summary;
-    }
-
-    // Enrich individual node details with decision context
-    if (result.decisions) {
-      for (const d of result.decisions) {
-        // Find the chosen node and enrich its notes
-        const chosenNode = diagram.nodes.find(n =>
-          n.name.toLowerCase().includes(d.chosen.toLowerCase()) ||
-          d.chosen.toLowerCase().includes(n.name.toLowerCase())
-        );
-        if (chosenNode && chosenNode.details) {
-          const existing = chosenNode.details.notes || "";
-          chosenNode.details.notes = `${existing}\n\n🏗️ Why ${d.chosen}: ${d.reason}${d.alternatives ? `\n↔️ Alternatives: ${d.alternatives}` : ""}`.trim();
-        }
-      }
-    }
-
-    // Store full context as metadata (not a visible node)
-    (diagram as any)._architectureContext = contextNotes.join("\n\n");
-  }
 
   return { diagram, tokensUsed };
 }
