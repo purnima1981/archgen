@@ -535,6 +535,7 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
 /* ═══ GCP BLUEPRINT VIEW — STANDALONE, NO SHARED CODE WITH ENTERPRISE ═══ */
 function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: any; setPopover: (p: any) => void }) {
   const [sel, setSel] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(0.75);
   const g = (id: string) => diag.nodes.find(n => n.id === id);
   const byPfx = (p: string) => diag.nodes.filter(n => n.id.startsWith(p));
   const click = (id: string) => { if (sel === id) { setSel(null); setPopover(null); } else { setSel(id); setPopover({ type: "node", id }); } };
@@ -629,14 +630,24 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
   );
 
   return (
-    <div style={{ fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif", background: "#FAFAFD", flex: 1, overflow: "auto", padding: "16px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+    <div style={{ fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif", background: "#FAFAFD", flex: 1, overflow: "hidden", position: "relative", display: "flex", flexDirection: "column" }}>
+      {/* Zoom controls */}
+      <div style={{ position: "absolute", top: 10, right: 10, zIndex: 10, display: "flex", gap: 4, background: "#fff", borderRadius: 8, border: "1px solid #E5E7EB", padding: "3px 4px", boxShadow: "0 2px 6px rgba(0,0,0,0.08)" }}>
+        <button onClick={() => setZoom(z => Math.min(z + 0.1, 2))} style={{ width: 28, height: 28, border: "1px solid #D1D5DB", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+        <button onClick={() => setZoom(0.75)} style={{ height: 28, border: "1px solid #D1D5DB", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "0 6px", color: "#6B7280" }}>{Math.round(zoom * 100)}%</button>
+        <button onClick={() => setZoom(z => Math.max(z - 0.1, 0.3))} style={{ width: 28, height: 28, border: "1px solid #D1D5DB", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+        <button onClick={() => setZoom(1)} style={{ height: 28, border: "1px solid #D1D5DB", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 9, fontWeight: 700, padding: "0 6px", color: "#6B7280" }}>Fit</button>
+      </div>
+      {/* Scrollable canvas */}
+      <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
+        <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: `${100 / zoom}%` }}>
       {/* Title */}
       <div style={{ textAlign: "center", marginBottom: 10 }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: "#1F2937", margin: 0, letterSpacing: -0.3 }}>{diag.title}</h1>
         <p style={{ fontSize: 9, color: "#6B7280", margin: "2px 0 0 0" }}>{diag.subtitle}</p>
       </div>
 
-      <div style={{ width: "100%", maxWidth: 1700, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 6 }}>
 
         {/* ═══ MAIN ROW: Sources → Connectivity → GCP Box ═══ */}
         <div style={{ display: "flex", gap: 4, alignItems: "stretch" }}>
@@ -767,6 +778,8 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
             </div>
           ))}
         </div>
+      </div>
+      </div>
       </div>
     </div>
   );
