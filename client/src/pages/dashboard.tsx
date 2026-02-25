@@ -535,7 +535,27 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
 /* ═══ GCP BLUEPRINT VIEW — STANDALONE, NO SHARED CODE WITH ENTERPRISE ═══ */
 function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: any; setPopover: (p: any) => void }) {
   const [sel, setSel] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(0.75);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const isPan = useRef(false), panS = useRef({ x: 0, y: 0, px: 0, py: 0 });
+
+  const fit = useCallback(() => {
+    if (!canvasRef.current || !contentRef.current) return;
+    const cr = canvasRef.current.getBoundingClientRect();
+    const el = contentRef.current;
+    const cw = el.scrollWidth, ch = el.scrollHeight;
+    const z = Math.min(cr.width / cw, cr.height / ch, 1.2) * 0.92;
+    setZoom(z);
+    setPan({ x: (cr.width - cw * z) / 2, y: Math.max(8, (cr.height - ch * z) / 2) });
+  }, []);
+  useEffect(() => { setTimeout(fit, 120); }, [fit]);
+
+  const onWheel = useCallback((e: React.WheelEvent) => { e.preventDefault(); const rc = canvasRef.current?.getBoundingClientRect(); if (!rc) return; const mx = e.clientX - rc.left, my = e.clientY - rc.top, f = e.deltaY < 0 ? 1.1 : 0.9, nz = Math.max(0.15, Math.min(3, zoom * f)); setPan({ x: mx - (mx - pan.x) * (nz / zoom), y: my - (my - pan.y) * (nz / zoom) }); setZoom(nz); }, [zoom, pan]);
+  const onDown = useCallback((e: React.MouseEvent) => { if (e.button === 0) { isPan.current = true; panS.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y }; } }, [pan]);
+  const onMove = useCallback((e: React.MouseEvent) => { if (isPan.current) setPan({ x: panS.current.px + (e.clientX - panS.current.x), y: panS.current.py + (e.clientY - panS.current.y) }); }, []);
+  const onUp = useCallback(() => { isPan.current = false; }, []);
   const g = (id: string) => diag.nodes.find(n => n.id === id);
   const byPfx = (p: string) => diag.nodes.filter(n => n.id.startsWith(p));
   const click = (id: string) => { if (sel === id) { setSel(null); setPopover(null); } else { setSel(id); setPopover({ type: "node", id }); } };
@@ -630,24 +650,16 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
   );
 
   return (
-    <div style={{ fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif", background: "#FAFAFD", flex: 1, overflow: "hidden", position: "relative", display: "flex", flexDirection: "column" }}>
-      {/* Zoom controls */}
-      <div style={{ position: "absolute", top: 10, right: 10, zIndex: 10, display: "flex", gap: 4, background: "#fff", borderRadius: 8, border: "1px solid #E5E7EB", padding: "3px 4px", boxShadow: "0 2px 6px rgba(0,0,0,0.08)" }}>
-        <button onClick={() => setZoom(z => Math.min(z + 0.1, 2))} style={{ width: 28, height: 28, border: "1px solid #D1D5DB", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-        <button onClick={() => setZoom(0.75)} style={{ height: 28, border: "1px solid #D1D5DB", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "0 6px", color: "#6B7280" }}>{Math.round(zoom * 100)}%</button>
-        <button onClick={() => setZoom(z => Math.max(z - 0.1, 0.3))} style={{ width: 28, height: 28, border: "1px solid #D1D5DB", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-        <button onClick={() => setZoom(1)} style={{ height: 28, border: "1px solid #D1D5DB", borderRadius: 6, background: "#fff", cursor: "pointer", fontSize: 9, fontWeight: 700, padding: "0 6px", color: "#6B7280" }}>Fit</button>
-      </div>
-      {/* Scrollable canvas */}
-      <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
-        <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: `${100 / zoom}%` }}>
+    <div ref={canvasRef} style={{ fontFamily: "'DM Sans', 'Segoe UI', system-ui, sans-serif", background: "#FAFAFD", flex: 1, overflow: "hidden", position: "relative", cursor: isPan.current ? "grabbing" : "grab" }}
+      onWheel={onWheel} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}>
+      <div ref={contentRef} style={{ transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})`, transformOrigin: "0 0", position: "absolute", top: 0, left: 0 }}>
       {/* Title */}
       <div style={{ textAlign: "center", marginBottom: 10 }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, color: "#1F2937", margin: 0, letterSpacing: -0.3 }}>{diag.title}</h1>
         <p style={{ fontSize: 9, color: "#6B7280", margin: "2px 0 0 0" }}>{diag.subtitle}</p>
       </div>
 
-      <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ width: 1800, display: "flex", flexDirection: "column", gap: 6 }}>
 
         {/* ═══ MAIN ROW: Sources → Connectivity → GCP Box ═══ */}
         <div style={{ display: "flex", gap: 4, alignItems: "stretch" }}>
@@ -780,7 +792,15 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
         </div>
       </div>
       </div>
-      </div>
+
+    {/* Controls */}
+    <div style={{ position: "absolute", bottom: 14, left: 14, display: "flex", gap: 5, zIndex: 10 }}>
+      {[{ l: "+", f: () => setZoom(z => Math.min(3, z * 1.2)) }, { l: "−", f: () => setZoom(z => Math.max(.15, z * .8)) }].map((b, i) =>
+        <button key={i} onClick={b.f} style={{ width: 32, height: 32, borderRadius: 8, background: "#fff", border: "1px solid #e0e0e0", fontSize: 16, color: "#333", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,.08)" }}>{b.l}</button>)}
+      <button onClick={fit} style={{ height: 32, padding: "0 12px", borderRadius: 8, background: "#fff", border: "1px solid #e0e0e0", fontSize: 11, fontWeight: 600, color: "#333", cursor: "pointer", boxShadow: "0 1px 4px rgba(0,0,0,.08)" }}>⊞ Fit</button>
+      <div style={{ height: 32, padding: "0 10px", borderRadius: 8, background: "rgba(0,0,0,.6)", color: "#fff", fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center" }}>{Math.round(zoom * 100)}%</div>
+    </div>
+    <div style={{ position: "absolute", bottom: 14, right: 14, background: "rgba(0,0,0,.5)", color: "#fff", padding: "6px 14px", borderRadius: 20, fontSize: 10, zIndex: 10 }}>Scroll zoom · Drag to pan</div>
     </div>
   );
 }
