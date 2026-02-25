@@ -623,15 +623,28 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
 
   // GCP layers
   const layers = [
-    { num: "L7–L8", title: "Serving & Consumption", color: "#0E7490", combined: true, groups: [
+    { num: "L7–L8", title: "Serving & Consumption", color: "#0E7490", groups: [
       { label: "Delivery", ids: ["serve_looker", "serve_run", "serve_hub", "serve_bi_engine"] },
       { label: "APIs", ids: ["conn_apigee", "conn_api_gateway"] },
       { label: "Consumers", ids: ["con_looker", "con_sheets", "con_vertex", "con_run", "con_hub", "con_powerbi", "con_tableau", "con_slicer"] },
     ] },
-    { num: "L6", title: "Medallion", color: "#D97706", ids: ["bronze", "silver", "gold"] },
-    { num: "L5", title: "Processing", color: "#6D28D9", ids: ["proc_dataflow", "proc_dataproc", "proc_bq_sql", "proc_dlp", "proc_matillion"] },
-    { num: "L4", title: "Data Lake", color: "#047857", ids: ["lake_gcs", "lake_bq_staging"] },
-    { num: "L3", title: "Ingestion", color: "#0369A1", ids: ["ing_datastream", "ing_pubsub", "ing_dataflow", "ing_functions", "ing_fivetran", "ing_matillion"] },
+    { num: "L6", title: "Medallion", color: "#D97706", groups: [
+      { label: "Zones", ids: ["bronze", "silver", "gold"] },
+    ] },
+    { num: "L5", title: "Processing", color: "#6D28D9", groups: [
+      { label: "GCP Compute", ids: ["proc_dataflow", "proc_dataproc", "proc_bq_sql"] },
+      { label: "Governance", ids: ["proc_dlp"] },
+      { label: "Vendor ETL", ids: ["proc_matillion"] },
+    ] },
+    { num: "L4", title: "Data Lake", color: "#047857", groups: [
+      { label: "Object Storage", ids: ["lake_gcs"] },
+      { label: "Staging", ids: ["lake_bq_staging"] },
+    ] },
+    { num: "L3", title: "Ingestion", color: "#0369A1", groups: [
+      { label: "Streaming", ids: ["ing_datastream", "ing_pubsub"] },
+      { label: "Batch / Event", ids: ["ing_dataflow", "ing_functions"] },
+      { label: "Vendor CDC", ids: ["ing_fivetran", "ing_matillion"] },
+    ] },
   ];
 
   // Pillars
@@ -659,7 +672,7 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
         <p style={{ fontSize: 9, color: "#6B7280", margin: "2px 0 0 0" }}>{diag.subtitle}</p>
       </div>
 
-      <div style={{ width: 1800, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ width: 1500, display: "flex", flexDirection: "column", gap: 6 }}>
 
         {/* ═══ MAIN ROW: Sources → Connectivity → GCP Box ═══ */}
         <div style={{ display: "flex", gap: 4, alignItems: "stretch" }}>
@@ -715,22 +728,20 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
                       <span style={{ fontSize: 9, fontWeight: 800, color: layer.color }}>{layer.num}</span>
                       <span style={{ fontSize: 8, fontWeight: 700, color: layer.color, textTransform: "uppercase", letterSpacing: 0.3 }}>{layer.title}</span>
                     </div>
-                    {layer.combined ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        {layer.groups.map((grp: any) => (
-                          <div key={grp.label}>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {layer.groups.map((grp: any) => {
+                        const nodes = grp.ids.filter((id: string) => g(id));
+                        if (!nodes.length) return null;
+                        return (
+                          <div key={grp.label} style={{ background: `${layer.color}08`, border: `1px solid ${layer.color}18`, borderRadius: 6, padding: "4px 6px", minWidth: 60 }}>
                             <div style={{ fontSize: 6.5, fontWeight: 800, color: layer.color, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3, paddingBottom: 2, borderBottom: `1px solid ${layer.color}15` }}>{grp.label}</div>
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: 6, justifyItems: "center" }}>
-                              {grp.ids.map((id: string) => g(id) ? <IC key={id} id={id} bg={`${layer.color}08`} border={`${layer.color}40`} /> : null)}
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center" }}>
+                              {nodes.map((id: string) => <IC key={id} id={id} bg={`${layer.color}08`} border={`${layer.color}40`} />)}
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: 6, justifyItems: "center" }}>
-                        {layer.ids.map((id: string) => g(id) ? <IC key={id} id={id} bg={`${layer.color}08`} border={`${layer.color}40`} /> : null)}
-                      </div>
-                    )}
+                        );
+                      })}
+                    </div>
                   </div>
                   {li < layers.length - 1 && (
                     <div style={{ display: "flex", justifyContent: "center", padding: "3px 0" }}>
