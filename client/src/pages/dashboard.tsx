@@ -624,10 +624,10 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
   // GCP layers
   const layers = [
     { num: "L7–L8", title: "Serving & Consumption", color: "#0E7490", groups: [
-      { label: "BI", ids: ["serve_looker", "serve_bi_engine", "con_looker", "con_sheets", "con_powerbi", "con_tableau", "con_slicer"] },
+      { label: "BI", ids: ["serve_looker", "serve_bi_engine", "con_sheets", "con_powerbi", "con_tableau", "con_slicer"] },
       { label: "AI / ML", ids: ["con_vertex"] },
-      { label: "APIs", ids: ["conn_apigee", "conn_api_gateway", "serve_run", "con_run"] },
-      { label: "Data Sharing", ids: ["serve_hub", "con_hub"] },
+      { label: "APIs", ids: ["conn_apigee", "conn_api_gateway", "serve_run"] },
+      { label: "Data Sharing", ids: ["serve_hub"] },
     ] },
     { num: "L6", title: "Medallion", color: "#D97706", groups: [
       { label: "Bronze", ids: ["bronze"] },
