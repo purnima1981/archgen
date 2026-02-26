@@ -830,6 +830,159 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
 }
 
 /* ═══ SVG CANVAS ═══════════════════════════════════ */
+/* ═══ MINGRAMMER CANVAS — PNG with zoom/pan + decision chips ═══ */
+function MingrammerCanvas({ pngUrl, title, subtitle, decisions, antiPatterns, kept, removed, pythonSource, costInfo, theme }: {
+  pngUrl: string; title: string; subtitle?: string; decisions: string[]; antiPatterns: string[];
+  kept: string[]; removed: string[]; pythonSource: string | null; costInfo: any; theme: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(0.8);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const isPan = useRef(false), panS = useRef({ x: 0, y: 0, px: 0, py: 0 });
+  const [imgSize, setImgSize] = useState({ w: 0, h: 0 });
+  const [showSource, setShowSource] = useState(false);
+  const [showProducts, setShowProducts] = useState(false);
+  const th = THEMES[theme] || THEMES.light;
+  const isDark = theme === "blueprint" || theme === "dark";
+
+  // Fit image on load
+  const onImgLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    setImgSize({ w: img.naturalWidth, h: img.naturalHeight });
+    if (ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      const z = Math.min(r.width / (img.naturalWidth + 80), r.height / (img.naturalHeight + 80), 1.5) * 0.9;
+      setZoom(z);
+      setPan({ x: (r.width - img.naturalWidth * z) / 2, y: (r.height - img.naturalHeight * z) / 2 });
+    }
+  }, []);
+
+  const onWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const rc = ref.current?.getBoundingClientRect(); if (!rc) return;
+    const mx = e.clientX - rc.left, my = e.clientY - rc.top;
+    const f = e.deltaY < 0 ? 1.1 : 0.9, nz = Math.max(0.05, Math.min(4, zoom * f));
+    setPan({ x: mx - (mx - pan.x) * (nz / zoom), y: my - (my - pan.y) * (nz / zoom) });
+    setZoom(nz);
+  }, [zoom, pan]);
+
+  const onDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 0) { isPan.current = true; panS.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y }; }
+  }, [pan]);
+  const onMove = useCallback((e: React.MouseEvent) => {
+    if (isPan.current) setPan({ x: panS.current.px + (e.clientX - panS.current.x), y: panS.current.py + (e.clientY - panS.current.y) });
+  }, []);
+  const onUp = useCallback(() => { isPan.current = false; }, []);
+
+  const fit = useCallback(() => {
+    if (!ref.current || !imgSize.w) return;
+    const r = ref.current.getBoundingClientRect();
+    const z = Math.min(r.width / (imgSize.w + 80), r.height / (imgSize.h + 80), 1.5) * 0.9;
+    setZoom(z); setPan({ x: (r.width - imgSize.w * z) / 2, y: (r.height - imgSize.h * z) / 2 });
+  }, [imgSize]);
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      {/* Decision chips bar */}
+      {(decisions.length > 0 || antiPatterns.length > 0) && (
+        <div style={{ padding: "8px 14px", borderBottom: "1px solid #e5e7eb", background: "#fafbfc", display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", maxHeight: 120, overflowY: "auto" }}>
+          {antiPatterns.map((ap, i) => (
+            <span key={`ap-${i}`} style={{ fontSize: 10, padding: "3px 10px", borderRadius: 12, background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", fontWeight: 600, whiteSpace: "nowrap" }}>
+              ⚠️ {ap}
+            </span>
+          ))}
+          {decisions.slice(0, 8).map((d, i) => (
+            <span key={`d-${i}`} style={{ fontSize: 10, padding: "3px 10px", borderRadius: 12, background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", fontWeight: 500, whiteSpace: "nowrap" }}>
+              {d}
+            </span>
+          ))}
+          {decisions.length > 8 && (
+            <span style={{ fontSize: 10, color: "#6b7280", fontStyle: "italic" }}>+{decisions.length - 8} more</span>
+          )}
+        </div>
+      )}
+
+      {/* Canvas area */}
+      <div ref={ref} style={{ flex: 1, position: "relative", overflow: "hidden", background: th.bg, cursor: "grab" }}
+        onWheel={onWheel} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={onUp}>
+        {/* Grid dots */}
+        {th.grid && (
+          <svg style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}>
+            <defs><pattern id="mgrid" width={20 * zoom} height={20 * zoom} patternUnits="userSpaceOnUse" x={pan.x % (20 * zoom)} y={pan.y % (20 * zoom)}>
+              <circle cx={1} cy={1} r={0.8} fill={th.gridColor} />
+            </pattern></defs>
+            <rect width="100%" height="100%" fill="url(#mgrid)" />
+          </svg>
+        )}
+        {/* PNG diagram */}
+        <div style={{ position: "absolute", left: 0, top: 0, transformOrigin: "0 0", transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})` }}>
+          <img src={pngUrl} alt={title} onLoad={onImgLoad}
+            style={{ display: "block", maxWidth: "none", imageRendering: "auto", borderRadius: 8, boxShadow: "0 4px 24px rgba(0,0,0,0.12)" }} draggable={false} />
+        </div>
+        {/* Zoom controls */}
+        <div style={{ position: "absolute", bottom: 14, right: 14, display: "flex", gap: 4, background: "rgba(255,255,255,0.95)", borderRadius: 8, padding: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+          <button onClick={() => setZoom(z => Math.min(4, z * 1.2))} style={{ width: 30, height: 30, border: "none", borderRadius: 6, background: "#f3f4f6", cursor: "pointer", fontSize: 16, fontWeight: 700 }}>+</button>
+          <button onClick={fit} style={{ height: 30, border: "none", borderRadius: 6, background: "#f3f4f6", cursor: "pointer", fontSize: 10, fontWeight: 600, padding: "0 8px" }}>Fit</button>
+          <button onClick={() => setZoom(z => Math.max(0.05, z / 1.2))} style={{ width: 30, height: 30, border: "none", borderRadius: 6, background: "#f3f4f6", cursor: "pointer", fontSize: 16, fontWeight: 700 }}>−</button>
+        </div>
+        {/* Zoom percentage */}
+        <div style={{ position: "absolute", bottom: 18, left: 14, fontSize: 10, color: isDark ? "#9ca3af" : "#9ca3af", fontWeight: 600 }}>
+          {Math.round(zoom * 100)}%
+        </div>
+      </div>
+
+      {/* Bottom bar: source badge + products toggle + source toggle + download */}
+      <div style={{ padding: "8px 14px", borderTop: "1px solid #e5e7eb", background: "#fff", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 14, background: "#ecfdf5", color: "#047857", fontWeight: 700 }}>
+          🔧 Mingrammer Engine — {costInfo?.estimatedCost || "$0.00"}
+        </span>
+        <span style={{ fontSize: 9, color: "#6b7280" }}>{kept.length} products · {removed.length} skipped</span>
+        <div style={{ flex: 1 }} />
+        <button onClick={() => setShowProducts(!showProducts)} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: showProducts ? "#eff6ff" : "#fff", cursor: "pointer", fontWeight: 500 }}>
+          {showProducts ? "Hide" : "Show"} Products
+        </button>
+        {pythonSource && (
+          <button onClick={() => setShowSource(!showSource)} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: showSource ? "#f5f3ff" : "#fff", cursor: "pointer", fontWeight: 500 }}>
+            {showSource ? "Hide" : "View"} Python
+          </button>
+        )}
+        <a href={pngUrl} download={`${title || "architecture"}.png`} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontWeight: 500, textDecoration: "none", color: "#333" }}>
+          ⬇ Download PNG
+        </a>
+      </div>
+
+      {/* Expandable: Product list */}
+      {showProducts && (
+        <div style={{ padding: "10px 14px", borderTop: "1px solid #e5e7eb", background: "#f9fafb", maxHeight: 160, overflowY: "auto" }}>
+          <div style={{ display: "flex", gap: 20 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 9, fontWeight: 800, color: "#047857", letterSpacing: 0.5, marginBottom: 4 }}>✓ INCLUDED ({kept.length})</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {kept.map(p => <span key={p} style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0" }}>{p.replace(/_/g, " ")}</span>)}
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 9, fontWeight: 800, color: "#dc2626", letterSpacing: 0.5, marginBottom: 4 }}>✕ SKIPPED ({removed.length})</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {removed.map(p => <span key={p} style={{ fontSize: 9, padding: "2px 7px", borderRadius: 4, background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca" }}>{p.replace(/_/g, " ")}</span>)}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expandable: Python source */}
+      {showSource && pythonSource && (
+        <div style={{ borderTop: "1px solid #e5e7eb", background: "#1e1e2e", maxHeight: 220, overflowY: "auto" }}>
+          <pre style={{ margin: 0, padding: "10px 14px", fontSize: 10, color: "#cdd6f4", lineHeight: 1.5, fontFamily: "'JetBrains Mono','Fira Code',monospace", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+            {pythonSource}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, connectMode, connectSource, onConnectClick }: { diag: Diagram; setDiag: (d: Diagram) => void; popover: any; setPopover: (p: any) => void; theme: string; onDragEnd?: (d: Diagram) => void; connectMode?: boolean; connectSource?: string | null; onConnectClick?: (nodeId: string) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -1187,6 +1340,15 @@ export default function Dashboard({ user }: { user: User }) {
   const [showTheme, setShowTheme] = useState(false);
   const [saved, setSaved] = useState<any>(null);
   
+  // Mingrammer engine state
+  const [pngUrl, setPngUrl] = useState<string | null>(null);
+  const [decisions, setDecisions] = useState<string[]>([]);
+  const [antiPatterns, setAntiPatterns] = useState<string[]>([]);
+  const [keptProducts, setKeptProducts] = useState<string[]>([]);
+  const [removedProducts, setRemovedProducts] = useState<string[]>([]);
+  const [pythonSource, setPythonSource] = useState<string | null>(null);
+  const [costInfo, setCostInfo] = useState<any>(null);
+  
   // Editing state variables
   const [editMode, setEditMode] = useState(false);
   const [showServicePalette, setShowServicePalette] = useState(false);
@@ -1201,7 +1363,7 @@ export default function Dashboard({ user }: { user: User }) {
   useEffect(() => { loadIcons() }, []);
 
   const loadTemplate = useCallback(async (templateId: string) => {
-    setLoading(true); setError(""); setDiag(null); setPopover(null); setSource(null); setTab("diagram");
+    setLoading(true); setError(""); setDiag(null); setPngUrl(null); setPopover(null); setSource(null); setTab("diagram");
     try {
       const res = await fetch(`/api/templates/${templateId}`, { credentials: "include" });
       if (!res.ok) throw new Error("Template not found");
@@ -1213,14 +1375,37 @@ export default function Dashboard({ user }: { user: User }) {
 
   const generate = useCallback(async (directPrompt?: string) => {
     const p = directPrompt || prompt;
-    if (!p.trim()) return; setLoading(true); setError(""); setDiag(null); setPopover(null); setSource(null); setTab("diagram");
+    if (!p.trim()) return;
+    setLoading(true); setError(""); setDiag(null); setPngUrl(null); setPopover(null); setSource(null);
+    setDecisions([]); setAntiPatterns([]); setKeptProducts([]); setRemovedProducts([]); setPythonSource(null); setCostInfo(null);
+    setTab("diagram");
     try {
       const res = await fetch("/api/diagrams/generate", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ prompt: p }) });
       if (!res.ok) throw new Error((await res.json()).error || "Failed");
       const data = await res.json();
-      setDiag(data.diagram as Diagram); 
-      setSource(data.source);
-      setSaved(data.saved);
+      
+      if (data.source === "mingrammer") {
+        // Mingrammer engine — PNG + metadata
+        setPngUrl(data.png_url);
+        setDecisions(data.decisions || []);
+        setAntiPatterns(data.anti_patterns || []);
+        setKeptProducts(data.kept || []);
+        setRemovedProducts(data.removed || []);
+        setPythonSource(data.python_source || null);
+        setCostInfo(data.cost);
+        setSaved(data.saved);
+        setSource("mingrammer");
+        // Create a minimal Diagram shell so title/subtitle display properly
+        setDiag({ title: data.title, subtitle: data.subtitle, nodes: [], edges: [] });
+      } else {
+        // Template / slicer / LLM — standard diagram JSON
+        setDiag(data.diagram as Diagram);
+        setSource(data.source);
+        setSaved(data.saved);
+        setDecisions(data.decisions || []);
+        setAntiPatterns(data.anti_patterns || []);
+        setCostInfo(data.cost);
+      }
     } catch (e: any) { setError(e.message) } setLoading(false);
   }, [prompt]);
 
@@ -1468,7 +1653,7 @@ export default function Dashboard({ user }: { user: User }) {
           {TABS.map(t => (<button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "8px 16px", background: tab === t.id ? "#f0f7ff" : "none", border: tab === t.id ? "1px solid #4285f4" : "1px solid transparent", borderRadius: 8, fontSize: 12, fontWeight: tab === t.id ? 700 : 500, color: tab === t.id ? "#1a73e8" : "#888", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, transition: "all .12s" }}>
             <span>{t.icon}</span>{t.l}</button>))}
           <div style={{ flex: 1 }} />
-          {source && diag?.layout !== "blueprint" && <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 14, background: source === "template" ? "#e8f5e9" : "#fff3e0", color: source === "template" ? "#2e7d32" : "#e65100", fontWeight: 700 }}>{source === "template" ? "⚡ Template — instant, $0" : "🤖 AI Generated"}</span>}
+          {source && diag?.layout !== "blueprint" && <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 14, background: source === "template" ? "#e8f5e9" : source === "mingrammer" ? "#ecfdf5" : "#fff3e0", color: source === "template" ? "#2e7d32" : source === "mingrammer" ? "#047857" : "#e65100", fontWeight: 700 }}>{source === "template" ? "⚡ Template — instant, $0" : source === "mingrammer" ? "🔧 Mingrammer — real GCP icons, $0" : source === "knowledge-engine" ? "🧠 Knowledge Engine — $0" : "🤖 AI Generated"}</span>}
         </div>}
         {!diag && !loading && (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: THEMES[theme]?.bg || "#f8f9fa" }}>
@@ -1490,7 +1675,21 @@ export default function Dashboard({ user }: { user: User }) {
         {diag && tab === "diagram" && diag.layout === "gcp_blueprint" && (
           <GCPBlueprintView diag={diag} popover={popover} setPopover={setPopover} />
         )}
-        {diag && tab === "diagram" && diag.layout !== "blueprint" && diag.layout !== "gcp_blueprint" && (
+        {diag && tab === "diagram" && source === "mingrammer" && pngUrl && (
+          <MingrammerCanvas
+            pngUrl={pngUrl}
+            title={diag.title}
+            subtitle={diag.subtitle}
+            decisions={decisions}
+            antiPatterns={antiPatterns}
+            kept={keptProducts}
+            removed={removedProducts}
+            pythonSource={pythonSource}
+            costInfo={costInfo}
+            theme={theme}
+          />
+        )}
+        {diag && tab === "diagram" && source !== "mingrammer" && diag.layout !== "blueprint" && diag.layout !== "gcp_blueprint" && (
           <div ref={diagAreaRef} style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", background: THEMES[theme]?.bg || "#f8f9fa", overflow: "hidden" }}>
             
             {/* Edit Mode Toggle Button */}
