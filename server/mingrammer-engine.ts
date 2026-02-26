@@ -28,6 +28,7 @@ export interface MingrammerResult {
   png_path: string;
   png_filename: string;
   python_source: string;
+  diagram: any;  // Full Diagram JSON for editable canvas
   error?: string;
 }
 

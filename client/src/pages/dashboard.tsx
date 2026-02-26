@@ -1385,7 +1385,8 @@ export default function Dashboard({ user }: { user: User }) {
       const data = await res.json();
       
       if (data.source === "mingrammer") {
-        // Mingrammer engine — PNG + metadata
+        // Mingrammer engine — editable diagram JSON + PNG reference
+        setDiag(data.diagram as Diagram);
         setPngUrl(data.png_url);
         setDecisions(data.decisions || []);
         setAntiPatterns(data.anti_patterns || []);
@@ -1395,8 +1396,6 @@ export default function Dashboard({ user }: { user: User }) {
         setCostInfo(data.cost);
         setSaved(data.saved);
         setSource("mingrammer");
-        // Create a minimal Diagram shell so title/subtitle display properly
-        setDiag({ title: data.title, subtitle: data.subtitle, nodes: [], edges: [] });
       } else {
         // Template / slicer / LLM — standard diagram JSON
         setDiag(data.diagram as Diagram);
@@ -1675,19 +1674,88 @@ export default function Dashboard({ user }: { user: User }) {
         {diag && tab === "diagram" && diag.layout === "gcp_blueprint" && (
           <GCPBlueprintView diag={diag} popover={popover} setPopover={setPopover} />
         )}
-        {diag && tab === "diagram" && source === "mingrammer" && pngUrl && (
-          <MingrammerCanvas
-            pngUrl={pngUrl}
-            title={diag.title}
-            subtitle={diag.subtitle}
-            decisions={decisions}
-            antiPatterns={antiPatterns}
-            kept={keptProducts}
-            removed={removedProducts}
-            pythonSource={pythonSource}
-            costInfo={costInfo}
-            theme={theme}
-          />
+        {diag && tab === "diagram" && source === "mingrammer" && (
+          <div ref={diagAreaRef} style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", background: THEMES[theme]?.bg || "#f8f9fa", overflow: "hidden" }}>
+            {/* Decision chips bar */}
+            {(decisions.length > 0 || antiPatterns.length > 0) && (
+              <div style={{ padding: "8px 14px", borderBottom: "1px solid #e5e7eb", background: "#fafbfc", display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", maxHeight: 100, overflowY: "auto", flexShrink: 0, zIndex: 50 }}>
+                {antiPatterns.map((ap, i) => (
+                  <span key={`ap-${i}`} style={{ fontSize: 10, padding: "3px 10px", borderRadius: 12, background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", fontWeight: 600, whiteSpace: "nowrap" }}>⚠️ {ap}</span>
+                ))}
+                {decisions.slice(0, 8).map((d, i) => (
+                  <span key={`d-${i}`} style={{ fontSize: 10, padding: "3px 10px", borderRadius: 12, background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", fontWeight: 500, whiteSpace: "nowrap" }}>{d}</span>
+                ))}
+                {decisions.length > 8 && <span style={{ fontSize: 10, color: "#6b7280", fontStyle: "italic" }}>+{decisions.length - 8} more</span>}
+              </div>
+            )}
+
+            {/* Edit Mode Toggle */}
+            {!editMode && (
+              <div style={{ position: "absolute", top: decisions.length > 0 ? 116 : 16, right: 16, zIndex: 100 }}>
+                <button onClick={startEditing} style={{ background: "linear-gradient(135deg, #1a73e8, #4285f4)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(26, 115, 232, 0.3)", display: "flex", alignItems: "center", gap: 6 }}>✏️ Edit Architecture</button>
+              </div>
+            )}
+            {editMode && (
+              <div style={{ position: "absolute", top: decisions.length > 0 ? 116 : 16, right: 16, zIndex: 100 }}>
+                <button onClick={() => { if (isDirty && confirm("You have unsaved changes. Exit editing anyway?")) { setDiag(originalDiagram!); } setEditMode(false); setIsDirty(false); setHistory([]); setHistoryIndex(-1); setOriginalDiagram(null); setConnectMode(false); setConnectSource(null); }} style={{ background: isDirty ? "#ef4444" : "#22c55e", color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>{isDirty ? "✕ Exit (Unsaved)" : "✓ Done Editing"}</button>
+              </div>
+            )}
+            {editMode && (
+              <EditingToolbar
+                onAddNode={() => setShowServicePalette(true)}
+                onSave={saveChanges}
+                connectMode={connectMode}
+                onToggleConnect={() => { setConnectMode(!connectMode); setConnectSource(null); }}
+                onUndo={() => { if (historyIndex > 0) { const pi = historyIndex - 1; setHistoryIndex(pi); setDiag(history[pi]); setIsDirty(pi !== 0); } }}
+                onRedo={() => { if (historyIndex < history.length - 1) { const ni = historyIndex + 1; setHistoryIndex(ni); setDiag(history[ni]); setIsDirty(true); } }}
+                canUndo={historyIndex > 0}
+                canRedo={historyIndex < history.length - 1}
+                isDirty={isDirty}
+              />
+            )}
+
+            {/* Editable Canvas — same as template/slicer diagrams */}
+            <DiagramCanvas
+              diag={diag}
+              setDiag={setDiag}
+              popover={popover}
+              setPopover={setPopover}
+              theme={theme}
+              onDragEnd={editMode ? (d: Diagram) => { setIsDirty(true); saveToHistory(d); } : undefined}
+              connectMode={connectMode}
+              connectSource={connectSource}
+              onConnectClick={editMode ? handleConnectClick : undefined}
+            />
+
+            {/* Popovers */}
+            {popover && popover.type === "node" && (() => {
+              const node = diag.nodes.find(n => n.id === popover.id);
+              if (!node) return null;
+              const threats = (diag.threats || []).filter(t => t.target === node.id);
+              const rc = diagAreaRef.current?.getBoundingClientRect();
+              const cw = rc?.width || 1200, ch = rc?.height || 800;
+              const px = Math.min(popover.px + 10, cw - 470), py = Math.min(Math.max(popover.py - 60, 10), ch - 440);
+              return (<div style={{ position: "absolute", left: px, top: py, zIndex: 200 }}><EnhancedNodePopover node={node} threats={threats} onClose={() => setPopover(null)} onUpdate={updateNode} onDelete={deleteNode} /></div>);
+            })()}
+            {popover && popover.type === "edge" && (() => {
+              const edge = diag.edges.find(e => e.id === popover.id);
+              if (!edge) return null;
+              const rc = diagAreaRef.current?.getBoundingClientRect();
+              const cw = rc?.width || 1200, ch = rc?.height || 800;
+              const px = Math.min(popover.px + 10, cw - 420), py = Math.min(Math.max(popover.py - 60, 10), ch - 450);
+              return (<div style={{ position: "absolute", left: px, top: py, zIndex: 200 }}><EdgeEditPop edge={edge} nodes={diag.nodes} onClose={() => setPopover(null)} onUpdate={updateEdge} onDelete={deleteEdge} /></div>);
+            })()}
+            <ServicePalette visible={showServicePalette} onClose={() => setShowServicePalette(false)} onAddNode={addNode} resolveIcon={iconUrl} />
+
+            {/* Bottom info bar — PNG download, products, source */}
+            <div style={{ padding: "6px 14px", borderTop: "1px solid #e5e7eb", background: "#fff", display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 14, background: "#ecfdf5", color: "#047857", fontWeight: 700 }}>🔧 Mingrammer — {costInfo?.estimatedCost || "$0.00"}</span>
+              <span style={{ fontSize: 9, color: "#6b7280" }}>{keptProducts.length} products · {removedProducts.length} skipped</span>
+              <div style={{ flex: 1 }} />
+              {pngUrl && <a href={pngUrl} download={`${diag.title || "architecture"}.png`} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontWeight: 500, textDecoration: "none", color: "#333" }}>⬇ PNG (real icons)</a>}
+              {pythonSource && <button onClick={() => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([pythonSource], { type: "text/plain" })); a.download = "architecture.py"; a.click(); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontWeight: 500 }}>⬇ Python</button>}
+            </div>
+          </div>
         )}
         {diag && tab === "diagram" && source !== "mingrammer" && diag.layout !== "blueprint" && diag.layout !== "gcp_blueprint" && (
           <div ref={diagAreaRef} style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", background: THEMES[theme]?.bg || "#f8f9fa", overflow: "hidden" }}>

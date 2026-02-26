@@ -113,6 +113,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           kept_count: result.kept_count,
           removed_count: result.removed_count,
           python_source: result.python_source,
+          diagram: result.diagram,
         };
 
         const [saved] = await db.insert(diagrams).values({

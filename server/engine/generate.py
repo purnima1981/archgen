@@ -4,7 +4,7 @@ ArchGen Mingrammer Engine — CLI entry point
 Called by Express server via child_process.spawn
 
 Usage: python3 generate.py "<prompt>" <output_dir>
-Output: JSON to stdout with decisions, anti-patterns, PNG path
+Output: JSON to stdout with decisions, anti-patterns, PNG path, AND diagram JSON
 """
 
 import sys
@@ -17,6 +17,7 @@ ENGINE_DIR = Path(__file__).parent
 sys.path.insert(0, str(ENGINE_DIR))
 
 from archgen_slicer import decide_products, slice_blueprint, render_sliced
+from diagram_builder import build_diagram
 
 
 def main():
@@ -27,11 +28,10 @@ def main():
     prompt = sys.argv[1]
     output_dir = sys.argv[2]
 
-    # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
 
     try:
-        # Step 1: Knowledge base decision engine (FREE, deterministic)
+        # Step 1: Knowledge base decision engine
         result = decide_products(prompt)
 
         # Step 2: Load master blueprint
@@ -54,7 +54,15 @@ def main():
         # Step 5: Render mingrammer PNG
         png_path = render_sliced(sliced_source, output_name)
 
-        # Step 6: Output JSON
+        # Step 6: Build interactive diagram JSON for editable canvas
+        diagram = build_diagram(
+            result["keep_set"],
+            result["title"],
+            result["decisions"],
+            result["anti_patterns"],
+        )
+
+        # Step 7: Output JSON
         output = {
             "success": True,
             "title": result["title"],
@@ -67,6 +75,7 @@ def main():
             "png_path": png_path,
             "png_filename": os.path.basename(png_path),
             "python_source": sliced_source,
+            "diagram": diagram,
         }
 
         print(json.dumps(output))
