@@ -168,30 +168,36 @@ PRODUCTS: Dict[str, Dict[str, Any]] = {
 X_SOURCE       = 70     # L1 sources, far left
 X_EXT_ID       = 70     # External identity, far left
 X_GCP_SEC      = 460    # L2 security column, left inside GCP
-X_PIPELINE     = 660    # L3-L5 pipeline column
-X_MEDALLION    = 880    # L6 medallion column
-X_SERVING      = 880    # L7 serving (same x as medallion, higher y)
+X_PIPELINE     = 660    # L3-L5 pipeline column (left edge)
+X_SERVING      = 660    # L7 serving
 X_SERVING_2    = 1100   # L7 overflow (Vertex AI etc)
-X_ORCH         = 660    # Orchestration
+X_ORCH         = 1100   # Orchestration (right side)
 X_GCP_OBS      = 1100   # GCP observability
 X_GCP_OBS_2    = 1280   # Obs overflow (Audit Logs)
 X_EXT_LOG      = 460    # External logging, below GCP
 X_EXT_ALERT    = 880    # External alerting, below GCP
-X_CONSUMER     = 880    # L8 consumers, top
+X_CONSUMER     = 660    # L8 consumers, top
+
+# ── MEDALLION HORIZONTAL (Bronze → Silver → Gold) ──
+X_MEDAL_START  = 660    # Bronze starts here
+X_MEDAL_SPACE  = 170    # spacing between each medal tier
 
 # ── ZONE Y POSITIONS ──
-# Consumers at top
-Y_CONSUMER     = 60
+Y_CONSUMER     = 60     # L8 consumers at top
 
 # GCP internals (BOTTOM-UP: ingestion at bottom, serving at top)
-Y_SERVING      = 270    # L7 top of GCP
-Y_ORCH         = 370    # Orchestration
-Y_PROCESSING   = 530    # L5 processing
-Y_LANDING      = 680    # L4 landing
-Y_INGESTION    = 830    # L3 ingestion (bottom)
+Y_SERVING      = 250    # L7 top of GCP
+
+# ── DATA PIPELINE GROUP (L3→L6 unified) ──
+Y_MEDALLION    = 430    # L6 medallion — HORIZONTAL row (top of pipeline group)
+Y_PROCESSING   = 580    # L5 processing
+Y_LANDING      = 730    # L4 landing
+Y_INGESTION    = 880    # L3 ingestion (bottom of pipeline group)
+
+Y_ORCH         = 430    # Orchestration (right side, same row as medallion)
 
 # Security column spread across full GCP height
-Y_SEC_START    = 270
+Y_SEC_START    = 250
 Y_SEC_SPACING  = 140
 
 # External identity (outside left)
@@ -322,8 +328,7 @@ ZONE_DEFS = [
     {"id": "source",       "label": "ON-PREM SOURCE (L1)",    "color": COLORS["source"],    "dashed": True},
     {"id": "gcp",          "label": "GOOGLE CLOUD PLATFORM",  "color": COLORS["gcp"],       "dashed": False, "filled": True},
     {"id": "gcp-security", "label": "SECURITY (L2)",          "color": COLORS["security"],  "dashed": True},
-    {"id": "pipeline",     "label": "PIPELINE (L3→L5)",       "color": COLORS["pipeline"],  "dashed": True},
-    {"id": "medallion",    "label": "MEDALLION (L6)",         "color": COLORS["medallion"], "dashed": True},
+    {"id": "data-pipeline","label": "DATA PIPELINE (L3→L6)",  "color": COLORS["pipeline"],  "dashed": True},  # unified L3-L6
     {"id": "serving",      "label": "SERVING (L7)",           "color": COLORS["serving"],   "dashed": True},
     {"id": "orchestration","label": "ORCHESTRATION",          "color": COLORS["orch"],      "dashed": True},
     {"id": "gcp-obs",      "label": "OBSERVABILITY (GCP)",    "color": COLORS["gcpObs"],    "dashed": True},
@@ -336,8 +341,8 @@ ZONE_DEFS = [
 GCP_ZONES = {"gcp-security", "ingestion", "landing", "processing",
              "medallion", "serving", "orchestration", "gcp-obs", "governance"}
 
-# For pipeline zones, merge into one visual zone
-PIPELINE_ZONES = {"ingestion", "landing", "processing"}
+# For pipeline zones, merge L3-L6 into one visual zone "data-pipeline"
+PIPELINE_ZONES = {"ingestion", "landing", "processing", "medallion"}
 
 
 # ═══════════════════════════════════════════════════════════
@@ -447,15 +452,14 @@ def build_diagram(keep_set: Set[str], title: str,
                                 X_PIPELINE + col * NODE_SPACING,
                                 Y_PROCESSING + row * VERT_SPACING))
 
-    # ── MEDALLION L6 (bottom-up: bronze→silver→gold) ──
-    medallion_ys = {
-        "bronze": Y_INGESTION,    # same row as ingestion
-        "silver": Y_LANDING,      # same row as landing
-        "gold":   Y_PROCESSING,   # same row as processing
-    }
-    for pid in zone_buckets.get("medallion", []):
-        y = medallion_ys.get(pid, Y_PROCESSING)
-        nodes.append(_make_node(pid, PRODUCTS[pid], X_MEDALLION, y))
+    # ── MEDALLION L6 (HORIZONTAL: Bronze → Silver → Gold) ──
+    medal_list = zone_buckets.get("medallion", [])
+    # Sort: bronze=0, silver=1, gold=2
+    medal_order = {"bronze": 0, "silver": 1, "gold": 2}
+    medal_list.sort(key=lambda p: medal_order.get(p, 5))
+    for i, pid in enumerate(medal_list):
+        nodes.append(_make_node(pid, PRODUCTS[pid],
+                                X_MEDAL_START + i * X_MEDAL_SPACE, Y_MEDALLION))
 
     # ── SERVING L7 (top of GCP) ──
     serving_list = zone_buckets.get("serving", [])

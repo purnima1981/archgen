@@ -1145,9 +1145,11 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
   const extB = zBounds(diag.nodes.filter(n => n.zone === "external"), 85, 80, 200);
 
   // Sub-zone boxes (from subZone field)
-  const subZoneDefs: { zone: string; label: string; color: string; dashed: boolean }[] = [
+  type SubZoneDef = { zone: string; label: string; color: string; dashed: boolean; zones?: string[] };
+  const subZoneDefs: SubZoneDef[] = [
     { zone: "ext-identity", label: "EXTERNAL IDENTITY", color: "#37474F", dashed: true },
     { zone: "gcp-security", label: "SECURITY (L2)", color: "#1E3A5F", dashed: true },
+    { zone: "data-pipeline", label: "DATA PIPELINE (L3→L6)", color: "#137333", dashed: true, zones: ["ingestion", "landing", "processing", "medallion"] },
     { zone: "orchestration", label: "ORCHESTRATION", color: "#E65100", dashed: true },
     { zone: "gcp-obs", label: "OBSERVABILITY", color: "#00695C", dashed: true },
     { zone: "governance", label: "GOVERNANCE", color: "#00695C", dashed: true },
@@ -1155,11 +1157,13 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
     { zone: "ext-alert", label: "EXT ALERTING", color: "#BF360C", dashed: true },
   ];
   const subZoneBounds = subZoneDefs.map(szd => {
-    const ns = diag.nodes.filter((n: any) => n.subZone === szd.zone);
+    // Multi-zone group (e.g. data-pipeline covers ingestion+landing+processing+medallion)
+    const matchZones = szd.zones || [szd.zone];
+    const ns = diag.nodes.filter((n: any) => matchZones.includes(n.subZone));
     if (!ns.length) return null;
     const b = zBounds(ns, 40, 35, 140);
     return b ? { ...szd, ...b } : null;
-  }).filter(Boolean) as (typeof subZoneDefs[0] & { x: number; y: number; w: number; h: number })[];
+  }).filter(Boolean) as (SubZoneDef & { x: number; y: number; w: number; h: number })[];
 
   const allXs = diag.nodes.map(n => n.x);
   const cx = allXs.length ? (Math.min(...allXs) + Math.max(...allXs)) / 2 : 600;
@@ -1250,14 +1254,10 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
           </g>);
         })}
 
-        {/* Layer bands matching Enterprise Blueprint BP_LAYERS colors exactly */}
+        {/* Layer bands — only L7 Serving gets its own band (L3-L6 are in unified DATA PIPELINE sub-zone) */}
         {(() => {
           const layerDefs = [
             { prefix: "L7", num: 7, label: "SERVING & DELIVERY", bg: "#fff7ed", border: "#fdba74", text: "#c2410c", numBg: "#c2410c" },
-            { prefix: "L6", num: 6, label: "MEDALLION ARCHITECTURE", bg: "#fffbeb", border: "#fcd34d", text: "#d97706", numBg: "#d97706" },
-            { prefix: "L5", num: 5, label: "PROCESSING & TRANSFORMATION", bg: "#f5f3ff", border: "#c4b5fd", text: "#6d28d9", numBg: "#6d28d9" },
-            { prefix: "L4", num: 4, label: "DATA LAKE — RAW LANDING", bg: "#ecfdf5", border: "#6ee7b7", text: "#047857", numBg: "#047857" },
-            { prefix: "L3", num: 3, label: "INGESTION", bg: "#eff6ff", border: "#93c5fd", text: "#1d4ed8", numBg: "#1d4ed8" },
           ];
           const boxes: (typeof layerDefs[0] & { x: number; y: number; w: number; h: number })[] = [];
           layerDefs.forEach(ld => {
