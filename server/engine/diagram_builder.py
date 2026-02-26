@@ -51,8 +51,8 @@ PRODUCTS: Dict[str, Dict[str, Any]] = {
     "bq_dts":          {"name": "BQ Data Transfer",  "icon": "bigquery",        "zone": "cloud", "layer": 3, "subtitle": "Scheduled loads (FREE)"},
     "cloud_functions": {"name": "Cloud Functions",   "icon": "cloud_functions", "zone": "cloud", "layer": 3, "subtitle": "Serverless API pull"},
     "fivetran":        {"name": "Fivetran",          "icon": "fivetran",        "zone": "cloud", "layer": 3, "subtitle": "Managed ELT"},
-    "matillion":       {"name": "Matillion",         "icon": None,              "zone": "cloud", "layer": 3, "subtitle": "Visual ETL"},
-    "data_fusion":     {"name": "Data Fusion",       "icon": None,              "zone": "cloud", "layer": 3, "subtitle": "Visual ETL (SAP)"},
+    "matillion":       {"name": "Matillion",         "icon": "dataflow",        "zone": "cloud", "layer": 3, "subtitle": "Visual ETL"},
+    "data_fusion":     {"name": "Data Fusion",       "icon": "connectors",      "zone": "cloud", "layer": 3, "subtitle": "Visual ETL (SAP)"},
     "storage_transfer":{"name": "Storage Transfer",  "icon": "cloud_storage",   "zone": "cloud", "layer": 3, "subtitle": "Bulk file moves"},
 
     # ── L4: Landing ──
@@ -60,21 +60,21 @@ PRODUCTS: Dict[str, Dict[str, Any]] = {
     "bq_staging":      {"name": "BQ Staging",        "icon": "bigquery",        "zone": "cloud", "layer": 4, "subtitle": "Staging datasets"},
 
     # ── L5: Processing ──
-    "dataform":        {"name": "Dataform",          "icon": None,              "zone": "cloud", "layer": 5, "subtitle": "SQL ELT (FREE)"},
+    "dataform":        {"name": "Dataform",          "icon": "dbt",             "zone": "cloud", "layer": 5, "subtitle": "SQL ELT (FREE)"},
     "dataflow_proc":   {"name": "Dataflow",          "icon": "dataflow",        "zone": "cloud", "layer": 5, "subtitle": "Stream processing"},
     "dataproc":        {"name": "Dataproc",          "icon": "dataproc",        "zone": "cloud", "layer": 5, "subtitle": "Spark / Hadoop"},
     "dataplex_dq":     {"name": "Dataplex DQ",       "icon": "dataplex",        "zone": "cloud", "layer": 5, "subtitle": "Data quality"},
-    "cloud_dlp":       {"name": "Cloud DLP",         "icon": None,              "zone": "cloud", "layer": 5, "subtitle": "PII detection"},
+    "cloud_dlp":       {"name": "Cloud DLP",         "icon": "security_command_center", "zone": "cloud", "layer": 5, "subtitle": "PII detection"},
 
     # ── L6: Medallion ──
-    "bronze":          {"name": "Bronze",            "icon": None,  "zone": "cloud", "layer": 6, "subtitle": "Raw / deduplicated"},
-    "silver":          {"name": "Silver",            "icon": None,  "zone": "cloud", "layer": 6, "subtitle": "Cleaned / conformed"},
-    "gold":            {"name": "Gold",              "icon": None,  "zone": "cloud", "layer": 6, "subtitle": "Curated / aggregated"},
+    "bronze":          {"name": "Bronze",            "icon": "bigquery",  "zone": "cloud", "layer": 6, "subtitle": "Raw / deduplicated"},
+    "silver":          {"name": "Silver",            "icon": "bigquery",  "zone": "cloud", "layer": 6, "subtitle": "Cleaned / conformed"},
+    "gold":            {"name": "Gold",              "icon": "bigquery",  "zone": "cloud", "layer": 6, "subtitle": "Curated / aggregated"},
 
     # ── L7: Serving ──
     "looker":          {"name": "Looker",            "icon": "looker",        "zone": "cloud", "layer": 7, "subtitle": "Governed BI"},
     "looker_studio":   {"name": "Looker Studio",     "icon": "looker",        "zone": "cloud", "layer": 7, "subtitle": "Free dashboards"},
-    "power_bi":        {"name": "Power BI",          "icon": None,            "zone": "cloud", "layer": 7, "subtitle": "Self-service BI"},
+    "power_bi":        {"name": "Power BI",          "icon": "data_studio",   "zone": "cloud", "layer": 7, "subtitle": "Self-service BI"},
     "cloud_run":       {"name": "Cloud Run",         "icon": "cloud_run",     "zone": "cloud", "layer": 7, "subtitle": "API serving"},
     "vertex_ai":       {"name": "Vertex AI",         "icon": "vertexai",      "zone": "cloud", "layer": 7, "subtitle": "ML platform"},
     "analytics_hub":   {"name": "Analytics Hub",     "icon": "analytics_hub", "zone": "cloud", "layer": 7, "subtitle": "Data exchange"},
@@ -99,11 +99,11 @@ PRODUCTS: Dict[str, Dict[str, Any]] = {
     # ── Security / Governance ──
     "cloud_kms":       {"name": "Cloud KMS",         "icon": "key_management_service", "zone": "cloud", "layer": 2, "subtitle": "CMEK encryption"},
     "scc_pillar":      {"name": "Security Command Center", "icon": "security_command_center", "zone": "cloud", "layer": 10, "subtitle": "Security posture"},
-    "audit_logs":      {"name": "Audit Logs",        "icon": None,              "zone": "cloud", "layer": 10, "subtitle": "Compliance trail"},
+    "audit_logs":      {"name": "Audit Logs",        "icon": "cloud_audit_logs",  "zone": "cloud", "layer": 10, "subtitle": "Compliance trail"},
     "dataplex":        {"name": "Dataplex",          "icon": "dataplex",        "zone": "cloud", "layer": 5, "subtitle": "Data governance"},
     "data_catalog":    {"name": "Data Catalog",      "icon": "data_catalog",    "zone": "cloud", "layer": 5, "subtitle": "Metadata / lineage"},
     "wiz_cspm":        {"name": "Wiz",               "icon": "wiz",             "zone": "cloud", "layer": 10, "subtitle": "Cloud security"},
-    "archer_grc":      {"name": "RSA Archer",        "icon": None,              "zone": "consumers", "layer": 10, "subtitle": "GRC platform"},
+    "archer_grc":      {"name": "RSA Archer",        "icon": "security_command_center", "zone": "consumers", "layer": 10, "subtitle": "GRC platform"},
 }
 
 # ═══════════════════════════════════════════════════════════
