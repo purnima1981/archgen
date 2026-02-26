@@ -345,12 +345,30 @@ PIPELINE_ZONES = {"ingestion", "landing", "processing"}
 # ═══════════════════════════════════════════════════════════
 
 def _make_node(pid: str, prod: dict, x: int, y: int) -> dict:
+    # Map our zone names → canvas-compatible zones
+    ZONE_MAP = {
+        "source":       "sources",
+        "ext-identity": "sources",
+        "gcp-security": "cloud",
+        "ingestion":    "cloud",
+        "landing":      "cloud",
+        "processing":   "cloud",
+        "medallion":    "cloud",
+        "serving":      "cloud",
+        "orchestration":"cloud",
+        "gcp-obs":      "cloud",
+        "governance":   "cloud",
+        "consumer":     "consumers",
+        "ext-alert":    "external",     # separate — not in cloud or consumers
+        "ext-log":      "external",     # separate — not in cloud or consumers
+    }
     return {
         "id": pid,
         "name": prod["name"],
         "icon": prod["icon"],
         "subtitle": prod["subtitle"],
-        "zone": prod["zone"],
+        "zone": ZONE_MAP.get(prod["zone"], "cloud"),  # backward-compatible
+        "subZone": prod["zone"],                       # our new zone system
         "x": x,
         "y": y,
         "details": {"notes": "Selected by knowledge engine"},
@@ -557,13 +575,18 @@ def build_diagram(keep_set: Set[str], title: str,
             zones_out.append(zd)
 
     # ══════════════════════════════════════════════
-    # PHASES
+    # PHASES — named to match canvas layer band renderer
+    # Canvas looks for phases prefixed: L3, L4, L5, L6, L7
     # ══════════════════════════════════════════════
     phase_map = [
-        ("ingestion", "Ingestion", {"source", "ext-identity", "gcp-security", "ingestion"}),
-        ("landing",   "Landing & Storage", {"landing"}),
-        ("transform", "Transform", {"processing", "medallion"}),
-        ("serve",     "Serve & Consume", {"serving", "consumer"}),
+        ("l1",   "L1 — Sources",              {"source"}),
+        ("l2",   "L2 — Connectivity & Identity", {"gcp-security", "ext-identity"}),
+        ("l3",   "L3 — Ingestion",            {"ingestion"}),
+        ("l4",   "L4 — Landing",              {"landing"}),
+        ("l5",   "L5 — Processing",           {"processing"}),
+        ("l6",   "L6 — Medallion",            {"medallion"}),
+        ("l7",   "L7 — Serving",              {"serving"}),
+        ("l8",   "L8 — Consumers",            {"consumer"}),
     ]
     phases = []
     for pid, pname, zone_set in phase_map:

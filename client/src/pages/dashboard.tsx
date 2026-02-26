@@ -106,7 +106,7 @@ function getCat(ic?: string | null, nodeId?: string) {
 
 /* ── Types ────────────────────────────────────────── */
 interface NodeDetails { project?: string; region?: string; serviceAccount?: string; iamRoles?: string; encryption?: string; monitoring?: string; retry?: string; alerting?: string; cost?: string; troubleshoot?: string; guardrails?: string; compliance?: string; notes?: string }
-interface DiagNode { id: string; name: string; icon?: string | null; subtitle?: string; zone: "sources" | "cloud" | "consumers" | "connectivity"; x: number; y: number; details?: NodeDetails }
+interface DiagNode { id: string; name: string; icon?: string | null; subtitle?: string; zone: "sources" | "cloud" | "consumers" | "connectivity" | "external"; subZone?: string; x: number; y: number; details?: NodeDetails }
 interface EdgeSecurity { transport: string; auth: string; classification: string; private: boolean; network?: string; vpcsc?: string; dlp?: string; keyRotation?: string; egressPolicy?: string; compliance?: string }
 interface DiagEdge { id: string; from: string; to: string; label?: string; subtitle?: string; step: number; security?: EdgeSecurity; crossesBoundary?: boolean; edgeType?: "data" | "control" | "observe" | "alert" }
 interface Threat { id: string; target: string; stride: string; severity: string; title: string; description: string; impact: string; mitigation: string; compliance?: string | null }
@@ -1142,6 +1142,25 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
   const srcB = zBounds(byZone("sources"), 85, 80, 200);
   const cloudB = zBounds(byZone("cloud"), 80, 75);
   const conB = zBounds(byZone("consumers"), 85, 80, 200);
+  const extB = zBounds(diag.nodes.filter(n => n.zone === "external"), 85, 80, 200);
+
+  // Sub-zone boxes (from subZone field)
+  const subZoneDefs: { zone: string; label: string; color: string; dashed: boolean }[] = [
+    { zone: "ext-identity", label: "EXTERNAL IDENTITY", color: "#37474F", dashed: true },
+    { zone: "gcp-security", label: "SECURITY (L2)", color: "#1E3A5F", dashed: true },
+    { zone: "orchestration", label: "ORCHESTRATION", color: "#E65100", dashed: true },
+    { zone: "gcp-obs", label: "OBSERVABILITY", color: "#00695C", dashed: true },
+    { zone: "governance", label: "GOVERNANCE", color: "#00695C", dashed: true },
+    { zone: "ext-log", label: "EXT LOGGING", color: "#455A64", dashed: true },
+    { zone: "ext-alert", label: "EXT ALERTING", color: "#BF360C", dashed: true },
+  ];
+  const subZoneBounds = subZoneDefs.map(szd => {
+    const ns = diag.nodes.filter((n: any) => n.subZone === szd.zone);
+    if (!ns.length) return null;
+    const b = zBounds(ns, 40, 35, 140);
+    return b ? { ...szd, ...b } : null;
+  }).filter(Boolean) as (typeof subZoneDefs[0] & { x: number; y: number; w: number; h: number })[];
+
   const allXs = diag.nodes.map(n => n.x);
   const cx = allXs.length ? (Math.min(...allXs) + Math.max(...allXs)) / 2 : 600;
   const topY = Math.min(...diag.nodes.map(n => n.y)) - 100;
@@ -1204,6 +1223,23 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
         {cloudB && <g><rect x={cloudB.x} y={cloudB.y} width={cloudB.w} height={cloudB.h} rx={14} fill={isDark ? "#0d1f3c" : "#f5f9ff"} stroke={isDark ? "#1a4480" : "#4285f4"} strokeWidth={2} />
           <g transform={`translate(${cloudB.x + cloudB.w / 2 - 60},${cloudB.y - 14})`}><rect width={120} height={28} rx={6} fill="#4285f4" /><text x={60} y={19} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: "#fff", letterSpacing: .5 }}>Google Cloud</text></g></g>}
         {conB && <g><rect x={conB.x} y={conB.y} width={conB.w} height={conB.h} rx={12} fill={isDark ? "#162032" : "#fafafa"} stroke={isDark ? "#2a4060" : "#bdbdbd"} strokeWidth={1.5} strokeDasharray="8 4" /><text x={conB.x + conB.w / 2} y={conB.y + 18} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: isDark ? "#5a7a9a" : "#78909c", letterSpacing: 2 }}>CONSUMERS</text></g>}
+
+        {/* External zone (PagerDuty, Splunk, Wiz, etc.) */}
+        {extB && <g><rect x={extB.x} y={extB.y} width={extB.w} height={extB.h} rx={12} fill={isDark ? "#1a1010" : "#fef7f5"} stroke={isDark ? "#5a2020" : "#BF360C"} strokeWidth={1.5} strokeDasharray="10 5" /><text x={extB.x + extB.w / 2} y={extB.y + 18} textAnchor="middle" style={{ fontSize: 11, fontWeight: 800, fill: isDark ? "#bf5a3c" : "#BF360C", letterSpacing: 1.5 }}>EXTERNAL SERVICES</text></g>}
+
+        {/* Sub-zone boxes — dashed group rectangles inside/outside GCP */}
+        {subZoneBounds.map(sz => (
+          <g key={sz.zone}>
+            <rect x={sz.x} y={sz.y} width={sz.w} height={sz.h} rx={10}
+              fill="transparent" stroke={sz.color} strokeWidth={1.5}
+              strokeDasharray={sz.dashed ? "8 4" : "none"} opacity={0.5} />
+            <g transform={`translate(${sz.x + 8},${sz.y - 8})`}>
+              <rect width={sz.label.length * 6.5 + 12} height={16} rx={4}
+                fill={isDark ? "#1a1a1a" : "#fff"} stroke={sz.color} strokeWidth={0.8} />
+              <text x={6} y={11.5} style={{ fontSize: 8, fontWeight: 700, fill: sz.color, letterSpacing: 1 }}>{sz.label}</text>
+            </g>
+          </g>
+        ))}
 
         {/* Phase groups — for L1, L2, and Vendor (L3-L7 are shown as layer bands inside GCP) */}
         {phaseBounds.filter(p => p.name.includes("L1") || p.name.includes("L2") || p.name.includes("Vendor")).map((p, i) => {
