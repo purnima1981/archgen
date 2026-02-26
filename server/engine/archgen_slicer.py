@@ -229,19 +229,19 @@ def decide_products(prompt: str) -> dict:
         keep |= {"sftp_server"}
         decisions.append("L1: SFTP detected → legacy file transfer pattern")
 
-    # ── L2: Connectivity (auto-selected based on source) ──
+    # ── L2: Connectivity & Identity (NON-NEGOTIABLE — always present) ──
     has_onprem = keep & {"oracle_db", "sqlserver_db", "postgresql_db", "mongodb_db"}
     has_cross_cloud = keep & {"aws_s3"}
     has_saas = keep & {"salesforce", "workday", "servicenow_src", "sap_src"}
     has_streaming = keep & {"kafka_stream"}
 
-    # Always include IAM
-    keep |= {"cloud_iam", "secret_manager"}
-    decisions.append("L2: IAM + Secret Manager always included")
+    # Always include — every enterprise needs identity + network perimeter
+    keep |= {"cloud_iam", "secret_manager", "vpc", "vpc_sc"}
+    decisions.append("L2: IAM + Secret Manager + VPC + VPC-SC (always — non-negotiable)")
 
     if has_onprem:
-        keep |= {"cloud_vpn", "vpc", "vpc_sc"}
-        decisions.append("L2: On-prem sources → VPN + VPC + VPC-SC")
+        keep |= {"cloud_vpn"}
+        decisions.append("L2: On-prem sources → Cloud VPN (IPSec tunnel)")
 
     if has_cross_cloud:
         keep |= {"vpc_sc"}
@@ -377,9 +377,13 @@ def decide_products(prompt: str) -> dict:
         keep |= {"cloud_composer"}
         decisions.append("Orchestration: Default → Cloud Composer for DAG management")
 
-    # ── Observability (always) ──
-    keep |= {"cloud_monitoring", "cloud_logging", "pagerduty_inc"}
-    decisions.append("Observability: Monitoring + Logging + PagerDuty (always)")
+    # ── Observability (NON-NEGOTIABLE — always present) ──
+    keep |= {"cloud_monitoring", "cloud_logging", "audit_logs", "pagerduty_inc"}
+    decisions.append("Observability: Monitoring + Logging + Audit Logs + PagerDuty (always — non-negotiable)")
+
+    # Wiz CSPM always for cloud security posture
+    keep |= {"wiz_cspm"}
+    decisions.append("Observability: Wiz CSPM for cloud security posture (always)")
 
     if any(w in prompt_lower for w in ["splunk", "siem"]):
         keep |= {"splunk_siem"}
@@ -389,22 +393,21 @@ def decide_products(prompt: str) -> dict:
         keep |= {"dynatrace_apm"}
         decisions.append("Observability: Dynatrace APM")
 
-    # ── Security pillar ──
-    if any(w in prompt_lower for w in ["hipaa", "cmek", "encrypt", "kms"]):
-        keep |= {"cloud_kms"}
-        decisions.append("Security: Cloud KMS for CMEK encryption")
+    # ── Security pillar (NON-NEGOTIABLE) ──
+    keep |= {"cloud_kms"}
+    decisions.append("Security: Cloud KMS for CMEK encryption (always — non-negotiable)")
 
     if any(w in prompt_lower for w in ["scc", "security command", "posture"]):
         keep |= {"scc_pillar"}
         decisions.append("Security: Security Command Center")
 
-    keep |= {"audit_logs"}
-    decisions.append("Security: Audit Logs (always)")
+    # (Audit Logs already included in Observability always-on block)
 
-    # ── Governance ──
-    if any(w in prompt_lower for w in ["governance", "dataplex", "catalog", "lineage"]):
-        keep |= {"dataplex", "data_catalog"}
-        decisions.append("Governance: Dataplex + Data Catalog")
+    # ── Governance (NON-NEGOTIABLE — always present) ──
+    keep |= {"dataplex", "data_catalog"}
+    decisions.append("Governance: Dataplex + Data Catalog (always — non-negotiable)")
+    if any(w in prompt_lower for w in ["lineage"]):
+        decisions.append("Governance: Data Catalog lineage tracking enabled")
 
     # ── GRC vendors ──
     if any(w in prompt_lower for w in ["wiz", "cspm"]):

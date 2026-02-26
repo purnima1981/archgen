@@ -191,7 +191,7 @@ function GatePop({ gate, threats, onClose }: { gate: Gate; threats: Threat[]; on
 }
 
 /* ═══ HIGHLIGHTS TAB ══════════════════════════════ */
-function HighlightsTab({ diag }: { diag: Diagram }) {
+function HighlightsTab({ diag, decisions, antiPatterns, keptProducts, removedProducts }: { diag: Diagram; decisions?: string[]; antiPatterns?: string[]; keptProducts?: string[]; removedProducts?: string[] }) {
   const dataEdges = diag.edges.filter(e => e.edgeType === "data" || !e.edgeType);
   const threats = diag.threats || [];
   const costNodes = diag.nodes.filter(n => n.details?.cost);
@@ -200,14 +200,72 @@ function HighlightsTab({ diag }: { diag: Diagram }) {
   const cloudNodes = diag.nodes.filter(n => n.zone === "cloud");
   const srcNodes = diag.nodes.filter(n => n.zone === "sources");
   const conNodes = diag.nodes.filter(n => n.zone === "consumers");
+  const decs = decisions || [];
+  const aps = antiPatterns || [];
+  const kept = keptProducts || [];
+  const removed = removedProducts || [];
 
   return (<div style={{ padding: "24px 28px", overflowY: "auto", height: "100%", fontFamily: "'Inter',system-ui,sans-serif" }}>
     <h2 style={{ fontSize: 22, fontWeight: 800, color: "#111", margin: "0 0 4px" }}>{diag.title}</h2>
     {diag.subtitle && <p style={{ fontSize: 12, color: "#999", margin: "0 0 24px", fontStyle: "italic" }}>{diag.subtitle}</p>}
+
+    {/* Anti-patterns */}
+    {aps.length > 0 && <div style={{ marginBottom: 20 }}>
+      <h3 style={{ fontSize: 13, fontWeight: 800, color: "#dc2626", letterSpacing: .5, marginBottom: 10 }}>⚠️ ANTI-PATTERNS AVOIDED</h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {aps.map((ap, i) => (
+          <div key={i} style={{ padding: "10px 14px", background: "#fef2f2", borderRadius: 10, border: "1px solid #fecaca", borderLeft: "4px solid #dc2626" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#991b1b" }}>{ap}</div>
+          </div>
+        ))}
+      </div>
+    </div>}
+
+    {/* Knowledge engine decisions */}
+    {decs.length > 0 && <div style={{ marginBottom: 24 }}>
+      <h3 style={{ fontSize: 13, fontWeight: 800, color: "#555", letterSpacing: .5, marginBottom: 10 }}>🧠 ARCHITECTURE DECISIONS</h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {decs.map((d, i) => {
+          const isL1 = d.startsWith("L1"); const isL2 = d.startsWith("L2"); const isL3 = d.startsWith("L3");
+          const isL4 = d.startsWith("L4"); const isL5 = d.startsWith("L5"); const isL6 = d.startsWith("L6");
+          const isL7 = d.startsWith("L7"); const isL8 = d.startsWith("L8");
+          const isOrch = d.includes("Orchestration"); const isObs = d.includes("Observability"); const isSec = d.includes("Security");
+          const color = isL1 ? "#546e7a" : isL2 ? "#be185d" : isL3 ? "#1d4ed8" : isL4 ? "#047857" : isL5 ? "#6d28d9" : isL6 ? "#d97706" : isL7 ? "#c2410c" : isL8 ? "#0e7490" : isOrch ? "#7c3aed" : isObs ? "#d97706" : isSec ? "#dc2626" : "#6b7280";
+          const bg = isL1 ? "#f1f5f9" : isL2 ? "#fdf2f8" : isL3 ? "#eff6ff" : isL4 ? "#ecfdf5" : isL5 ? "#f5f3ff" : isL6 ? "#fffbeb" : isL7 ? "#fff7ed" : isL8 ? "#ecfeff" : isOrch ? "#f5f3ff" : isObs ? "#fffbeb" : isSec ? "#fef2f2" : "#f9fafb";
+          return (
+            <div key={i} style={{ padding: "8px 12px", background: bg, borderRadius: 8, borderLeft: `3px solid ${color}` }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color }}>{d}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>}
+
+    {/* Stats grid */}
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginBottom: 28 }}>
       {[{ v: cloudNodes.length, l: "Cloud Services", icon: "☁️", color: "#1a73e8", bg: "#e8f0fe" }, { v: dataEdges.length, l: "Data Flows", icon: "🔗", color: "#34a853", bg: "#e6f4ea" }, { v: threats.length, l: "Threats", icon: "⚠️", color: "#ea4335", bg: "#fce8e6" }, { v: srcNodes.length + conNodes.length, l: "Endpoints", icon: "🔌", color: "#f9ab00", bg: "#fef7e0" }].map((s, i) => (
         <div key={i} style={{ padding: 16, background: s.bg, borderRadius: 12, textAlign: "center" }}><div style={{ fontSize: 24 }}>{s.icon}</div><div style={{ fontSize: 28, fontWeight: 800, color: s.color, marginTop: 4 }}>{s.v}</div><div style={{ fontSize: 10, fontWeight: 600, color: "#888", marginTop: 2 }}>{s.l}</div></div>))}
     </div>
+
+    {/* Products included / skipped */}
+    {(kept.length > 0 || removed.length > 0) && <div style={{ marginBottom: 24 }}>
+      <h3 style={{ fontSize: 13, fontWeight: 800, color: "#555", letterSpacing: .5, marginBottom: 10 }}>📦 PRODUCT SELECTION</h3>
+      <div style={{ display: "flex", gap: 16 }}>
+        {kept.length > 0 && <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: "#047857", marginBottom: 6 }}>✓ INCLUDED ({kept.length})</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {kept.map(p => <span key={p} style={{ fontSize: 9, padding: "3px 8px", borderRadius: 6, background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0" }}>{p.replace(/_/g, " ")}</span>)}
+          </div>
+        </div>}
+        {removed.length > 0 && <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: "#dc2626", marginBottom: 6 }}>✕ SKIPPED ({removed.length})</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {removed.map(p => <span key={p} style={{ fontSize: 9, padding: "3px 8px", borderRadius: 6, background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca" }}>{p.replace(/_/g, " ")}</span>)}
+          </div>
+        </div>}
+      </div>
+    </div>}
+
     {diag.phases && <div style={{ marginBottom: 28 }}><h3 style={{ fontSize: 13, fontWeight: 800, color: "#555", letterSpacing: .5, marginBottom: 12 }}>ARCHITECTURE PHASES</h3>
       <div style={{ display: "flex", gap: 8 }}>{diag.phases.map((p, i) => (<div key={p.id} style={{ flex: 1, padding: 14, background: "#f8f9fa", borderRadius: 10, border: "1px solid #eee" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}><div style={{ width: 24, height: 24, borderRadius: 6, background: "#5c6bc0", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800 }}>{i + 1}</div><span style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>{p.name}</span></div>
@@ -1060,7 +1118,7 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
   const byZone = (z: string) => diag.nodes.filter(n => n.zone === z);
   const zBounds = (ns: DiagNode[], px: number, py: number, minW?: number) => { if (!ns.length) return null; const xs = ns.map(n => n.x), ys = ns.map(n => n.y); return { x: Math.min(...xs) - px, y: Math.min(...ys) - py, w: Math.max(Math.max(...xs) - Math.min(...xs) + px * 2 + 80, minW || 0), h: Math.max(...ys) - Math.min(...ys) + py * 2 + 80 }; };
   // Smart edge routing: exits/enters correct side of node based on relative position
-  const R = 38; // half node + small gap (BG=68 → 34 + 4)
+  const R = 46; // half node + small gap (BG=82 → 41 + 5)
   const edgePath = (fx: number, fy: number, tx: number, ty: number): { path: string; mx: number; my: number } => {
     const dx = tx - fx, dy = ty - fy;
     const adx = Math.abs(dx), ady = Math.abs(dy);
@@ -1080,7 +1138,7 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
     return { path: `M${fx},${y1} L${fx},${midY} L${tx},${midY} L${tx},${y4}`, mx: (fx + tx) / 2, my: midY };
   };
 
-  const BG = 68, ICO = 50;
+  const BG = 82, ICO = 60;
   const srcB = zBounds(byZone("sources"), 85, 80, 200);
   const cloudB = zBounds(byZone("cloud"), 80, 75);
   const conB = zBounds(byZone("consumers"), 85, 80, 200);
@@ -1256,7 +1314,7 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
 
           return (<g key={edge.id}>
             <path d={path} fill="none" stroke="transparent" strokeWidth={20} onDoubleClick={e => dblClick("edge", edge.id, e)} style={{ cursor: "pointer" }} />
-            <path d={path} fill="none" stroke={col} strokeWidth={w} strokeDasharray={dash} markerEnd={mk} />
+            <path d={path} fill="none" stroke={col} strokeWidth={w} strokeDasharray={dash || "10 5"} markerEnd={mk} style={!isOps && !sel ? { animation: "flowDash 1.2s linear infinite" } : undefined} />
             {edge.step > 0 && !isOps && <>
               <rect x={mx - 15} y={my - 15} width={30} height={30} rx={8} fill={sel ? "#1a73e8" : edge.crossesBoundary ? "#e65100" : "#5c6bc0"} filter="url(#sh)" onDoubleClick={e => dblClick("edge", edge.id, e)} style={{ cursor: "pointer" }} />
               <text x={mx} y={my + 5.5} textAnchor="middle" style={{ fontSize: 15, fontWeight: 900, fill: "#fff", pointerEvents: "none" }}>{edge.step}</text>
@@ -1595,7 +1653,7 @@ export default function Dashboard({ user }: { user: User }) {
 
   return (
     <div style={{ height: "100vh", display: "flex", fontFamily: "'Inter','DM Sans',system-ui,sans-serif", background: "#f0f2f5" }}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}textarea:focus{border-color:#1a73e8!important;box-shadow:0 0 0 3px rgba(26,115,232,.12)!important}::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes flowDash{to{stroke-dashoffset:-20}}textarea:focus{border-color:#1a73e8!important;box-shadow:0 0 0 3px rgba(26,115,232,.12)!important}::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px}`}</style>
 
       {/* ── LEFT PANE ── */}
       <div style={{ width: 280, flexShrink: 0, background: "#fff", borderRight: "1px solid #e5e5e5", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -1675,21 +1733,9 @@ export default function Dashboard({ user }: { user: User }) {
         )}
         {diag && tab === "diagram" && source === "mingrammer" && (
           <div ref={diagAreaRef} style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", background: THEMES[theme]?.bg || "#f8f9fa", overflow: "hidden" }}>
-            {/* Decision chips bar */}
-            {(decisions.length > 0 || antiPatterns.length > 0) && (
-              <div style={{ padding: "8px 14px", borderBottom: "1px solid #e5e7eb", background: "#fafbfc", display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", maxHeight: 100, overflowY: "auto", flexShrink: 0, zIndex: 50 }}>
-                {antiPatterns.map((ap, i) => (
-                  <span key={`ap-${i}`} style={{ fontSize: 10, padding: "3px 10px", borderRadius: 12, background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca", fontWeight: 600, whiteSpace: "nowrap" }}>⚠️ {ap}</span>
-                ))}
-                {decisions.slice(0, 8).map((d, i) => (
-                  <span key={`d-${i}`} style={{ fontSize: 10, padding: "3px 10px", borderRadius: 12, background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", fontWeight: 500, whiteSpace: "nowrap" }}>{d}</span>
-                ))}
-                {decisions.length > 8 && <span style={{ fontSize: 10, color: "#6b7280", fontStyle: "italic" }}>+{decisions.length - 8} more</span>}
-              </div>
-            )}
 
             {editMode && (
-              <div style={{ position: "absolute", top: decisions.length > 0 ? 116 : 16, right: 16, zIndex: 100 }}>
+              <div style={{ position: "absolute", top: 16, right: 16, zIndex: 100 }}>
                 <button onClick={() => { if (isDirty && confirm("You have unsaved changes. Exit editing anyway?")) { setDiag(originalDiagram!); } setEditMode(false); setIsDirty(false); setHistory([]); setHistoryIndex(-1); setOriginalDiagram(null); setConnectMode(false); setConnectSource(null); }} style={{ background: isDirty ? "#ef4444" : "#22c55e", color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>{isDirty ? "✕ Exit (Unsaved)" : "✓ Done Editing"}</button>
               </div>
             )}
@@ -1894,7 +1940,7 @@ export default function Dashboard({ user }: { user: User }) {
             />
           </div>
         )}
-        {diag && tab === "highlights" && <div style={{ flex: 1, overflow: "auto", background: "#fff" }}><HighlightsTab diag={diag} /></div>}
+        {diag && tab === "highlights" && <div style={{ flex: 1, overflow: "auto", background: "#fff" }}><HighlightsTab diag={diag} decisions={decisions} antiPatterns={antiPatterns} keptProducts={keptProducts} removedProducts={removedProducts} /></div>}
         {diag && tab === "flow" && <div style={{ flex: 1, overflow: "auto", background: "#fff" }}><FlowTab diag={diag} /></div>}
       </div>
     </div>
