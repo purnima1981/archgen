@@ -1,233 +1,343 @@
 """
-Diagram Builder — converts mingrammer product set → interactive Diagram JSON
+Diagram Builder v2 — Zone-based layout engine
 
-LAYOUT STRATEGY: Horizontal swim-lane bands (no zigzags)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+LAYOUT:
+                      L8 CONSUMERS (top, outside)
+                            ↑
+  OUTSIDE LEFT     ┌─── GCP BOX ────────────────────────────┐
+  ┌─────────┐      │                                        │
+  │ EXT ID  │──→   │  SECURITY   ORCH    SERVING (L7)       │
+  │ Entra   │      │  (L2)              top of GCP          │
+  │ CyberArk│      │  left col          │                   │
+  └─────────┘      │                    PIPELINE  MEDALLION  │
+  ┌─────────┐      │                    (L3-L5)   (L6)  OBS │
+  │ SOURCE  │═VPN═→│                    bottom-up  b-up     │
+  │ Oracle  │      │                                        │
+  │ Kafka   │      └────────────────────────────────────────┘
+  └─────────┘            │              │              │
+                         ▼              ▼              ▼
+                    ┌─────────┐  ┌──────────┐  ┌──────────┐
+                    │ EXT LOG │  │          │  │EXT ALERT │
+                    │ Splunk  │  │          │  │PagerDuty │
+                    │Dynatrace│  │          │  │ Wiz      │
+                    └─────────┘  └──────────┘  └──────────┘
 
-  ┌─────────────────────────────────────────────────────────────┐
-  │  IDENTITY & SECURITY BAND  (IAM, KMS, VPC, VPC-SC, ...)    │  y = 40
-  ├─────────────────────────────────────────────────────────────┤
-  │                                                             │
-  │  MAIN DATA FLOW  (Sources → Ingestion → Landing → ...      │  y = 180+
-  │                    → Processing → Medallion → Serving       │
-  │                    → Consumers)                             │
-  │                                                             │
-  ├─────────────────────────────────────────────────────────────┤
-  │  GOVERNANCE BAND  (Dataplex, Data Catalog, DLP, DQ)         │  dynamic y
-  ├─────────────────────────────────────────────────────────────┤
-  │  ORCHESTRATION BAND  (Composer, Scheduler)                  │  dynamic y
-  ├─────────────────────────────────────────────────────────────┤
-  │  OBSERVABILITY BAND  (Monitoring, Logging, PagerDuty, ...)  │  dynamic y
-  └─────────────────────────────────────────────────────────────┘
-
-Main flow is left-to-right columns. Cross-cutting concerns are horizontal bands.
+Data flows BOTTOM-UP inside GCP: Ingestion → Landing → Processing → Medallion → Serving
 """
 
 from typing import Set, Dict, List, Any
 
 # ═══════════════════════════════════════════════════════════
-# PRODUCT CATALOG — every product the engine can select
+# COLOR SYSTEM v2 — SEMANTIC
+# ═══════════════════════════════════════════════════════════
+# Blue/Navy  = TRUST (security, identity, GCP)
+# Green      = DATA IN MOTION (pipeline, healthy)
+# Orange     = CONTROL (orchestration) + ALERTING
+# Purple     = INTELLIGENCE (serving, ML, BI)
+# Gray/Slate = EXTERNAL (third-party, outside)
+# Teal/Cyan  = OBSERVATION + OUTPUT (monitoring, consumers)
+
+COLORS = {
+    "gcp":       "#1A73E8",
+    "security":  "#1E3A5F",
+    "pipeline":  "#137333",
+    "medallion": "#1B5E20",
+    "serving":   "#6A1B9A",
+    "orch":      "#E65100",
+    "gcpObs":    "#00695C",
+    "source":    "#546E7A",
+    "extId":     "#37474F",
+    "consumer":  "#00838F",
+    "extLog":    "#455A64",
+    "extAlert":  "#BF360C",
+    "governance":"#00695C",
+    # Node-specific
+    "ingestion": "#137333",
+    "landing":   "#2E7D32",
+    "processing":"#388E3C",
+    "bronze":    "#795548",
+    "silver":    "#78909C",
+    "gold":      "#FF8F00",
+}
+
+# ═══════════════════════════════════════════════════════════
+# PRODUCT CATALOG
 # ═══════════════════════════════════════════════════════════
 
 PRODUCTS: Dict[str, Dict[str, Any]] = {
-    # ── L1: Sources ──
-    "oracle_db":       {"name": "Oracle DB",        "icon": "oracle",      "zone": "sources",  "layer": 1, "subtitle": "On-prem RDBMS"},
-    "sqlserver_db":    {"name": "SQL Server",        "icon": "sqlserver",   "zone": "sources",  "layer": 1, "subtitle": "On-prem RDBMS"},
-    "postgresql_db":   {"name": "PostgreSQL",        "icon": "postgresql",  "zone": "sources",  "layer": 1, "subtitle": "WAL-based CDC"},
-    "mongodb_db":      {"name": "MongoDB",           "icon": "mongodb",     "zone": "sources",  "layer": 1, "subtitle": "Change streams"},
-    "aws_s3":          {"name": "AWS S3",            "icon": "aws_s3",      "zone": "sources",  "layer": 1, "subtitle": "Cross-cloud"},
-    "salesforce":      {"name": "Salesforce",        "icon": "salesforce",  "zone": "sources",  "layer": 1, "subtitle": "CRM SaaS"},
-    "workday":         {"name": "Workday",           "icon": "workday",     "zone": "sources",  "layer": 1, "subtitle": "HCM SaaS"},
-    "servicenow_src":  {"name": "ServiceNow",        "icon": "servicenow",  "zone": "sources",  "layer": 1, "subtitle": "ITSM SaaS"},
-    "sap_src":         {"name": "SAP ERP",           "icon": "sap",         "zone": "sources",  "layer": 1, "subtitle": "OData/BAPI"},
-    "kafka_stream":    {"name": "Kafka",             "icon": "kafka",       "zone": "sources",  "layer": 1, "subtitle": "Event streaming"},
-    "cloud_sql":       {"name": "Cloud SQL",         "icon": "cloud_sql",   "zone": "sources",  "layer": 1, "subtitle": "GCP-native DB"},
-    "sftp_server":     {"name": "SFTP Server",       "icon": "sftp_server", "zone": "sources",  "layer": 1, "subtitle": "Legacy file transfer"},
+    # ── L1: Sources (outside-left) ──
+    "oracle_db":       {"name": "Oracle DB",        "icon": "oracle",      "zone": "source",   "subtitle": "On-prem RDBMS"},
+    "sqlserver_db":    {"name": "SQL Server",        "icon": "sqlserver",   "zone": "source",   "subtitle": "On-prem RDBMS"},
+    "postgresql_db":   {"name": "PostgreSQL",        "icon": "postgresql",  "zone": "source",   "subtitle": "WAL-based CDC"},
+    "mongodb_db":      {"name": "MongoDB",           "icon": "mongodb",     "zone": "source",   "subtitle": "Change streams"},
+    "aws_s3":          {"name": "AWS S3",            "icon": "aws_s3",      "zone": "source",   "subtitle": "Cross-cloud"},
+    "salesforce":      {"name": "Salesforce",        "icon": "salesforce",  "zone": "source",   "subtitle": "CRM SaaS"},
+    "workday":         {"name": "Workday",           "icon": "workday",     "zone": "source",   "subtitle": "HCM SaaS"},
+    "servicenow_src":  {"name": "ServiceNow",        "icon": "servicenow",  "zone": "source",   "subtitle": "ITSM SaaS"},
+    "sap_src":         {"name": "SAP ERP",           "icon": "sap",         "zone": "source",   "subtitle": "OData/BAPI"},
+    "kafka_stream":    {"name": "Kafka",             "icon": "kafka",       "zone": "source",   "subtitle": "Event streaming"},
+    "cloud_sql":       {"name": "Cloud SQL",         "icon": "cloud_sql",   "zone": "source",   "subtitle": "GCP-native DB"},
+    "sftp_server":     {"name": "SFTP Server",       "icon": "sftp_server", "zone": "source",   "subtitle": "Legacy file transfer"},
 
-    # ── L2: Connectivity / Identity ──
-    "cloud_iam":       {"name": "Cloud IAM",         "icon": "identity_and_access_management", "zone": "cloud", "layer": 2, "subtitle": "Identity & Access"},
-    "secret_manager":  {"name": "Secret Manager",    "icon": "secret_manager",  "zone": "cloud", "layer": 2, "subtitle": "Credential vault"},
-    "cloud_vpn":       {"name": "Cloud VPN",         "icon": "cloud_vpn",       "zone": "cloud", "layer": 2, "subtitle": "IPSec tunnel"},
-    "vpc":             {"name": "VPC Network",       "icon": "virtual_private_cloud", "zone": "cloud", "layer": 2, "subtitle": "Private network"},
-    "vpc_sc":          {"name": "VPC-SC",            "icon": "cloud_armor",     "zone": "cloud", "layer": 2, "subtitle": "Service perimeter"},
-    "cloud_armor":     {"name": "Cloud Armor",       "icon": "cloud_armor",     "zone": "cloud", "layer": 2, "subtitle": "WAF / DDoS"},
-    "apigee":          {"name": "Apigee",            "icon": "apigee_api_platform", "zone": "cloud", "layer": 2, "subtitle": "API gateway"},
-    "entra_id":        {"name": "Entra ID (AAD)",    "icon": "entra_id",        "zone": "cloud", "layer": 2, "subtitle": "SSO / Federation"},
-    "cyberark":        {"name": "CyberArk",          "icon": "cyberark",        "zone": "cloud", "layer": 2, "subtitle": "PAM vault"},
-    "cloud_kms":       {"name": "Cloud KMS",         "icon": "key_management_service", "zone": "cloud", "layer": 2, "subtitle": "CMEK encryption"},
+    # ── L2: GCP Security (left column inside GCP) ──
+    "cloud_iam":       {"name": "Cloud IAM",         "icon": "identity_and_access_management", "zone": "gcp-security", "subtitle": "Identity & Access"},
+    "cloud_kms":       {"name": "Cloud KMS",         "icon": "key_management_service",         "zone": "gcp-security", "subtitle": "CMEK encryption"},
+    "secret_manager":  {"name": "Secret Manager",    "icon": "secret_manager",  "zone": "gcp-security", "subtitle": "Credential vault"},
+    "vpc":             {"name": "VPC Network",       "icon": "virtual_private_cloud", "zone": "gcp-security", "subtitle": "Private network"},
+    "vpc_sc":          {"name": "VPC-SC",            "icon": "cloud_armor",     "zone": "gcp-security", "subtitle": "Service perimeter"},
+    "cloud_armor":     {"name": "Cloud Armor",       "icon": "cloud_armor",     "zone": "gcp-security", "subtitle": "WAF / DDoS"},
+    "cloud_vpn":       {"name": "Cloud VPN",         "icon": "cloud_vpn",       "zone": "gcp-security", "subtitle": "IPSec tunnel"},
+    "apigee":          {"name": "Apigee",            "icon": "apigee_api_platform", "zone": "gcp-security", "subtitle": "API gateway"},
 
-    # ── L3: Ingestion ──
-    "datastream":      {"name": "Datastream",        "icon": "datastream",      "zone": "cloud", "layer": 3, "subtitle": "Serverless CDC"},
-    "pubsub":          {"name": "Pub/Sub",           "icon": "pubsub",          "zone": "cloud", "layer": 3, "subtitle": "Message bus"},
-    "dataflow_ing":    {"name": "Dataflow",          "icon": "dataflow",        "zone": "cloud", "layer": 3, "subtitle": "Stream ingestion"},
-    "bq_dts":          {"name": "BQ Data Transfer",  "icon": "bigquery",        "zone": "cloud", "layer": 3, "subtitle": "Scheduled loads (FREE)"},
-    "cloud_functions": {"name": "Cloud Functions",   "icon": "cloud_functions", "zone": "cloud", "layer": 3, "subtitle": "Serverless API pull"},
-    "fivetran":        {"name": "Fivetran",          "icon": "fivetran",        "zone": "cloud", "layer": 3, "subtitle": "Managed ELT"},
-    "matillion":       {"name": "Matillion",         "icon": "dataflow",        "zone": "cloud", "layer": 3, "subtitle": "Visual ETL"},
-    "data_fusion":     {"name": "Data Fusion",       "icon": "connectors",      "zone": "cloud", "layer": 3, "subtitle": "Visual ETL (SAP)"},
-    "storage_transfer":{"name": "Storage Transfer",  "icon": "cloud_storage",   "zone": "cloud", "layer": 3, "subtitle": "Bulk file moves"},
+    # ── External Identity (outside-left) ──
+    "entra_id":        {"name": "Entra ID (AAD)",    "icon": "entra_id",    "zone": "ext-identity", "subtitle": "SSO / Federation"},
+    "cyberark":        {"name": "CyberArk",          "icon": "cyberark",    "zone": "ext-identity", "subtitle": "PAM vault"},
+
+    # ── L3: Ingestion (inside GCP, bottom of pipeline) ──
+    "datastream":      {"name": "Datastream",        "icon": "datastream",      "zone": "ingestion",  "subtitle": "Serverless CDC"},
+    "pubsub":          {"name": "Pub/Sub",           "icon": "pubsub",          "zone": "ingestion",  "subtitle": "Message bus"},
+    "dataflow_ing":    {"name": "Dataflow",          "icon": "dataflow",        "zone": "ingestion",  "subtitle": "Stream ingestion"},
+    "bq_dts":          {"name": "BQ Data Transfer",  "icon": "bigquery",        "zone": "ingestion",  "subtitle": "Scheduled loads"},
+    "cloud_functions": {"name": "Cloud Functions",   "icon": "cloud_functions", "zone": "ingestion",  "subtitle": "Serverless pull"},
+    "fivetran":        {"name": "Fivetran",          "icon": "fivetran",        "zone": "ingestion",  "subtitle": "Managed ELT"},
+    "matillion":       {"name": "Matillion",         "icon": "dataflow",        "zone": "ingestion",  "subtitle": "Visual ETL"},
+    "data_fusion":     {"name": "Data Fusion",       "icon": "connectors",      "zone": "ingestion",  "subtitle": "Visual ETL (SAP)"},
+    "storage_transfer":{"name": "Storage Transfer",  "icon": "cloud_storage",   "zone": "ingestion",  "subtitle": "Bulk file moves"},
 
     # ── L4: Landing ──
-    "gcs_raw":         {"name": "GCS Raw Zone",      "icon": "cloud_storage",   "zone": "cloud", "layer": 4, "subtitle": "Landing bucket"},
-    "bq_staging":      {"name": "BQ Staging",        "icon": "bigquery",        "zone": "cloud", "layer": 4, "subtitle": "Staging datasets"},
+    "gcs_raw":         {"name": "GCS Raw Zone",      "icon": "cloud_storage",   "zone": "landing",    "subtitle": "Landing bucket"},
+    "bq_staging":      {"name": "BQ Staging",        "icon": "bigquery",        "zone": "landing",    "subtitle": "Staging datasets"},
 
     # ── L5: Processing ──
-    "dataform":        {"name": "Dataform",          "icon": "dbt",             "zone": "cloud", "layer": 5, "subtitle": "SQL ELT (FREE)"},
-    "dataflow_proc":   {"name": "Dataflow",          "icon": "dataflow",        "zone": "cloud", "layer": 5, "subtitle": "Stream processing"},
-    "dataproc":        {"name": "Dataproc",          "icon": "dataproc",        "zone": "cloud", "layer": 5, "subtitle": "Spark / Hadoop"},
+    "dataform":        {"name": "Dataform",          "icon": "dbt",             "zone": "processing", "subtitle": "SQL ELT (dbt)"},
+    "dataflow_proc":   {"name": "Dataflow",          "icon": "dataflow",        "zone": "processing", "subtitle": "Stream processing"},
+    "dataproc":        {"name": "Dataproc",          "icon": "dataproc",        "zone": "processing", "subtitle": "Spark / Hadoop"},
 
     # ── L6: Medallion ──
-    "bronze":          {"name": "Bronze",            "icon": "bigquery",  "zone": "cloud", "layer": 6, "subtitle": "Raw / deduplicated"},
-    "silver":          {"name": "Silver",            "icon": "bigquery",  "zone": "cloud", "layer": 6, "subtitle": "Cleaned / conformed"},
-    "gold":            {"name": "Gold",              "icon": "bigquery",  "zone": "cloud", "layer": 6, "subtitle": "Curated / aggregated"},
+    "bronze":          {"name": "Bronze",            "icon": "bigquery",  "zone": "medallion", "subtitle": "Raw / deduplicated"},
+    "silver":          {"name": "Silver",            "icon": "bigquery",  "zone": "medallion", "subtitle": "Cleaned / conformed"},
+    "gold":            {"name": "Gold",              "icon": "bigquery",  "zone": "medallion", "subtitle": "Curated / aggregated"},
 
-    # ── L7: Serving ──
-    "looker":          {"name": "Looker",            "icon": "looker",        "zone": "cloud", "layer": 7, "subtitle": "Governed BI"},
-    "looker_studio":   {"name": "Looker Studio",     "icon": "looker",        "zone": "cloud", "layer": 7, "subtitle": "Free dashboards"},
-    "power_bi":        {"name": "Power BI",          "icon": "data_studio",   "zone": "cloud", "layer": 7, "subtitle": "Self-service BI"},
-    "cloud_run":       {"name": "Cloud Run",         "icon": "cloud_run",     "zone": "cloud", "layer": 7, "subtitle": "API serving"},
-    "vertex_ai":       {"name": "Vertex AI",         "icon": "vertexai",      "zone": "cloud", "layer": 7, "subtitle": "ML platform"},
-    "analytics_hub":   {"name": "Analytics Hub",     "icon": "analytics_hub", "zone": "cloud", "layer": 7, "subtitle": "Data exchange"},
+    # ── L7: Serving (top of GCP) ──
+    "looker":          {"name": "Looker",            "icon": "looker",        "zone": "serving",  "subtitle": "Governed BI"},
+    "looker_studio":   {"name": "Looker Studio",     "icon": "looker",        "zone": "serving",  "subtitle": "Free dashboards"},
+    "power_bi":        {"name": "Power BI",          "icon": "data_studio",   "zone": "serving",  "subtitle": "Self-service BI"},
+    "cloud_run":       {"name": "Cloud Run",         "icon": "cloud_run",     "zone": "serving",  "subtitle": "API serving"},
+    "vertex_ai":       {"name": "Vertex AI",         "icon": "vertexai",      "zone": "serving",  "subtitle": "ML platform"},
+    "analytics_hub":   {"name": "Analytics Hub",     "icon": "analytics_hub", "zone": "serving",  "subtitle": "Data exchange"},
 
-    # ── L8: Consumers ──
-    "analysts":        {"name": "Analysts",          "icon": "analyst",         "zone": "consumers", "layer": 8, "subtitle": "BI users"},
-    "data_scientists": {"name": "Data Scientists",   "icon": "developer",       "zone": "consumers", "layer": 8, "subtitle": "ML / notebooks"},
-    "downstream_sys":  {"name": "Downstream Systems","icon": "rest_api",        "zone": "consumers", "layer": 8, "subtitle": "API consumers"},
-    "executives":      {"name": "Executives",        "icon": "admin_user",      "zone": "consumers", "layer": 8, "subtitle": "C-suite reports"},
+    # ── L8: Consumers (top, outside GCP) ──
+    "analysts":        {"name": "Analysts",          "icon": "analyst",     "zone": "consumer",  "subtitle": "BI users"},
+    "data_scientists": {"name": "Data Scientists",   "icon": "developer",   "zone": "consumer",  "subtitle": "ML / notebooks"},
+    "downstream_sys":  {"name": "Downstream Systems","icon": "rest_api",    "zone": "consumer",  "subtitle": "API consumers"},
+    "executives":      {"name": "Executives",        "icon": "admin_user",  "zone": "consumer",  "subtitle": "C-suite reports"},
 
-    # ── Orchestration ──
-    "cloud_composer":  {"name": "Cloud Composer",    "icon": "cloud_composer",  "zone": "cloud", "layer": 9, "subtitle": "Airflow DAGs"},
-    "cloud_scheduler": {"name": "Cloud Scheduler",   "icon": "cloud_scheduler", "zone": "cloud", "layer": 9, "subtitle": "Cron triggers"},
+    # ── Orchestration (inside GCP, own box) ──
+    "cloud_composer":  {"name": "Cloud Composer",    "icon": "cloud_composer",  "zone": "orchestration", "subtitle": "Airflow DAGs"},
+    "cloud_scheduler": {"name": "Cloud Scheduler",   "icon": "cloud_scheduler", "zone": "orchestration", "subtitle": "Cron triggers"},
 
-    # ── Observability ──
-    "cloud_monitoring":{"name": "Cloud Monitoring",  "icon": "cloud_monitoring","zone": "cloud", "layer": 10, "subtitle": "Metrics & alerts"},
-    "cloud_logging":   {"name": "Cloud Logging",     "icon": "cloud_logging",   "zone": "cloud", "layer": 10, "subtitle": "Centralized logs"},
-    "pagerduty_inc":   {"name": "PagerDuty",         "icon": "pagerduty",       "zone": "consumers", "layer": 10, "subtitle": "Incident management"},
-    "splunk_siem":     {"name": "Splunk SIEM",       "icon": "splunk",          "zone": "consumers", "layer": 10, "subtitle": "Security events"},
-    "dynatrace_apm":   {"name": "Dynatrace",         "icon": "dynatrace",       "zone": "consumers", "layer": 10, "subtitle": "APM"},
-    "audit_logs":      {"name": "Audit Logs",        "icon": "cloud_audit_logs",  "zone": "cloud", "layer": 10, "subtitle": "Compliance trail"},
-    "scc_pillar":      {"name": "Security Command Center", "icon": "security_command_center", "zone": "cloud", "layer": 10, "subtitle": "Security posture"},
-    "wiz_cspm":        {"name": "Wiz",               "icon": "wiz",             "zone": "cloud", "layer": 10, "subtitle": "Cloud security"},
-    "archer_grc":      {"name": "RSA Archer",        "icon": "security_command_center", "zone": "consumers", "layer": 10, "subtitle": "GRC platform"},
+    # ── GCP Observability (inside GCP, own box) ──
+    "cloud_monitoring":{"name": "Cloud Monitoring",  "icon": "cloud_monitoring","zone": "gcp-obs",  "subtitle": "Metrics & alerts"},
+    "cloud_logging":   {"name": "Cloud Logging",     "icon": "cloud_logging",   "zone": "gcp-obs",  "subtitle": "Centralized logs"},
+    "audit_logs":      {"name": "Audit Logs",        "icon": "cloud_audit_logs","zone": "gcp-obs",  "subtitle": "Compliance trail"},
+    "scc_pillar":      {"name": "Security Command Center", "icon": "security_command_center", "zone": "gcp-obs", "subtitle": "Security posture"},
 
-    # ── Governance (own band, not mixed with processing) ──
-    "dataplex":        {"name": "Dataplex",          "icon": "dataplex",        "zone": "cloud", "layer": 11, "subtitle": "Data governance"},
-    "data_catalog":    {"name": "Data Catalog",      "icon": "data_catalog",    "zone": "cloud", "layer": 11, "subtitle": "Metadata / lineage"},
-    "dataplex_dq":     {"name": "Dataplex DQ",       "icon": "dataplex",        "zone": "cloud", "layer": 11, "subtitle": "Data quality"},
-    "cloud_dlp":       {"name": "Cloud DLP",         "icon": "security_command_center", "zone": "cloud", "layer": 11, "subtitle": "PII detection"},
+    # ── Governance (inside GCP, own box) ──
+    "dataplex":        {"name": "Dataplex",          "icon": "dataplex",    "zone": "governance",  "subtitle": "Data governance"},
+    "data_catalog":    {"name": "Data Catalog",      "icon": "data_catalog","zone": "governance",  "subtitle": "Metadata / lineage"},
+    "dataplex_dq":     {"name": "Dataplex DQ",       "icon": "dataplex",    "zone": "governance",  "subtitle": "Data quality"},
+    "cloud_dlp":       {"name": "Cloud DLP",         "icon": "security_command_center", "zone": "governance", "subtitle": "PII detection"},
+
+    # ── External Alerting (outside, below GCP) ──
+    "pagerduty_inc":   {"name": "PagerDuty",         "icon": "pagerduty",   "zone": "ext-alert",  "subtitle": "Incident management"},
+    "wiz_cspm":        {"name": "Wiz",               "icon": "wiz",         "zone": "ext-alert",  "subtitle": "Cloud security"},
+    "archer_grc":      {"name": "RSA Archer",        "icon": "security_command_center", "zone": "ext-alert", "subtitle": "GRC platform"},
+
+    # ── External Logging (outside, below GCP) ──
+    "splunk_siem":     {"name": "Splunk SIEM",       "icon": "splunk",      "zone": "ext-log",    "subtitle": "Security events"},
+    "dynatrace_apm":   {"name": "Dynatrace",         "icon": "dynatrace",   "zone": "ext-log",    "subtitle": "APM"},
 }
 
+
 # ═══════════════════════════════════════════════════════════
-# BAND ASSIGNMENT — which horizontal band each product lives in
-# Products NOT listed here go into the main data flow columns
+# LAYOUT CONSTANTS (SVG coordinate space 0-1520 x 0-1280)
+# These match the React mockup and PPTX exporter exactly
 # ═══════════════════════════════════════════════════════════
 
-BAND = {
-    # Identity & Security (top band)
-    "cloud_iam": "identity", "secret_manager": "identity",
-    "cloud_vpn": "identity", "vpc": "identity", "vpc_sc": "identity",
-    "cloud_armor": "identity", "apigee": "identity",
-    "entra_id": "identity", "cyberark": "identity", "cloud_kms": "identity",
+# ── ZONE X POSITIONS ──
+X_SOURCE       = 70     # L1 sources, far left
+X_EXT_ID       = 70     # External identity, far left
+X_GCP_SEC      = 460    # L2 security column, left inside GCP
+X_PIPELINE     = 660    # L3-L5 pipeline column
+X_MEDALLION    = 880    # L6 medallion column
+X_SERVING      = 880    # L7 serving (same x as medallion, higher y)
+X_SERVING_2    = 1100   # L7 overflow (Vertex AI etc)
+X_ORCH         = 660    # Orchestration
+X_GCP_OBS      = 1100   # GCP observability
+X_GCP_OBS_2    = 1280   # Obs overflow (Audit Logs)
+X_EXT_LOG      = 460    # External logging, below GCP
+X_EXT_ALERT    = 880    # External alerting, below GCP
+X_CONSUMER     = 880    # L8 consumers, top
 
-    # Governance (below main flow)
-    "dataplex": "governance", "data_catalog": "governance",
-    "dataplex_dq": "governance", "cloud_dlp": "governance",
+# ── ZONE Y POSITIONS ──
+# Consumers at top
+Y_CONSUMER     = 60
 
-    # Orchestration
-    "cloud_composer": "orchestration", "cloud_scheduler": "orchestration",
+# GCP internals (BOTTOM-UP: ingestion at bottom, serving at top)
+Y_SERVING      = 270    # L7 top of GCP
+Y_ORCH         = 370    # Orchestration
+Y_PROCESSING   = 530    # L5 processing
+Y_LANDING      = 680    # L4 landing
+Y_INGESTION    = 830    # L3 ingestion (bottom)
 
-    # Observability (bottom band)
-    "cloud_monitoring": "observability", "cloud_logging": "observability",
-    "audit_logs": "observability", "pagerduty_inc": "observability",
-    "splunk_siem": "observability", "dynatrace_apm": "observability",
-    "scc_pillar": "observability", "wiz_cspm": "observability",
-    "archer_grc": "observability",
+# Security column spread across full GCP height
+Y_SEC_START    = 270
+Y_SEC_SPACING  = 140
+
+# External identity (outside left)
+Y_EXT_ID_START = 280
+Y_EXT_ID_SPACE = 140
+
+# Source (outside left)
+Y_SOURCE_START = 480
+Y_SOURCE_SPACE = 130
+
+# External boxes below GCP
+Y_EXTERNAL     = 1110
+
+# Spacing within a zone when multiple nodes
+NODE_SPACING   = 150     # horizontal spacing for same-y nodes
+VERT_SPACING   = 140     # vertical spacing for stacked nodes
+
+
+# ═══════════════════════════════════════════════════════════
+# SORT PRIORITIES (within zones)
+# ═══════════════════════════════════════════════════════════
+
+SORT_PRIORITY = {
+    # Medallion: bronze → silver → gold (bottom to top)
+    "bronze": 0, "silver": 1, "gold": 2,
+    # Landing
+    "gcs_raw": 0, "bq_staging": 1,
+    # Processing
+    "dataform": 0, "dataflow_proc": 1, "dataproc": 2,
+    # Security
+    "cloud_iam": 0, "cloud_kms": 1, "secret_manager": 2,
+    "vpc": 3, "vpc_sc": 4, "cloud_armor": 5, "cloud_vpn": 6, "apigee": 7,
+    # Serving
+    "looker": 0, "looker_studio": 1, "power_bi": 2,
+    "vertex_ai": 10, "cloud_run": 11, "analytics_hub": 12,
+    # Consumers
+    "analysts": 0, "executives": 1, "data_scientists": 2, "downstream_sys": 3,
+    # Observability: monitoring first, then logging, then audit
+    "cloud_monitoring": 0, "cloud_logging": 1, "audit_logs": 2, "scc_pillar": 3,
+    # Governance
+    "dataplex": 0, "data_catalog": 1, "dataplex_dq": 2, "cloud_dlp": 3,
+    # External alert
+    "pagerduty_inc": 0, "wiz_cspm": 1, "archer_grc": 2,
+    # External log
+    "splunk_siem": 0, "dynatrace_apm": 1,
 }
 
-# ═══════════════════════════════════════════════════════════
-# LAYOUT CONSTANTS
-# ═══════════════════════════════════════════════════════════
-
-# Main data flow — left-to-right columns
-FLOW_X = {
-    1: 100,     # Sources
-    3: 340,     # Ingestion
-    4: 540,     # Landing
-    5: 720,     # Processing
-    6: 900,     # Medallion
-    7: 1080,    # Serving
-    8: 1260,    # Consumers
-}
-
-FLOW_Y_START = 180       # first row of main flow
-FLOW_Y_SPACING = 120     # vertical gap between nodes in same column
-
-IDENTITY_Y = 40          # top band y
-BAND_SPACING = 145       # horizontal gap between band nodes
-GAP_BELOW_FLOW = 140     # gap between bottom of flow and governance band
-BAND_GAP = 110           # vertical gap between bottom bands
-
 
 # ═══════════════════════════════════════════════════════════
-# EDGE RULES — auto-generated data flow
+# EDGE RULES
 # ═══════════════════════════════════════════════════════════
 
 EDGE_RULES = [
     # Source → Ingestion
-    {"from_any": ["oracle_db", "sqlserver_db", "postgresql_db"], "to": "datastream",   "label": "CDC", "security": {"transport": "TLS 1.3 + IPSec", "auth": "Service Account", "classification": "PII / Confidential", "private": True}},
-    {"from_any": ["mongodb_db"],                                 "to": "datastream",   "label": "Change stream", "security": {"transport": "TLS 1.3", "auth": "x509 cert", "classification": "PII", "private": True}},
-    {"from_any": ["kafka_stream"],                               "to": "pubsub",       "label": "Events", "security": {"transport": "TLS 1.3", "auth": "SASL/OAuth", "classification": "Transactional", "private": True}},
-    {"from_any": ["aws_s3"],                                     "to": "bq_dts",       "label": "S3 → BQ", "security": {"transport": "TLS 1.3", "auth": "WIF (OIDC)", "classification": "Business data", "private": True}},
-    {"from_any": ["aws_s3"],                                     "to": "storage_transfer", "label": "Bulk copy", "security": {"transport": "TLS 1.3", "auth": "WIF", "classification": "Business data", "private": True}},
-    {"from_any": ["salesforce", "workday", "servicenow_src"],    "to": "cloud_functions", "label": "API pull", "security": {"transport": "HTTPS", "auth": "OAuth 2.0", "classification": "PII / HR", "private": False}},
-    {"from_any": ["salesforce", "workday", "servicenow_src"],    "to": "fivetran",     "label": "Managed ELT", "security": {"transport": "HTTPS", "auth": "OAuth 2.0", "classification": "PII", "private": False}},
-    {"from_any": ["sap_src"],                                    "to": "data_fusion",  "label": "OData", "security": {"transport": "HTTPS + VPN", "auth": "Service Account", "classification": "ERP / Financial", "private": True}},
-    {"from_any": ["sftp_server"],                                "to": "cloud_functions", "label": "File pull", "security": {"transport": "SSH/SFTP", "auth": "SSH key", "classification": "Business data", "private": True}},
-    {"from_any": ["cloud_sql"],                                  "to": "datastream",   "label": "CDC", "security": {"transport": "Private IP", "auth": "IAM DB Auth", "classification": "App data", "private": True}},
+    {"from_any": ["oracle_db", "sqlserver_db", "postgresql_db"], "to": "datastream",   "label": "CDC", "edgeType": "data", "security": {"transport": "TLS 1.3 + IPSec", "auth": "Service Account", "classification": "PII / Confidential", "private": True}},
+    {"from_any": ["mongodb_db"],                                 "to": "datastream",   "label": "Change stream", "edgeType": "data", "security": {"transport": "TLS 1.3", "auth": "x509 cert", "classification": "PII", "private": True}},
+    {"from_any": ["kafka_stream"],                               "to": "pubsub",       "label": "Events", "edgeType": "data", "security": {"transport": "TLS 1.3", "auth": "SASL/OAuth", "classification": "Transactional", "private": True}},
+    {"from_any": ["aws_s3"],                                     "to": "bq_dts",       "label": "S3 → BQ", "edgeType": "data"},
+    {"from_any": ["aws_s3"],                                     "to": "storage_transfer", "label": "Bulk copy", "edgeType": "data"},
+    {"from_any": ["salesforce", "workday", "servicenow_src"],    "to": "cloud_functions", "label": "API pull", "edgeType": "data"},
+    {"from_any": ["salesforce", "workday", "servicenow_src"],    "to": "fivetran",     "label": "Managed ELT", "edgeType": "data"},
+    {"from_any": ["sap_src"],                                    "to": "data_fusion",  "label": "OData", "edgeType": "data"},
+    {"from_any": ["sftp_server"],                                "to": "cloud_functions", "label": "File pull", "edgeType": "data"},
+    {"from_any": ["cloud_sql"],                                  "to": "datastream",   "label": "CDC", "edgeType": "data"},
 
     # Ingestion → Landing
-    {"from_any": ["datastream", "cloud_functions", "data_fusion", "storage_transfer"], "to": "gcs_raw", "label": "Raw files", "step": 1},
-    {"from_any": ["bq_dts", "fivetran", "matillion", "dataflow_ing"], "to": "bq_staging", "label": "Direct load", "step": 1},
-    {"from_any": ["pubsub"],          "to": "dataflow_ing", "label": "Stream", "step": 1},
+    {"from_any": ["datastream", "cloud_functions", "data_fusion", "storage_transfer"], "to": "gcs_raw", "label": "Raw files", "edgeType": "data"},
+    {"from_any": ["bq_dts", "fivetran", "matillion", "dataflow_ing"], "to": "bq_staging", "label": "Direct load", "edgeType": "data"},
+    {"from_any": ["pubsub"], "to": "dataflow_ing", "label": "Stream", "edgeType": "data"},
 
     # Landing → Processing
-    {"from_any": ["gcs_raw"],         "to": "dataform",     "label": "ELT", "step": 2},
-    {"from_any": ["gcs_raw"],         "to": "dataflow_proc","label": "Process", "step": 2},
-    {"from_any": ["gcs_raw"],         "to": "dataproc",     "label": "Spark", "step": 2},
-    {"from_any": ["bq_staging"],      "to": "dataform",     "label": "SQL transform", "step": 2},
-    {"from_any": ["bq_staging"],      "to": "dataflow_proc","label": "Process", "step": 2},
-    {"from_any": ["bq_staging"],      "to": "dataproc",     "label": "Spark job", "step": 2},
+    {"from_any": ["gcs_raw"],    "to": "dataform",     "label": "ELT", "edgeType": "data"},
+    {"from_any": ["gcs_raw"],    "to": "dataflow_proc","label": "Process", "edgeType": "data"},
+    {"from_any": ["gcs_raw"],    "to": "dataproc",     "label": "Spark", "edgeType": "data"},
+    {"from_any": ["bq_staging"], "to": "dataform",     "label": "SQL transform", "edgeType": "data"},
+    {"from_any": ["bq_staging"], "to": "dataflow_proc","label": "Process", "edgeType": "data"},
+    {"from_any": ["bq_staging"], "to": "dataproc",     "label": "Spark job", "edgeType": "data"},
 
     # Processing → Medallion
-    {"from_any": ["dataform", "dataflow_proc", "dataproc"], "to": "bronze", "label": "Ingest", "step": 3},
-    {"from_any": ["bronze"],          "to": "silver",       "label": "Clean", "step": 4},
-    {"from_any": ["silver"],          "to": "gold",         "label": "Curate", "step": 5},
+    {"from_any": ["dataform", "dataflow_proc", "dataproc"], "to": "bronze", "label": "Ingest", "edgeType": "data"},
+    {"from_any": ["bronze"],  "to": "silver", "label": "Clean", "edgeType": "data"},
+    {"from_any": ["silver"],  "to": "gold",   "label": "Curate", "edgeType": "data"},
 
     # Medallion → Serving
-    {"from_any": ["gold"],            "to": "looker",       "label": "Governed BI", "step": 6},
-    {"from_any": ["gold"],            "to": "looker_studio", "label": "Dashboards", "step": 6},
-    {"from_any": ["gold"],            "to": "power_bi",     "label": "DirectQuery", "step": 6},
-    {"from_any": ["gold"],            "to": "vertex_ai",    "label": "Feature store", "step": 6},
-    {"from_any": ["gold"],            "to": "cloud_run",    "label": "API", "step": 6},
-    {"from_any": ["gold"],            "to": "analytics_hub","label": "Data share", "step": 6},
+    {"from_any": ["gold"], "to": "looker",       "label": "Governed BI", "edgeType": "data"},
+    {"from_any": ["gold"], "to": "looker_studio", "label": "Dashboards", "edgeType": "data"},
+    {"from_any": ["gold"], "to": "power_bi",     "label": "DirectQuery", "edgeType": "data"},
+    {"from_any": ["gold"], "to": "vertex_ai",    "label": "Features", "edgeType": "data"},
+    {"from_any": ["gold"], "to": "cloud_run",    "label": "API", "edgeType": "data"},
+    {"from_any": ["gold"], "to": "analytics_hub","label": "Data share", "edgeType": "data"},
 
     # Serving → Consumers
-    {"from_any": ["looker", "looker_studio", "power_bi"], "to": "analysts",       "label": "Reports", "step": 7},
-    {"from_any": ["looker"],          "to": "executives",     "label": "Exec reports", "step": 7},
-    {"from_any": ["vertex_ai"],       "to": "data_scientists","label": "ML models", "step": 7},
-    {"from_any": ["cloud_run"],       "to": "downstream_sys", "label": "REST API", "step": 7},
-    {"from_any": ["analytics_hub"],   "to": "downstream_sys", "label": "Data share", "step": 7},
+    {"from_any": ["looker", "looker_studio", "power_bi"], "to": "analysts",       "label": "Reports", "edgeType": "data"},
+    {"from_any": ["looker"],      "to": "executives",     "label": "Exec reports", "edgeType": "data"},
+    {"from_any": ["vertex_ai"],   "to": "data_scientists","label": "ML models", "edgeType": "data"},
+    {"from_any": ["cloud_run"],   "to": "downstream_sys", "label": "REST API", "edgeType": "data"},
+    {"from_any": ["analytics_hub"],"to": "downstream_sys","label": "Data share", "edgeType": "data"},
 
-    # Orchestration (control edges)
-    {"from_any": ["cloud_composer"],  "to": "dataform",     "label": "Trigger DAG", "edgeType": "control"},
-    {"from_any": ["cloud_composer"],  "to": "dataflow_proc","label": "Trigger DAG", "edgeType": "control"},
-    {"from_any": ["cloud_composer"],  "to": "dataproc",     "label": "Trigger DAG", "edgeType": "control"},
-    {"from_any": ["cloud_scheduler"], "to": "cloud_functions", "label": "Cron", "edgeType": "control"},
+    # Identity federation
+    {"from_any": ["entra_id"],  "to": "cloud_iam",      "label": "SSO", "edgeType": "identity"},
+    {"from_any": ["cyberark"],  "to": "secret_manager",  "label": "Cred sync", "edgeType": "identity"},
 
-    # Observability (observe edges)
-    {"from_any": ["cloud_monitoring"],"to": "pagerduty_inc","label": "Alerts", "edgeType": "alert"},
-    {"from_any": ["cloud_logging"],   "to": "splunk_siem",  "label": "Log export", "edgeType": "observe"},
+    # Orchestration control
+    {"from_any": ["cloud_composer"],  "to": "dataform",     "label": "Trigger", "edgeType": "control"},
+    {"from_any": ["cloud_composer"],  "to": "dataflow_proc","label": "Trigger", "edgeType": "control"},
+    {"from_any": ["cloud_composer"],  "to": "dataproc",     "label": "Trigger", "edgeType": "control"},
+    {"from_any": ["cloud_scheduler"],"to": "cloud_functions","label": "Cron", "edgeType": "control"},
+
+    # Observability internal
+    {"from_any": ["audit_logs"],      "to": "cloud_logging",   "label": "Logs", "edgeType": "observe"},
+    {"from_any": ["cloud_logging"],   "to": "cloud_monitoring","label": "Metrics", "edgeType": "observe"},
+
+    # Observability → External
+    {"from_any": ["cloud_monitoring"],"to": "pagerduty_inc",  "label": "Alerts", "edgeType": "alert"},
+    {"from_any": ["cloud_monitoring"],"to": "wiz_cspm",       "label": "Posture", "edgeType": "alert"},
+    {"from_any": ["cloud_logging"],   "to": "splunk_siem",    "label": "Log export", "edgeType": "observe"},
+    {"from_any": ["cloud_logging"],   "to": "dynatrace_apm",  "label": "Traces", "edgeType": "observe"},
 ]
+
+
+# ═══════════════════════════════════════════════════════════
+# ZONE DEFINITIONS (rendered as dashed/solid boxes)
+# ═══════════════════════════════════════════════════════════
+
+ZONE_DEFS = [
+    {"id": "consumer",     "label": "CONSUMERS (L8)",         "color": COLORS["consumer"],  "dashed": True},
+    {"id": "ext-identity", "label": "EXTERNAL IDENTITY",      "color": COLORS["extId"],     "dashed": True},
+    {"id": "source",       "label": "ON-PREM SOURCE (L1)",    "color": COLORS["source"],    "dashed": True},
+    {"id": "gcp",          "label": "GOOGLE CLOUD PLATFORM",  "color": COLORS["gcp"],       "dashed": False, "filled": True},
+    {"id": "gcp-security", "label": "SECURITY (L2)",          "color": COLORS["security"],  "dashed": True},
+    {"id": "pipeline",     "label": "PIPELINE (L3→L5)",       "color": COLORS["pipeline"],  "dashed": True},
+    {"id": "medallion",    "label": "MEDALLION (L6)",         "color": COLORS["medallion"], "dashed": True},
+    {"id": "serving",      "label": "SERVING (L7)",           "color": COLORS["serving"],   "dashed": True},
+    {"id": "orchestration","label": "ORCHESTRATION",          "color": COLORS["orch"],      "dashed": True},
+    {"id": "gcp-obs",      "label": "OBSERVABILITY (GCP)",    "color": COLORS["gcpObs"],    "dashed": True},
+    {"id": "governance",   "label": "GOVERNANCE",             "color": COLORS["governance"],"dashed": True},
+    {"id": "ext-log",      "label": "EXTERNAL LOGGING",       "color": COLORS["extLog"],    "dashed": True},
+    {"id": "ext-alert",    "label": "EXTERNAL ALERTING",      "color": COLORS["extAlert"],  "dashed": True},
+]
+
+# Zones that live inside GCP
+GCP_ZONES = {"gcp-security", "ingestion", "landing", "processing",
+             "medallion", "serving", "orchestration", "gcp-obs", "governance"}
+
+# For pipeline zones, merge into one visual zone
+PIPELINE_ZONES = {"ingestion", "landing", "processing"}
 
 
 # ═══════════════════════════════════════════════════════════
@@ -247,94 +357,144 @@ def _make_node(pid: str, prod: dict, x: int, y: int) -> dict:
     }
 
 
-def _center_band(count: int, spacing: int = BAND_SPACING,
-                  canvas_center: int = 680) -> list:
-    """Return centered x positions for a horizontal band."""
-    if count == 0:
-        return []
-    total_w = (count - 1) * spacing
-    start = int(canvas_center - total_w / 2)
-    return [start + i * spacing for i in range(count)]
-
-
 def build_diagram(keep_set: Set[str], title: str,
                   decisions: List[str], anti_patterns: List[str]) -> dict:
     """
     Convert a keep_set of product IDs into a full Diagram JSON.
-    Layout uses horizontal swim-lane bands — no zigzags.
+    Zone-based layout with bottom-up flow inside GCP.
     """
     nodes: List[dict] = []
     edges: List[dict] = []
 
-    # ── Partition into bands vs main flow ──
-    band_lists: Dict[str, List[str]] = {
-        "identity": [], "governance": [], "orchestration": [], "observability": [],
-    }
-    flow_pids: List[str] = []
-
+    # ── Bucket products by zone ──
+    zone_buckets: Dict[str, List[str]] = {}
     for pid in sorted(keep_set):
-        if pid not in PRODUCTS:
+        prod = PRODUCTS.get(pid)
+        if not prod:
             continue
-        band = BAND.get(pid)
-        if band:
-            band_lists[band].append(pid)
-        else:
-            flow_pids.append(pid)
+        z = prod["zone"]
+        zone_buckets.setdefault(z, []).append(pid)
 
-    # ── 1) IDENTITY BAND (top, centered) ──
-    id_list = band_lists["identity"]
-    id_xs = _center_band(len(id_list))
-    for i, pid in enumerate(id_list):
-        nodes.append(_make_node(pid, PRODUCTS[pid], id_xs[i], IDENTITY_Y))
+    # Sort within each zone by priority
+    for z in zone_buckets:
+        zone_buckets[z].sort(key=lambda p: (SORT_PRIORITY.get(p, 50), p))
 
-    # ── 2) MAIN DATA FLOW (left-to-right columns) ──
-    # Sort within each layer for logical top-to-bottom order
-    FLOW_PRIORITY = {
-        # Medallion: must be bronze → silver → gold
-        "bronze": 0, "silver": 1, "gold": 2,
-        # Landing: GCS first, then BQ
-        "gcs_raw": 0, "bq_staging": 1,
-        # Processing: dataform → dataflow → dataproc
-        "dataform": 0, "dataflow_proc": 1, "dataproc": 2,
+    # ── CONSUMERS (top) ──
+    for i, pid in enumerate(zone_buckets.get("consumer", [])):
+        nodes.append(_make_node(pid, PRODUCTS[pid],
+                                X_CONSUMER + i * NODE_SPACING, Y_CONSUMER))
+
+    # ── EXTERNAL IDENTITY (outside left) ──
+    for i, pid in enumerate(zone_buckets.get("ext-identity", [])):
+        nodes.append(_make_node(pid, PRODUCTS[pid],
+                                X_EXT_ID, Y_EXT_ID_START + i * Y_EXT_ID_SPACE))
+
+    # ── SOURCE (outside left, below ext-id) ──
+    for i, pid in enumerate(zone_buckets.get("source", [])):
+        nodes.append(_make_node(pid, PRODUCTS[pid],
+                                X_SOURCE, Y_SOURCE_START + i * Y_SOURCE_SPACE))
+
+    # ── GCP SECURITY (left column inside GCP, dynamic spacing) ──
+    sec_list = zone_buckets.get("gcp-security", [])
+    max_sec_height = Y_INGESTION - Y_SEC_START  # must fit between top and bottom of GCP
+    sec_spacing = min(Y_SEC_SPACING, max_sec_height // max(len(sec_list), 1))
+    for i, pid in enumerate(sec_list):
+        nodes.append(_make_node(pid, PRODUCTS[pid],
+                                X_GCP_SEC, Y_SEC_START + i * sec_spacing))
+
+    # ── INGESTION L3 (bottom of pipeline, max 2 per row) ──
+    ing_list = zone_buckets.get("ingestion", [])
+    for i, pid in enumerate(ing_list):
+        col = i % 2
+        row = i // 2
+        nodes.append(_make_node(pid, PRODUCTS[pid],
+                                X_PIPELINE + col * NODE_SPACING,
+                                Y_INGESTION + row * VERT_SPACING))
+
+    # ── LANDING L4 ──
+    land_list = zone_buckets.get("landing", [])
+    for i, pid in enumerate(land_list):
+        col = i % 2
+        row = i // 2
+        nodes.append(_make_node(pid, PRODUCTS[pid],
+                                X_PIPELINE + col * NODE_SPACING,
+                                Y_LANDING + row * VERT_SPACING))
+
+    # ── PROCESSING L5 ──
+    proc_list = zone_buckets.get("processing", [])
+    for i, pid in enumerate(proc_list):
+        col = i % 2
+        row = i // 2
+        nodes.append(_make_node(pid, PRODUCTS[pid],
+                                X_PIPELINE + col * NODE_SPACING,
+                                Y_PROCESSING + row * VERT_SPACING))
+
+    # ── MEDALLION L6 (bottom-up: bronze→silver→gold) ──
+    medallion_ys = {
+        "bronze": Y_INGESTION,    # same row as ingestion
+        "silver": Y_LANDING,      # same row as landing
+        "gold":   Y_PROCESSING,   # same row as processing
     }
-    flow_pids.sort(key=lambda p: (PRODUCTS[p]["layer"], FLOW_PRIORITY.get(p, 50), p))
+    for pid in zone_buckets.get("medallion", []):
+        y = medallion_ys.get(pid, Y_PROCESSING)
+        nodes.append(_make_node(pid, PRODUCTS[pid], X_MEDALLION, y))
 
-    layer_counts: Dict[int, int] = {}
-    for pid in flow_pids:
-        prod = PRODUCTS[pid]
-        layer = prod["layer"]
-        idx = layer_counts.get(layer, 0)
-        layer_counts[layer] = idx + 1
-        x = FLOW_X.get(layer, 500)
-        y = FLOW_Y_START + idx * FLOW_Y_SPACING
-        nodes.append(_make_node(pid, prod, x, y))
+    # ── SERVING L7 (top of GCP) ──
+    serving_list = zone_buckets.get("serving", [])
+    primary_serving = [p for p in serving_list if SORT_PRIORITY.get(p, 50) < 10]
+    secondary_serving = [p for p in serving_list if SORT_PRIORITY.get(p, 50) >= 10]
 
-    # Bottom of main flow
-    flow_ys = [n["y"] for n in nodes if BAND.get(n["id"]) is None]
-    max_flow_y = max(flow_ys) if flow_ys else FLOW_Y_START
+    for i, pid in enumerate(primary_serving):
+        nodes.append(_make_node(pid, PRODUCTS[pid],
+                                X_SERVING + i * NODE_SPACING, Y_SERVING))
+    for i, pid in enumerate(secondary_serving):
+        nodes.append(_make_node(pid, PRODUCTS[pid],
+                                X_SERVING_2 + i * NODE_SPACING, Y_PROCESSING))
 
-    # ── 3) GOVERNANCE BAND ──
-    gov_y = max_flow_y + GAP_BELOW_FLOW
-    gov_list = band_lists["governance"]
-    gov_xs = _center_band(len(gov_list))
-    for i, pid in enumerate(gov_list):
-        nodes.append(_make_node(pid, PRODUCTS[pid], gov_xs[i], gov_y))
+    # ── ORCHESTRATION ──
+    for i, pid in enumerate(zone_buckets.get("orchestration", [])):
+        nodes.append(_make_node(pid, PRODUCTS[pid],
+                                X_ORCH + i * NODE_SPACING, Y_ORCH))
 
-    # ── 4) ORCHESTRATION BAND ──
-    orch_y = (gov_y + BAND_GAP) if gov_list else (max_flow_y + GAP_BELOW_FLOW)
-    orch_list = band_lists["orchestration"]
-    orch_xs = _center_band(len(orch_list))
-    for i, pid in enumerate(orch_list):
-        nodes.append(_make_node(pid, PRODUCTS[pid], orch_xs[i], orch_y))
-
-    # ── 5) OBSERVABILITY BAND ──
-    obs_y = orch_y + BAND_GAP
-    obs_list = band_lists["observability"]
-    obs_xs = _center_band(len(obs_list))
+    # ── GCP OBSERVABILITY ──
+    obs_list = zone_buckets.get("gcp-obs", [])
     for i, pid in enumerate(obs_list):
-        nodes.append(_make_node(pid, PRODUCTS[pid], obs_xs[i], obs_y))
+        if i < 2:
+            nodes.append(_make_node(pid, PRODUCTS[pid],
+                                    X_GCP_OBS, Y_LANDING + i * VERT_SPACING))
+        else:
+            nodes.append(_make_node(pid, PRODUCTS[pid],
+                                    X_GCP_OBS_2, Y_LANDING + (i - 2) * VERT_SPACING))
 
-    # ══ EDGES ══
+    # ── Find the bottom of GCP content ──
+    gcp_bottom = Y_INGESTION  # minimum
+    for n in nodes:
+        z = PRODUCTS.get(n["id"], {}).get("zone", "")
+        if z in GCP_ZONES:
+            gcp_bottom = max(gcp_bottom, n["y"])
+    gcp_bottom += 130  # room below last node
+
+    # ── GOVERNANCE (below GCP content) ──
+    gov_y = gcp_bottom + 30
+    gov_list = zone_buckets.get("governance", [])
+    for i, pid in enumerate(gov_list):
+        nodes.append(_make_node(pid, PRODUCTS[pid],
+                                X_EXT_LOG + i * NODE_SPACING, gov_y))
+
+    # ── EXTERNAL LOGGING (below governance) ──
+    ext_y = gov_y + (VERT_SPACING if gov_list else 0) + 60
+    for i, pid in enumerate(zone_buckets.get("ext-log", [])):
+        nodes.append(_make_node(pid, PRODUCTS[pid],
+                                X_EXT_LOG + i * NODE_SPACING, ext_y))
+
+    # ── EXTERNAL ALERTING (same row as ext-log) ──
+    for i, pid in enumerate(zone_buckets.get("ext-alert", [])):
+        nodes.append(_make_node(pid, PRODUCTS[pid],
+                                X_EXT_ALERT + i * NODE_SPACING, ext_y))
+
+    # ══════════════════════════════════════════════
+    # EDGES
+    # ══════════════════════════════════════════════
     node_ids = {n["id"] for n in nodes}
     edge_id = 0
     seen_pairs: set = set()
@@ -350,46 +510,69 @@ def build_diagram(keep_set: Set[str], title: str,
                 continue
             seen_pairs.add(pair)
             edge_id += 1
+
             edge: Dict[str, Any] = {
                 "id": f"e{edge_id}",
                 "from": fid,
                 "to": to_id,
                 "label": rule.get("label", ""),
-                "step": rule.get("step", 0),
                 "edgeType": rule.get("edgeType", "data"),
             }
-            from_zone = PRODUCTS.get(fid, {}).get("zone")
-            to_zone = PRODUCTS.get(to_id, {}).get("zone")
-            if from_zone == "sources" and to_zone == "cloud":
+
+            # Boundary crossing
+            from_zone = PRODUCTS.get(fid, {}).get("zone", "")
+            to_zone = PRODUCTS.get(to_id, {}).get("zone", "")
+            if from_zone == "source" and to_zone in GCP_ZONES:
                 edge["crossesBoundary"] = True
-                edge["step"] = 0
-            if from_zone == "cloud" and to_zone == "consumers":
+            if to_zone == "consumer":
                 edge["crossesBoundary"] = True
+
+            # Security metadata
             if "security" in rule:
                 edge["security"] = rule["security"]
-            elif edge.get("crossesBoundary"):
-                edge["security"] = {
-                    "transport": "TLS 1.3",
-                    "auth": "Service Account + IAM",
-                    "classification": "Internal",
-                    "private": True,
-                }
+
             edges.append(edge)
 
-    # ══ PHASES ══
+    # ══════════════════════════════════════════════
+    # ZONE BOXES (for frontend rendering)
+    # ══════════════════════════════════════════════
+    active_zones = set()
+    for n in nodes:
+        z = PRODUCTS.get(n["id"], {}).get("zone", "")
+        active_zones.add(z)
+        if z in GCP_ZONES:
+            active_zones.add("gcp")
+        if z in PIPELINE_ZONES:
+            active_zones.add("pipeline")
+
+    zones_out = []
+    for zd in ZONE_DEFS:
+        zid = zd["id"]
+        # Only include zones that have nodes (or GCP/pipeline wrappers)
+        if zid == "gcp" and "gcp" in active_zones:
+            zones_out.append(zd)
+        elif zid == "pipeline" and "pipeline" in active_zones:
+            zones_out.append(zd)
+        elif zid in active_zones:
+            zones_out.append(zd)
+
+    # ══════════════════════════════════════════════
+    # PHASES
+    # ══════════════════════════════════════════════
     phase_map = [
-        ("ingestion", "Ingestion", [1, 2, 3]),
-        ("landing",   "Landing & Storage", [4]),
-        ("transform", "Transform", [5, 6]),
-        ("serve",     "Serve & Consume", [7, 8]),
+        ("ingestion", "Ingestion", {"source", "ext-identity", "gcp-security", "ingestion"}),
+        ("landing",   "Landing & Storage", {"landing"}),
+        ("transform", "Transform", {"processing", "medallion"}),
+        ("serve",     "Serve & Consume", {"serving", "consumer"}),
     ]
     phases = []
-    for pid, pname, layers in phase_map:
-        nids = [n["id"] for n in nodes if PRODUCTS.get(n["id"], {}).get("layer") in layers]
+    for pid, pname, zone_set in phase_map:
+        nids = [n["id"] for n in nodes if PRODUCTS.get(n["id"], {}).get("zone") in zone_set]
         if nids:
             phases.append({"id": pid, "name": pname, "nodeIds": nids})
 
-    ops_ids = [n["id"] for n in nodes if BAND.get(n["id"]) in ("orchestration", "observability")]
+    ops_ids = [n["id"] for n in nodes if PRODUCTS.get(n["id"], {}).get("zone") in
+               {"orchestration", "gcp-obs", "ext-log", "ext-alert", "governance"}]
     ops_group = {"name": "Operations & Observability", "nodeIds": ops_ids} if ops_ids else None
 
     diagram = {
@@ -398,6 +581,8 @@ def build_diagram(keep_set: Set[str], title: str,
         "nodes": nodes,
         "edges": edges,
         "phases": phases,
+        "zones": zones_out,
+        "colors": COLORS,
     }
     if ops_group:
         diagram["opsGroup"] = ops_group
