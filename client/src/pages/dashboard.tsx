@@ -1652,7 +1652,6 @@ export default function Dashboard({ user }: { user: User }) {
           {TABS.map(t => (<button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "8px 16px", background: tab === t.id ? "#f0f7ff" : "none", border: tab === t.id ? "1px solid #4285f4" : "1px solid transparent", borderRadius: 8, fontSize: 12, fontWeight: tab === t.id ? 700 : 500, color: tab === t.id ? "#1a73e8" : "#888", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, transition: "all .12s" }}>
             <span>{t.icon}</span>{t.l}</button>))}
           <div style={{ flex: 1 }} />
-          {source && diag?.layout !== "blueprint" && <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 14, background: source === "template" ? "#e8f5e9" : source === "mingrammer" ? "#ecfdf5" : "#fff3e0", color: source === "template" ? "#2e7d32" : source === "mingrammer" ? "#047857" : "#e65100", fontWeight: 700 }}>{source === "template" ? "⚡ Template — instant, $0" : source === "mingrammer" ? "🔧 Mingrammer — real GCP icons, $0" : source === "knowledge-engine" ? "🧠 Knowledge Engine — $0" : "🤖 AI Generated"}</span>}
         </div>}
         {!diag && !loading && (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: THEMES[theme]?.bg || "#f8f9fa" }}>
@@ -1689,12 +1688,6 @@ export default function Dashboard({ user }: { user: User }) {
               </div>
             )}
 
-            {/* Edit Mode Toggle */}
-            {!editMode && (
-              <div style={{ position: "absolute", top: decisions.length > 0 ? 116 : 16, right: 16, zIndex: 100 }}>
-                <button onClick={startEditing} style={{ background: "linear-gradient(135deg, #1a73e8, #4285f4)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(26, 115, 232, 0.3)", display: "flex", alignItems: "center", gap: 6 }}>✏️ Edit Architecture</button>
-              </div>
-            )}
             {editMode && (
               <div style={{ position: "absolute", top: decisions.length > 0 ? 116 : 16, right: 16, zIndex: 100 }}>
                 <button onClick={() => { if (isDirty && confirm("You have unsaved changes. Exit editing anyway?")) { setDiag(originalDiagram!); } setEditMode(false); setIsDirty(false); setHistory([]); setHistoryIndex(-1); setOriginalDiagram(null); setConnectMode(false); setConnectSource(null); }} style={{ background: isDirty ? "#ef4444" : "#22c55e", color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>{isDirty ? "✕ Exit (Unsaved)" : "✓ Done Editing"}</button>
@@ -1746,45 +1739,11 @@ export default function Dashboard({ user }: { user: User }) {
               return (<div style={{ position: "absolute", left: px, top: py, zIndex: 200 }}><EdgeEditPop edge={edge} nodes={diag.nodes} onClose={() => setPopover(null)} onUpdate={updateEdge} onDelete={deleteEdge} /></div>);
             })()}
             <ServicePalette visible={showServicePalette} onClose={() => setShowServicePalette(false)} onAddNode={addNode} resolveIcon={iconUrl} />
-
-            {/* Bottom info bar — PNG download, products, source */}
-            <div style={{ padding: "6px 14px", borderTop: "1px solid #e5e7eb", background: "#fff", display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 9, padding: "3px 10px", borderRadius: 14, background: "#ecfdf5", color: "#047857", fontWeight: 700 }}>🔧 Mingrammer — {costInfo?.estimatedCost || "$0.00"}</span>
-              <span style={{ fontSize: 9, color: "#6b7280" }}>{keptProducts.length} products · {removedProducts.length} skipped</span>
-              <div style={{ flex: 1 }} />
-              {pngUrl && <a href={pngUrl} download={`${diag.title || "architecture"}.png`} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontWeight: 500, textDecoration: "none", color: "#333" }}>⬇ PNG (real icons)</a>}
-              {pythonSource && <button onClick={() => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([pythonSource], { type: "text/plain" })); a.download = "architecture.py"; a.click(); }} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer", fontWeight: 500 }}>⬇ Python</button>}
-            </div>
           </div>
         )}
         {diag && tab === "diagram" && source !== "mingrammer" && diag.layout !== "blueprint" && diag.layout !== "gcp_blueprint" && (
           <div ref={diagAreaRef} style={{ position: "relative", flex: 1, display: "flex", flexDirection: "column", background: THEMES[theme]?.bg || "#f8f9fa", overflow: "hidden" }}>
             
-            {/* Edit Mode Toggle Button */}
-            {!editMode && diag && (
-              <div style={{ position: "absolute", top: 16, right: 16, zIndex: 100 }}>
-                <button
-                  onClick={startEditing}
-                  style={{
-                    background: "linear-gradient(135deg, #1a73e8, #4285f4)",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 8,
-                    padding: "10px 16px",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    boxShadow: "0 4px 12px rgba(26, 115, 232, 0.3)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6
-                  }}
-                >
-                  ✏️ Edit Architecture
-                </button>
-              </div>
-            )}
-
             {/* Exit Edit Mode Button */}
             {editMode && (
               <div style={{ position: "absolute", top: 16, right: 16, zIndex: 100 }}>
