@@ -39,7 +39,7 @@ RUN pip3 install diagrams --break-system-packages
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
-COPY --from=builder /app/server/engine ./dist/engine
+COPY --from=builder /app/server/engine ./server/engine
 
 # Create output directory for generated PNGs
 RUN mkdir -p generated-diagrams

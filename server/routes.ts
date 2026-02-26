@@ -11,7 +11,6 @@ import { sliceBlueprint } from "./blueprint-slicer";
 import { generateDiagram, checkEngine } from "./mingrammer-engine";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
 import { 
   REQUIREMENTS_PROMPT, 
   PRINCIPLES_PROMPT, 
@@ -22,11 +21,8 @@ import {
   type ArchitectureReasoning 
 } from "./chain-of-thought-generator";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 // Directory for generated mingrammer PNGs
-const DIAGRAMS_DIR = path.join(__dirname, "..", "generated-diagrams");
+const DIAGRAMS_DIR = path.join(process.cwd(), "generated-diagrams");
 if (!fs.existsSync(DIAGRAMS_DIR)) fs.mkdirSync(DIAGRAMS_DIR, { recursive: true });
 
 // In-memory storage for chain-of-thought sessions (could be moved to database)
