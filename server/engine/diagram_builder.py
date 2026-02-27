@@ -35,40 +35,74 @@ from typing import Set, Dict, List, Any
 # ═══════════════════════════════════════════════════════════
 
 ID_MAP: Dict[str, str] = {
-    # Sources (L1)
+    # ── Sources (L1) — all SOURCE_KEYWORDS keys ──
     "src_oracle": "oracle_db", "src_sqlserver": "sqlserver_db",
     "src_postgresql": "postgresql_db", "src_mongodb": "mongodb_db",
-    "src_mysql": "oracle_db",  # fallback
-    "src_s3": "aws_s3", "src_salesforce": "salesforce",
-    "src_workday": "workday", "src_servicenow": "servicenow_src",
-    "src_sap": "sap_src", "src_kafka": "kafka_stream",
-    "src_cloud_sql": "cloud_sql", "src_sftp": "sftp_server",
-    # Connectivity (L2)
+    "src_mysql": "mysql_db", "src_mainframe": "mainframe_src",
+    "src_s3": "aws_s3", "src_snowflake": "snowflake_src",
+    "src_aws_rds": "aws_rds_src", "src_azure_blob": "azure_blob_src",
+    "src_dynamodb": "dynamodb_src",
+    "src_salesforce": "salesforce", "src_workday": "workday",
+    "src_servicenow": "servicenow_src", "src_sap": "sap_src",
+    "src_hubspot": "hubspot_src", "src_jira": "jira_src",
+    "src_zendesk": "zendesk_src", "src_netsuite": "netsuite_src",
+    "src_shopify": "shopify_src", "src_stripe": "stripe_src",
+    "src_dynamics365": "dynamics365_src",
+    "src_google_ads": "google_ads_src", "src_google_analytics": "ga_src",
+    "src_marketo": "marketo_src", "src_facebook_ads": "fb_ads_src",
+    "src_kafka": "kafka_stream", "src_confluent": "kafka_stream",
+    "src_kinesis": "kinesis_src", "src_event_hubs": "event_hubs_src",
+    "src_cloud_sql": "cloud_sql", "src_firestore": "firestore_src",
+    "src_alloydb": "alloydb_src", "src_gcs": "gcs_src",
+    "src_sftp": "sftp_server",
+
+    # ── Connectivity (L2) ──
     "conn_iam": "cloud_iam", "conn_cloud_identity": "cloud_iam",
+    "conn_identity_platform": "cloud_iam",
     "conn_secret_manager": "secret_manager", "conn_vpn": "cloud_vpn",
     "conn_vpc": "vpc", "conn_armor": "cloud_armor",
     "conn_apigee": "apigee", "conn_entra_id": "entra_id",
-    "conn_cyberark": "cyberark",
-    # Ingestion (L3)
+    "conn_cyberark": "cyberark", "conn_keeper": "cyberark",
+    "conn_kms": "cloud_kms",
+    "conn_interconnect": "cloud_vpn",  # map to VPN (similar role)
+    "conn_dns": "vpc",  # fold into VPC
+    "conn_api_gateway": "apigee",  # fold into Apigee
+
+    # ── Ingestion (L3) ──
     "ing_pubsub": "pubsub", "ing_dataflow": "dataflow_ing",
     "ing_datastream": "datastream", "ing_functions": "cloud_functions",
     "ing_fivetran": "fivetran", "ing_matillion": "matillion",
-    # Landing (L4)
+    "ing_bq_dts": "bq_dts", "ing_storage_transfer": "storage_transfer",
+    "ing_data_fusion": "data_fusion",
+
+    # ── Landing (L4) ──
     "lake_gcs": "gcs_raw", "lake_bq_staging": "bq_staging",
-    # Processing (L5)
+
+    # ── Processing (L5) ──
     "proc_bq_sql": "dataform", "proc_dataflow": "dataflow_proc",
     "proc_dataproc": "dataproc", "proc_dlp": "cloud_dlp",
     "proc_matillion": "matillion",
-    # Serving (L7)
+
+    # ── Medallion (L6) — direct match, no mapping needed ──
+    # bronze, silver, gold already exist in PRODUCTS
+
+    # ── Serving (L7) ──
     "serve_looker": "looker", "serve_run": "cloud_run",
     "serve_hub": "analytics_hub", "serve_bi_engine": "looker",
-    # Consumers (L8)
+    "serve_vertex": "vertex_ai", "serve_looker_studio": "looker_studio",
+
+    # ── Consumers (L8) ──
     "con_looker": "analysts", "con_run": "downstream_sys",
     "con_hub": "downstream_sys", "con_powerbi": "executives",
     "con_vertex": "data_scientists",
-    # Pillars → Crosscutting
-    "pillar_sec": "scc_pillar", "pillar_gov": "dataplex",
-    "pillar_obs": "cloud_monitoring", "pillar_orch": "cloud_composer",
+    "con_sheets": "analysts", "con_tableau": "executives",
+    "con_slicer": "executives",
+
+    # ── Pillars → Crosscutting ──
+    "pillar_sec": "cloud_iam",  # security pillar → IAM (primary security node)
+    "pillar_gov": "dataplex",
+    "pillar_obs": "cloud_monitoring",
+    "pillar_orch": "cloud_composer",
 }
 
 # Zone mapping: gcp_blueprint layer prefixes → diagram_builder zones
@@ -168,13 +202,35 @@ PRODUCTS: Dict[str, Dict[str, Any]] = {
     "sqlserver_db":    {"name": "SQL Server",        "icon": "sqlserver",   "zone": "source",   "subtitle": "On-prem RDBMS"},
     "postgresql_db":   {"name": "PostgreSQL",        "icon": "postgresql",  "zone": "source",   "subtitle": "WAL-based CDC"},
     "mongodb_db":      {"name": "MongoDB",           "icon": "mongodb",     "zone": "source",   "subtitle": "Change streams"},
-    "aws_s3":          {"name": "AWS S3",            "icon": "aws_s3",      "zone": "source",   "subtitle": "Cross-cloud"},
+    "mysql_db":        {"name": "MySQL",             "icon": "mysql",       "zone": "source",   "subtitle": "On-prem RDBMS"},
+    "mainframe_src":   {"name": "Mainframe",         "icon": "mainframe",   "zone": "source",   "subtitle": "Legacy / MQ"},
+    "aws_s3":          {"name": "AWS S3",            "icon": "aws_s3",      "zone": "source",   "subtitle": "Cross-cloud storage"},
+    "snowflake_src":   {"name": "Snowflake",         "icon": "snowflake",   "zone": "source",   "subtitle": "Cross-cloud DW"},
+    "aws_rds_src":     {"name": "AWS RDS",           "icon": "aws_s3",      "zone": "source",   "subtitle": "Cross-cloud DB"},
+    "azure_blob_src":  {"name": "Azure Blob",        "icon": "azure",       "zone": "source",   "subtitle": "Cross-cloud storage"},
+    "dynamodb_src":    {"name": "DynamoDB",          "icon": "aws_s3",      "zone": "source",   "subtitle": "Cross-cloud NoSQL"},
     "salesforce":      {"name": "Salesforce",        "icon": "salesforce",  "zone": "source",   "subtitle": "CRM SaaS"},
     "workday":         {"name": "Workday",           "icon": "workday",     "zone": "source",   "subtitle": "HCM SaaS"},
     "servicenow_src":  {"name": "ServiceNow",        "icon": "servicenow",  "zone": "source",   "subtitle": "ITSM SaaS"},
-    "sap_src":         {"name": "SAP ERP",           "icon": "sap",         "zone": "source",   "subtitle": "OData/BAPI"},
+    "sap_src":         {"name": "SAP ERP",           "icon": "sap",         "zone": "source",   "subtitle": "OData / BAPI"},
+    "hubspot_src":     {"name": "HubSpot",           "icon": "hubspot",     "zone": "source",   "subtitle": "Inbound CRM"},
+    "jira_src":        {"name": "Jira",              "icon": "jira",        "zone": "source",   "subtitle": "Issue tracking"},
+    "zendesk_src":     {"name": "Zendesk",           "icon": "zendesk",     "zone": "source",   "subtitle": "Support SaaS"},
+    "netsuite_src":    {"name": "NetSuite",          "icon": "netsuite",    "zone": "source",   "subtitle": "ERP SaaS"},
+    "shopify_src":     {"name": "Shopify",           "icon": "shopify",     "zone": "source",   "subtitle": "eCommerce"},
+    "stripe_src":      {"name": "Stripe",            "icon": "stripe",      "zone": "source",   "subtitle": "Payments API"},
+    "dynamics365_src": {"name": "Dynamics 365",      "icon": "dynamics365", "zone": "source",   "subtitle": "Microsoft ERP/CRM"},
+    "google_ads_src":  {"name": "Google Ads",        "icon": "google_ads",  "zone": "source",   "subtitle": "Ad platform"},
+    "ga_src":          {"name": "Google Analytics",   "icon": "google_analytics", "zone": "source", "subtitle": "Web analytics"},
+    "fb_ads_src":      {"name": "Facebook Ads",      "icon": "facebook",    "zone": "source",   "subtitle": "Ad platform"},
+    "marketo_src":     {"name": "Marketo",           "icon": "marketo",     "zone": "source",   "subtitle": "Marketing automation"},
     "kafka_stream":    {"name": "Kafka",             "icon": "kafka",       "zone": "source",   "subtitle": "Event streaming"},
+    "kinesis_src":     {"name": "AWS Kinesis",       "icon": "aws_s3",      "zone": "source",   "subtitle": "Cross-cloud stream"},
+    "event_hubs_src":  {"name": "Event Hubs",        "icon": "azure",       "zone": "source",   "subtitle": "Azure streaming"},
     "cloud_sql":       {"name": "Cloud SQL",         "icon": "cloud_sql",   "zone": "source",   "subtitle": "GCP-native DB"},
+    "firestore_src":   {"name": "Firestore",         "icon": "firestore",   "zone": "source",   "subtitle": "GCP NoSQL"},
+    "alloydb_src":     {"name": "AlloyDB",           "icon": "cloud_sql",   "zone": "source",   "subtitle": "GCP PostgreSQL"},
+    "gcs_src":         {"name": "GCS Bucket",        "icon": "cloud_storage","zone": "source",   "subtitle": "GCP storage"},
     "sftp_server":     {"name": "SFTP Server",       "icon": "sftp_server", "zone": "source",   "subtitle": "Legacy file transfer"},
 
     # ── L2: GCP Security (left column inside GCP) ──
@@ -292,17 +348,39 @@ SORT_PRIORITY = {
 # ═══════════════════════════════════════════════════════════
 
 EDGE_RULES = [
-    # Source → Ingestion
-    {"from_any": ["oracle_db", "sqlserver_db", "postgresql_db"], "to": "datastream",   "label": "CDC", "edgeType": "data", "security": {"transport": "TLS 1.3 + IPSec", "auth": "Service Account", "classification": "PII / Confidential", "private": True}},
+    # ── Source → Ingestion: On-prem RDBMS (CDC via Datastream) ──
+    {"from_any": ["oracle_db", "sqlserver_db", "postgresql_db", "mysql_db"], "to": "datastream", "label": "CDC", "edgeType": "data", "security": {"transport": "TLS 1.3 + IPSec", "auth": "Service Account", "classification": "PII / Confidential", "private": True}},
     {"from_any": ["mongodb_db"],                                 "to": "datastream",   "label": "Change stream", "edgeType": "data", "security": {"transport": "TLS 1.3", "auth": "x509 cert", "classification": "PII", "private": True}},
-    {"from_any": ["kafka_stream"],                               "to": "pubsub",       "label": "Events", "edgeType": "data", "security": {"transport": "TLS 1.3", "auth": "SASL/OAuth", "classification": "Transactional", "private": True}},
+    {"from_any": ["mainframe_src"],                              "to": "cloud_functions", "label": "MQ / Flat file", "edgeType": "data"},
+
+    # ── Source → Ingestion: Cross-cloud (Datastream / Storage Transfer / Functions) ──
+    {"from_any": ["aws_s3", "azure_blob_src"],                   "to": "storage_transfer", "label": "Bulk copy", "edgeType": "data"},
+    {"from_any": ["aws_s3", "azure_blob_src"],                   "to": "cloud_functions",  "label": "Event trigger", "edgeType": "data"},
+    {"from_any": ["aws_s3", "azure_blob_src"],                   "to": "datastream",       "label": "Cross-cloud CDC", "edgeType": "data"},
     {"from_any": ["aws_s3"],                                     "to": "bq_dts",       "label": "S3 → BQ", "edgeType": "data"},
-    {"from_any": ["aws_s3"],                                     "to": "storage_transfer", "label": "Bulk copy", "edgeType": "data"},
-    {"from_any": ["salesforce", "workday", "servicenow_src"],    "to": "cloud_functions", "label": "API pull", "edgeType": "data"},
-    {"from_any": ["salesforce", "workday", "servicenow_src"],    "to": "fivetran",     "label": "Managed ELT", "edgeType": "data"},
+    {"from_any": ["aws_rds_src"],                                "to": "datastream",   "label": "CDC", "edgeType": "data"},
+    {"from_any": ["snowflake_src"],                              "to": "bq_dts",       "label": "Snowflake → BQ", "edgeType": "data"},
+    {"from_any": ["snowflake_src"],                              "to": "cloud_functions","label": "API extract", "edgeType": "data"},
+    {"from_any": ["snowflake_src"],                              "to": "datastream",    "label": "Federated query", "edgeType": "data"},
+    {"from_any": ["dynamodb_src"],                               "to": "cloud_functions", "label": "DynamoDB Streams", "edgeType": "data"},
+    {"from_any": ["dynamodb_src"],                               "to": "datastream",   "label": "CDC", "edgeType": "data"},
+
+    # ── Source → Ingestion: Cross-cloud streaming (→ Pub/Sub) ──
+    {"from_any": ["kafka_stream", "kinesis_src", "event_hubs_src"], "to": "pubsub", "label": "Events", "edgeType": "data", "security": {"transport": "TLS 1.3", "auth": "SASL/OAuth", "classification": "Transactional", "private": True}},
+
+    # ── Source → Ingestion: SaaS (API pull via Cloud Functions / Fivetran) ──
+    {"from_any": ["salesforce", "workday", "servicenow_src", "hubspot_src", "jira_src", "zendesk_src", "netsuite_src", "dynamics365_src"], "to": "cloud_functions", "label": "API pull", "edgeType": "data"},
+    {"from_any": ["salesforce", "workday", "servicenow_src", "hubspot_src", "jira_src", "zendesk_src", "netsuite_src", "dynamics365_src"], "to": "fivetran", "label": "Managed ELT", "edgeType": "data"},
+    {"from_any": ["shopify_src", "stripe_src"],                  "to": "cloud_functions", "label": "Webhook / API", "edgeType": "data"},
+    {"from_any": ["shopify_src", "stripe_src"],                  "to": "fivetran",     "label": "Managed ELT", "edgeType": "data"},
+    {"from_any": ["google_ads_src", "fb_ads_src", "ga_src", "marketo_src"], "to": "cloud_functions", "label": "API pull", "edgeType": "data"},
+    {"from_any": ["google_ads_src", "fb_ads_src", "ga_src", "marketo_src"], "to": "fivetran", "label": "Managed ELT", "edgeType": "data"},
     {"from_any": ["sap_src"],                                    "to": "data_fusion",  "label": "OData", "edgeType": "data"},
     {"from_any": ["sftp_server"],                                "to": "cloud_functions", "label": "File pull", "edgeType": "data"},
-    {"from_any": ["cloud_sql"],                                  "to": "datastream",   "label": "CDC", "edgeType": "data"},
+
+    # ── Source → Ingestion: GCP-native ──
+    {"from_any": ["cloud_sql", "alloydb_src", "firestore_src"],  "to": "datastream",   "label": "CDC", "edgeType": "data"},
+    {"from_any": ["gcs_src"],                                    "to": "storage_transfer", "label": "Transfer", "edgeType": "data"},
 
     # Ingestion → Landing
     {"from_any": ["datastream", "cloud_functions", "data_fusion", "storage_transfer"], "to": "gcs_raw", "label": "Raw files", "edgeType": "data"},
