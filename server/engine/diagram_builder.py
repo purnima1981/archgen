@@ -356,6 +356,28 @@ EDGE_RULES = [
     {"from_any": ["cloud_monitoring"],"to": "wiz_cspm",       "label": "Posture", "edgeType": "alert"},
     {"from_any": ["cloud_logging"],   "to": "splunk_siem",    "label": "Log export", "edgeType": "observe"},
     {"from_any": ["cloud_logging"],   "to": "dynatrace_apm",  "label": "Traces", "edgeType": "observe"},
+
+    # ── Cross-cutting: Security governs pipeline access ──
+    {"from_any": ["cloud_iam"],       "to": "datastream",      "label": "Authorize", "edgeType": "identity"},
+    {"from_any": ["cloud_iam"],       "to": "dataflow_ing",    "label": "Authorize", "edgeType": "identity"},
+    {"from_any": ["cloud_iam"],       "to": "pubsub",          "label": "Authorize", "edgeType": "identity"},
+    {"from_any": ["cloud_iam"],       "to": "cloud_functions", "label": "Authorize", "edgeType": "identity"},
+    {"from_any": ["cloud_iam"],       "to": "looker",          "label": "RBAC", "edgeType": "identity"},
+    {"from_any": ["cloud_iam"],       "to": "cloud_run",       "label": "RBAC", "edgeType": "identity"},
+    {"from_any": ["vpc", "vpc_sc"],   "to": "datastream",      "label": "Perimeter", "edgeType": "identity"},
+    {"from_any": ["vpc", "vpc_sc"],   "to": "pubsub",          "label": "Perimeter", "edgeType": "identity"},
+    {"from_any": ["cloud_armor"],     "to": "cloud_run",       "label": "WAF", "edgeType": "identity"},
+    {"from_any": ["cloud_armor"],     "to": "apigee",          "label": "WAF", "edgeType": "identity"},
+
+    # ── Cross-cutting: Pipeline → Observability (emits metrics/logs) ──
+    {"from_any": ["datastream", "cloud_functions", "data_fusion", "dataflow_ing", "pubsub"], "to": "cloud_logging", "label": "Logs", "edgeType": "observe"},
+    {"from_any": ["dataform", "dataflow_proc", "dataproc"],       "to": "cloud_logging", "label": "Logs", "edgeType": "observe"},
+    {"from_any": ["looker", "cloud_run", "analytics_hub"],        "to": "cloud_monitoring", "label": "Metrics", "edgeType": "observe"},
+
+    # ── Cross-cutting: Governance spans data pipeline ──
+    {"from_any": ["dataplex", "dataplex_dq"], "to": "gold",   "label": "Quality", "edgeType": "control"},
+    {"from_any": ["cloud_dlp"],               "to": "bronze",  "label": "PII scan", "edgeType": "control"},
+    {"from_any": ["data_catalog"],            "to": "gold",    "label": "Lineage", "edgeType": "control"},
 ]
 
 
