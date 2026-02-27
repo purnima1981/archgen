@@ -1414,52 +1414,94 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
           );
         })}
 
-        {/* Phase groups — for L1, L2, and Vendor (L3-L7 are shown as layer bands inside GCP) */}
-        {phaseBounds.filter(p => p.name.includes("L1") || p.name.includes("L2") || p.name.includes("Vendor")).map((p, i) => {
-          const isL2 = p.name.includes("L2");
-          return (<g key={p.id} onMouseDown={e => startGroupDrag(p.nodeIds, e)} style={{ cursor: "move" }}>
-            <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={10} fill={isL2 ? "rgba(244,114,182,0.06)" : "rgba(148,163,184,0.04)"} stroke={isL2 ? "rgba(244,114,182,0.3)" : "rgba(148,163,184,0.2)"} strokeWidth={1} strokeDasharray="5 3" />
-            <text x={p.x + p.w / 2} y={p.y - 6} textAnchor="middle" style={{ fontSize: 8, fontWeight: 700, fill: isL2 ? "#be185d" : "#78909c", letterSpacing: 1, pointerEvents: "none" }}>{p.name.toUpperCase()}</text>
-          </g>);
-        })}
+        {/* Phase groups removed — backend zones handle all grouping now */}
 
-        {/* Layer bands removed — backend zones handle all layer rendering now */}
+        {/* ═══ ZONE-TO-ZONE FLOW ARROWS ═══ */}
+        {(() => {
+          const zoneRects = new Map<string, any>(diag.zones.map((z: any) => [z.id, z]));
+          const pipeZones = new Set(["ingestion", "landing", "processing", "medallion"]);
+          const vizZone = (subZ: string) => pipeZones.has(subZ) ? "data-pipeline" : subZ;
 
-        {/* Ops group — removed: zones handle this now */}
+          // Collect unique zone pairs from edges
+          const pairs = new Map<string, { from: string; to: string; type: string; labels: string[] }>();
+          diag.edges.forEach(edge => {
+            const fn = diag.nodes.find(n => n.id === edge.from), tn = diag.nodes.find(n => n.id === edge.to);
+            if (!fn || !tn) return;
+            const fz = vizZone(fn.subZone), tz = vizZone(tn.subZone);
+            if (fz === tz) return;
+            const key = `${fz}→${tz}`;
+            if (!pairs.has(key)) pairs.set(key, { from: fz, to: tz, type: edge.edgeType || "data", labels: [] });
+            const p = pairs.get(key)!;
+            if (edge.label && !p.labels.includes(edge.label)) p.labels.push(edge.label);
+            // Upgrade type priority: data > identity > control > observe > alert
+            const pri: Record<string, number> = { data: 5, identity: 4, control: 3, observe: 2, alert: 1 };
+            if ((pri[edge.edgeType || "data"] || 0) > (pri[p.type] || 0)) p.type = edge.edgeType || "data";
+          });
 
-        {/* Edges */}
-        {diag.edges.map(edge => {
+          // Find point on zone border closest to target center
+          const zEdge = (z: any, tx: number, ty: number) => {
+            const cx = z.x + z.w / 2, cy = z.y + z.h / 2;
+            const dx = tx - cx, dy = ty - cy;
+            if (dx === 0 && dy === 0) return { x: cx, y: cy };
+            const sx = (z.w / 2) / Math.abs(dx || 0.001);
+            const sy = (z.h / 2) / Math.abs(dy || 0.001);
+            const s = Math.min(sx, sy);
+            return { x: cx + dx * s, y: cy + dy * s };
+          };
+
+          const typeColors: Record<string, string> = { data: "#1a73e8", identity: "#7C3AED", control: "#7986cb", observe: "#78909c", alert: "#e53935" };
+          const typeMarkers: Record<string, string> = { data: "url(#aB)", identity: "url(#aC)", control: "url(#aC)", observe: "url(#aD)", alert: "url(#aR)" };
+
+          return Array.from(pairs.values()).map((p, i) => {
+            const fz = zoneRects.get(p.from), tz = zoneRects.get(p.to);
+            if (!fz || !tz) return null;
+            const fcx = fz.x + fz.w / 2, fcy = fz.y + fz.h / 2;
+            const tcx = tz.x + tz.w / 2, tcy = tz.y + tz.h / 2;
+            const fp = zEdge(fz, tcx, tcy), tp = zEdge(tz, fcx, fcy);
+
+            const dx = tp.x - fp.x, dy = tp.y - fp.y;
+            const isH = Math.abs(dx) > Math.abs(dy);
+            const mx = (fp.x + tp.x) / 2, my = (fp.y + tp.y) / 2;
+            const path = isH
+              ? `M${fp.x},${fp.y} C${mx},${fp.y} ${mx},${tp.y} ${tp.x},${tp.y}`
+              : `M${fp.x},${fp.y} C${fp.x},${my} ${tp.x},${my} ${tp.x},${tp.y}`;
+
+            const col = typeColors[p.type] || typeColors.data;
+            const mk = typeMarkers[p.type] || typeMarkers.data;
+            const label = p.labels.length <= 2 ? p.labels.join(", ") : `${p.labels.length} flows`;
+
+            return (<g key={`zf-${i}`}>
+              <path d={path} fill="none" stroke={col} strokeWidth={2.5} markerEnd={mk} opacity={0.55} />
+              {label && (() => {
+                // Offset label to avoid overlapping the line
+                const nx = isH ? mx : mx + 12;
+                const ny = isH ? my - 10 : my;
+                const tw = label.length * 4.5 + 12;
+                return (<g>
+                  <rect x={nx - tw / 2} y={ny - 8} width={tw} height={14} rx={4} fill={isDark ? "#1e1e1e" : "#fff"} fillOpacity={0.9} stroke={col} strokeWidth={0.5} opacity={0.7} />
+                  <text x={nx} y={ny + 2} textAnchor="middle" style={{ fontSize: 7.5, fontWeight: 600, fill: col, opacity: 0.9 }}>{label}</text>
+                </g>);
+              })()}
+            </g>);
+          });
+        })()}
+
+        {/* ═══ NODE-TO-NODE EDGES — only shown when a node is selected ═══ */}
+        {sel && diag.edges.filter(e => e.from === sel || e.to === sel).map(edge => {
           const fn = diag.nodes.find(n => n.id === edge.from), tn = diag.nodes.find(n => n.id === edge.to); if (!fn || !tn) return null;
-          const isCtrl = edge.edgeType === "control", isObs = edge.edgeType === "observe", isAlert = edge.edgeType === "alert", isOps = isCtrl || isObs || isAlert;
+          const isCtrl = edge.edgeType === "control", isObs = edge.edgeType === "observe", isAlert = edge.edgeType === "alert";
           const { path, mx, my } = edgePath(fn.x, fn.y, tn.x, tn.y);
-          const sc = edge.security, sel = popover?.type === "edge" && popover.id === edge.id;
-          let col: string, dash: string, w: number, mk: string;
-          if (sel) { col = "#1a73e8"; dash = ""; w = 3; mk = "url(#aB)"; }
-          else if (isAlert) { col = "#e53935"; dash = "6 4"; w = 1.5; mk = "url(#aR)"; }
-          else if (isCtrl) { col = "#7986cb"; dash = "5 5"; w = 1.5; mk = "url(#aC)"; }
-          else if (isObs) { col = isDark ? "#546e7a" : "#90a4ae"; dash = "3 5"; w = 1; mk = "url(#aD)"; }
-          else if (sc?.private) { col = "#43a047"; dash = ""; w = 2; mk = "url(#aG)"; }
-          else if (sc) { col = "#e65100"; dash = ""; w = 2; mk = "url(#aO)"; }
-          else { col = isDark ? "#546e7a" : "#90a4ae"; dash = ""; w = 1.5; mk = "url(#aD)"; }
+          const sc = edge.security;
+          let col: string, mk: string, w: number;
+          if (isAlert) { col = "#e53935"; mk = "url(#aR)"; w = 1.5; }
+          else if (isCtrl) { col = "#7986cb"; mk = "url(#aC)"; w = 1.5; }
+          else if (isObs) { col = "#78909c"; mk = "url(#aD)"; w = 1; }
+          else if (sc?.private) { col = "#43a047"; mk = "url(#aG)"; w = 2; }
+          else { col = "#1a73e8"; mk = "url(#aB)"; w = 2; }
 
           return (<g key={edge.id}>
-            <path d={path} fill="none" stroke="transparent" strokeWidth={20} onDoubleClick={e => dblClick("edge", edge.id, e)} style={{ cursor: "pointer" }} />
-            <path d={path} fill="none" stroke={col} strokeWidth={w} strokeDasharray={dash || undefined} markerEnd={mk} style={!isOps && !sel ? { animation: "flowDash 1.2s linear infinite" } : undefined} />
-            {edge.step > 0 && !isOps && <>
-              <rect x={mx - 15} y={my - 15} width={30} height={30} rx={8} fill={sel ? "#1a73e8" : edge.crossesBoundary ? "#e65100" : "#5c6bc0"} filter="url(#sh)" onDoubleClick={e => dblClick("edge", edge.id, e)} style={{ cursor: "pointer" }} />
-              <text x={mx} y={my + 5.5} textAnchor="middle" style={{ fontSize: 15, fontWeight: 900, fill: "#fff", pointerEvents: "none" }}>{edge.step}</text>
-            </>}
-            {isOps && edge.label && (() => {
-              // Position label offset from path to avoid node overlap
-              const dx = tn.x - fn.x, dy = tn.y - fn.y;
-              const isVert = Math.abs(dy) > Math.abs(dx);
-              const lx = isVert ? mx + 18 : mx;
-              const ly = isVert ? my : my - 12;
-              return (<g>
-                <rect x={lx - 24} y={ly - 8} width={48} height={12} rx={3} fill={isDark ? "#1e1e1e" : "#fff"} fillOpacity={0.85} />
-                <text x={lx} y={ly + 1} textAnchor="middle" style={{ fontSize: 7, fill: isAlert ? "#e53935" : isCtrl ? "#7986cb" : "#78909c", fontWeight: 600, pointerEvents: "none" }}>{edge.label}</text>
-              </g>);
-            })()}
+            <path d={path} fill="none" stroke={col} strokeWidth={w} markerEnd={mk} opacity={0.8} />
+            {edge.label && <text x={mx} y={my - 6} textAnchor="middle" style={{ fontSize: 7, fontWeight: 600, fill: col }}>{edge.label}</text>}
           </g>);
         })}
 
