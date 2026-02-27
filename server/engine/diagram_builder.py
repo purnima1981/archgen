@@ -372,7 +372,8 @@ EDGE_RULES = [
     # ── Cross-cutting: Pipeline → Observability (emits metrics/logs) ──
     {"from_any": ["datastream", "cloud_functions", "data_fusion", "dataflow_ing", "pubsub"], "to": "cloud_logging", "label": "Logs", "edgeType": "observe"},
     {"from_any": ["dataform", "dataflow_proc", "dataproc"],       "to": "cloud_logging", "label": "Logs", "edgeType": "observe"},
-    {"from_any": ["looker", "cloud_run", "analytics_hub"],        "to": "cloud_monitoring", "label": "Metrics", "edgeType": "observe"},
+    {"from_any": ["dataform", "dataflow_proc", "dataproc"],       "to": "cloud_monitoring", "label": "Metrics", "edgeType": "observe"},
+    {"from_any": ["dataflow_ing", "pubsub"],                      "to": "cloud_monitoring", "label": "Metrics", "edgeType": "observe"},
 
     # ── Cross-cutting: Governance spans data pipeline ──
     {"from_any": ["dataplex", "dataplex_dq"], "to": "gold",   "label": "Quality", "edgeType": "control"},
