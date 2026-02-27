@@ -1139,11 +1139,13 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
     if (!ref.current || !diag.nodes.length) return;
     const r = ref.current.getBoundingClientRect();
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    diag.nodes.forEach(n => { x0 = Math.min(x0, n.x - 100); y0 = Math.min(y0, n.y - 100); x1 = Math.max(x1, n.x + 180); y1 = Math.max(y1, n.y + 140); });
-    const z = Math.min(r.width / (x1 - x0), r.height / (y1 - y0), 1.2) * 0.85;
-    setZoom(z); setPan({ x: (r.width - (x1 - x0) * z) / 2 - x0 * z, y: (r.height - (y1 - y0) * z) / 2 - y0 * z });
-  }, [diag.nodes]);
-  useEffect(() => { setTimeout(fit, 80); }, [diag.nodes.length]);
+    diag.nodes.forEach(n => { x0 = Math.min(x0, n.x - 60); y0 = Math.min(y0, n.y - 60); x1 = Math.max(x1, n.x + 100); y1 = Math.max(y1, n.y + 80); });
+    (diag.zones || []).forEach((z: any) => { x0 = Math.min(x0, z.x - 10); y0 = Math.min(y0, z.y - 30); x1 = Math.max(x1, z.x + z.w + 10); y1 = Math.max(y1, z.y + z.h + 10); });
+    const cw = x1 - x0, ch = y1 - y0;
+    const z = Math.min(r.width / cw, r.height / ch, 2) * 0.92;
+    setZoom(z); setPan({ x: (r.width - cw * z) / 2 - x0 * z, y: (r.height - ch * z) / 2 - y0 * z });
+  }, [diag.nodes, diag.zones]);
+  useEffect(() => { setTimeout(fit, 80); }, [diag.nodes.length, diag.zones?.length]);
 
   const onWheel = useCallback((e: React.WheelEvent) => { e.preventDefault(); const rc = ref.current?.getBoundingClientRect(); if (!rc) return; const mx = e.clientX - rc.left, my = e.clientY - rc.top, f = e.deltaY < 0 ? 1.1 : 0.9, nz = Math.max(0.08, Math.min(3, zoom * f)); setPan({ x: mx - (mx - pan.x) * (nz / zoom), y: my - (my - pan.y) * (nz / zoom) }); setZoom(nz); }, [zoom, pan]);
   const onDown = useCallback((e: React.MouseEvent) => { if (e.button === 0) { isPan.current = true; panS.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y }; } }, [pan]);
