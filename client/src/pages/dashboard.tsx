@@ -628,7 +628,7 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
     const cr = canvasRef.current.getBoundingClientRect();
     const el = contentRef.current;
     const cw = el.scrollWidth, ch = el.scrollHeight;
-    const z = Math.min(cr.width / cw, cr.height / ch, 1.2) * 0.92;
+    const z = Math.min(cr.width / cw, cr.height / ch, 1.5) * 0.96;
     setZoom(z);
     setPan({ x: (cr.width - cw * z) / 2, y: Math.max(8, (cr.height - ch * z) / 2) });
   }, []);
@@ -1423,9 +1423,9 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
           </g>);
         })}
 
-        {/* Layer bands — skip when backend zones provide labels, keep connection arrows */}
+        {/* Layer bands — only L7 Serving gets its own band (L3-L6 are in unified DATA PIPELINE sub-zone) */}
         {(() => {
-          const layerDefs = hasBackendZones ? [] : [
+          const layerDefs = [
             { prefix: "L7", num: 7, label: "SERVING & DELIVERY", bg: "#fff7ed", border: "#fdba74", text: "#c2410c", numBg: "#c2410c" },
           ];
           const boxes: (typeof layerDefs[0] & { x: number; y: number; w: number; h: number })[] = [];
@@ -1487,13 +1487,9 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
               return <path key={`up-${i}`} d={`M${x1},${y1} C${x1},${midY} ${x2},${midY} ${x2},${y2}`} fill="none" stroke={nb.border} strokeWidth={1.5} strokeDasharray="6 3" />;
             })}
             {/* Arrow: L7 (top) → Consumers */}
-            {(conZone || conB) && (() => {
+            {(conZone || conB) && boxes.length > 0 && (() => {
               const cB = conZone ? { x: conZone.x, y: conZone.y, w: conZone.w, h: conZone.h } : conB!;
-              // Use serving zone from backend, or L7 layer band box
-              const servZone = backendZones.find(z => z.id === "serving");
-              const l7 = servZone ? { x: servZone.x, y: servZone.y, w: servZone.w, h: servZone.h }
-                : boxes.length > 0 ? boxes[0] : null;
-              if (!l7) return null;
+              const l7 = boxes[0]; // L7 is first (top)
               const x1 = l7.x + l7.w, y1 = l7.y + l7.h / 2;
               const x2 = cB.x, y2 = cB.y + cB.h / 2;
               const midX = (x1 + x2) / 2;
@@ -1520,12 +1516,12 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
           else if (isCtrl) { col = "#7986cb"; dash = "5 5"; w = 1.5; mk = "url(#aC)"; }
           else if (isObs) { col = isDark ? "#546e7a" : "#90a4ae"; dash = "3 5"; w = 1; mk = "url(#aD)"; }
           else if (sc?.private) { col = "#43a047"; dash = ""; w = 2; mk = "url(#aG)"; }
-          else if (sc) { col = "#e65100"; dash = "6 4"; w = 2; mk = "url(#aO)"; }
-          else { col = isDark ? "#546e7a" : "#90a4ae"; dash = "5 4"; w = 1.5; mk = "url(#aD)"; }
+          else if (sc) { col = "#e65100"; dash = ""; w = 2; mk = "url(#aO)"; }
+          else { col = isDark ? "#546e7a" : "#90a4ae"; dash = ""; w = 1.5; mk = "url(#aD)"; }
 
           return (<g key={edge.id}>
             <path d={path} fill="none" stroke="transparent" strokeWidth={20} onDoubleClick={e => dblClick("edge", edge.id, e)} style={{ cursor: "pointer" }} />
-            <path d={path} fill="none" stroke={col} strokeWidth={w} strokeDasharray={dash || "10 5"} markerEnd={mk} style={!isOps && !sel ? { animation: "flowDash 1.2s linear infinite" } : undefined} />
+            <path d={path} fill="none" stroke={col} strokeWidth={w} strokeDasharray={dash || undefined} markerEnd={mk} style={!isOps && !sel ? { animation: "flowDash 1.2s linear infinite" } : undefined} />
             {edge.step > 0 && !isOps && <>
               <rect x={mx - 15} y={my - 15} width={30} height={30} rx={8} fill={sel ? "#1a73e8" : edge.crossesBoundary ? "#e65100" : "#5c6bc0"} filter="url(#sh)" onDoubleClick={e => dblClick("edge", edge.id, e)} style={{ cursor: "pointer" }} />
               <text x={mx} y={my + 5.5} textAnchor="middle" style={{ fontSize: 15, fontWeight: 900, fill: "#fff", pointerEvents: "none" }}>{edge.step}</text>
