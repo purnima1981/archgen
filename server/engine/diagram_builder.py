@@ -620,10 +620,10 @@ def build_diagram(keep_set: Set[str], title: str,
     col_c_parts = [h for h in [h_serving, h_pipeline] if h > 0]
     col_c_h     = sum(col_c_parts) + max(0, len(col_c_parts) - 1) * GAP
 
-    # RIGHT column: orchestration (top) → obs (bottom)
+    # RIGHT column: obs (top) → orchestration (bottom)
     h_orch = _zone_h(n_orch, 2)
     h_obs  = _zone_h(n_obs, 2)
-    col_r_parts = [h for h in [h_orch, h_obs] if h > 0]
+    col_r_parts = [h for h in [h_obs, h_orch] if h > 0]
     col_r_h     = sum(col_r_parts) + max(0, len(col_r_parts) - 1) * GAP
 
     # GCP height
@@ -690,12 +690,12 @@ def build_diagram(keep_set: Set[str], title: str,
     # ── RIGHT column zones ──
     y_cursor = gcp_inner_top
 
-    if n_orch:
-        zone_rects["orchestration"] = {"x": COL_R_X, "y": y_cursor, "w": COL_R_W, "h": h_orch}
-        y_cursor += h_orch + GAP
-
     if n_obs:
         zone_rects["gcp-obs"] = {"x": COL_R_X, "y": y_cursor, "w": COL_R_W, "h": h_obs}
+        y_cursor += h_obs + GAP
+
+    if n_orch:
+        zone_rects["orchestration"] = {"x": COL_R_X, "y": y_cursor, "w": COL_R_W, "h": h_orch}
 
     # ── Outside-left zones (ext-identity, source) ──
     y_cursor = gcp_y  # align with GCP top
