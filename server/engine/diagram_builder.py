@@ -140,6 +140,99 @@ def _resolve_keep_set(keep_set: Set[str]) -> Set[str]:
     return resolved
 
 
+def _ensure_essentials(resolved: Set[str]) -> Set[str]:
+    """
+    Guarantee the diagram has a complete pipeline.
+    The KB decides WHICH sources and source-specific wiring to include.
+    This function ensures the core pipeline skeleton is always present.
+    """
+    out = set(resolved)
+
+    # ── 1. Security: always need IAM + Secret Manager ──
+    out.update({"cloud_iam", "secret_manager"})
+
+    # ── 2. Landing: at least one landing zone ──
+    if not (out & {"gcs_raw", "bq_staging"}):
+        out.add("gcs_raw")
+
+    # ── 3. Processing: at least Dataform (free with BQ) ──
+    if not (out & {"dataform", "dataflow_proc", "dataproc"}):
+        out.add("dataform")
+
+    # ── 4. Medallion: always Bronze → Silver → Gold ──
+    out.update({"bronze", "silver", "gold"})
+
+    # ── 5. Serving: at least Looker + Cloud Run ──
+    if not (out & {"looker", "looker_studio", "power_bi"}):
+        out.add("looker")
+    if not (out & {"cloud_run"}):
+        out.add("cloud_run")
+
+    # ── 6. Consumers: at least Analysts + Downstream ──
+    if not (out & {"analysts", "executives", "data_scientists"}):
+        out.add("analysts")
+    if "downstream_sys" not in out:
+        out.add("downstream_sys")
+
+    # ── 7. Observability: Monitoring + Logging (non-negotiable) ──
+    out.update({"cloud_monitoring", "cloud_logging"})
+
+    # ── 8. Orchestration: Composer ──
+    if not (out & {"cloud_composer", "cloud_scheduler"}):
+        out.add("cloud_composer")
+
+    # ── 9. Governance: Dataplex + Data Catalog ──
+    out.update({"dataplex", "data_catalog"})
+
+    # ── 10. External alerting: at least PagerDuty ──
+    if not (out & {"pagerduty_inc", "wiz_cspm", "archer_grc"}):
+        out.add("pagerduty_inc")
+
+    # ── 11. External logging: at least Splunk ──
+    if not (out & {"splunk_siem", "dynatrace_apm"}):
+        out.add("splunk_siem")
+
+    # ── 12. Source-type-specific ingestion wiring ──
+    # Detect source types from what's already resolved
+    source_pids = {pid for pid in out if PRODUCTS.get(pid, {}).get("zone") == "source"}
+    ONPREM_SOURCES  = {"oracle_db", "sqlserver_db", "postgresql_db", "mongodb_db", "mysql_db", "mainframe_src"}
+    CROSS_CLOUD     = {"aws_s3", "aws_rds_src", "azure_blob_src", "snowflake_src", "dynamodb_src"}
+    SAAS_SOURCES    = {"salesforce", "workday", "servicenow_src", "sap_src", "hubspot_src", "jira_src",
+                       "zendesk_src", "netsuite_src", "shopify_src", "stripe_src", "dynamics365_src",
+                       "google_ads_src", "fb_ads_src", "ga_src", "marketo_src"}
+    STREAMING       = {"kafka_stream", "kinesis_src", "event_hubs_src"}
+    GCP_NATIVE      = {"cloud_sql", "alloydb_src", "firestore_src", "gcs_src"}
+
+    has_onprem  = bool(source_pids & ONPREM_SOURCES)
+    has_cross   = bool(source_pids & CROSS_CLOUD)
+    has_saas    = bool(source_pids & SAAS_SOURCES)
+    has_stream  = bool(source_pids & STREAMING)
+    has_gcp     = bool(source_pids & GCP_NATIVE)
+
+    # Add ingestion nodes if missing
+    if has_onprem or has_cross or has_gcp:
+        if not (out & {"datastream"}):
+            out.add("datastream")
+    if has_saas:
+        if not (out & {"cloud_functions", "fivetran"}):
+            out.add("cloud_functions")
+    if has_stream:
+        if not (out & {"pubsub"}):
+            out.add("pubsub")
+        if not (out & {"dataflow_ing"}):
+            out.add("dataflow_ing")
+
+    # Add connectivity for cross-cloud / on-prem
+    if has_onprem:
+        out.update({"cloud_vpn", "vpc"})
+    if has_cross:
+        out.update({"entra_id", "cyberark"})
+    if has_saas:
+        out.update({"cloud_armor", "apigee"})
+
+    return out
+
+
 def _guess_zone(pid: str, bp_node: dict) -> str:
     """Guess diagram_builder zone from gcp_blueprint node."""
     layer = bp_node.get("layer", "")
@@ -294,7 +387,7 @@ PRODUCTS: Dict[str, Dict[str, Any]] = {
     "cloud_monitoring":{"name": "Cloud Monitoring",  "icon": "cloud_monitoring","zone": "gcp-obs",  "subtitle": "Metrics & alerts"},
     "cloud_logging":   {"name": "Cloud Logging",     "icon": "cloud_logging",   "zone": "gcp-obs",  "subtitle": "Centralized logs"},
     "audit_logs":      {"name": "Audit Logs",        "icon": "cloud_audit_logs","zone": "gcp-obs",  "subtitle": "Compliance trail"},
-    "scc_pillar":      {"name": "Security Command Center", "icon": "security_command_center", "zone": "gcp-obs", "subtitle": "Security posture"},
+    "scc_pillar":      {"name": "Security Command Center", "icon": "security_command_center", "zone": "gcp-security", "subtitle": "Security posture"},
 
     # ── Governance (inside GCP, own box) ──
     "dataplex":        {"name": "Dataplex",          "icon": "dataplex",    "zone": "governance",  "subtitle": "Data governance"},
@@ -326,14 +419,14 @@ SORT_PRIORITY = {
     "dataform": 0, "dataflow_proc": 1, "dataproc": 2,
     # Security
     "cloud_iam": 0, "cloud_kms": 1, "secret_manager": 2,
-    "vpc": 3, "vpc_sc": 4, "cloud_armor": 5, "cloud_vpn": 6, "apigee": 7,
+    "vpc": 3, "vpc_sc": 4, "cloud_armor": 5, "cloud_vpn": 6, "apigee": 7, "scc_pillar": 8,
     # Serving
     "looker": 0, "looker_studio": 1, "power_bi": 2,
     "vertex_ai": 3, "cloud_run": 4, "analytics_hub": 5,
     # Consumers
     "analysts": 0, "executives": 1, "data_scientists": 2, "downstream_sys": 3,
     # Observability: monitoring first, then logging, then audit
-    "cloud_monitoring": 0, "cloud_logging": 1, "audit_logs": 2, "scc_pillar": 3,
+    "cloud_monitoring": 0, "cloud_logging": 1, "audit_logs": 2,
     # Governance
     "dataplex": 0, "data_catalog": 1, "dataplex_dq": 2, "cloud_dlp": 3,
     # External alert
@@ -529,7 +622,7 @@ ZONE_DEFS = [
      "parent": None,            "zIndex": 0, "bg": "#E0F7FA"},
     {"id": "ext-identity",  "label": "EXTERNAL IDENTITY",           "color": COLORS["extId"],       "dashed": True,
      "parent": None,            "zIndex": 0, "bg": "#ECEFF1"},
-    {"id": "source",        "label": "ON-PREM SOURCE (L1)",         "color": COLORS["source"],      "dashed": True,
+    {"id": "source",        "label": "DATA SOURCES (L1)",            "color": COLORS["source"],      "dashed": True,
      "parent": None,            "zIndex": 0, "bg": "#ECEFF1"},
     # ── GCP boundary ──
     {"id": "gcp",           "label": "GOOGLE CLOUD PLATFORM",       "color": COLORS["gcp"],         "dashed": False, "filled": True,
@@ -647,6 +740,9 @@ def build_diagram(keep_set: Set[str], title: str,
     """
     # ── Resolve gcp_blueprint IDs → diagram_builder IDs ──
     resolved = _resolve_keep_set(keep_set)
+
+    # ── Ensure complete pipeline (KB may be sparse) ──
+    resolved = _ensure_essentials(resolved)
 
     nodes: List[dict] = []
     edges: List[dict] = []
@@ -912,7 +1008,29 @@ def build_diagram(keep_set: Set[str], title: str,
         zid = zd["id"]
         if zid in zone_rects:
             zr = zone_rects[zid]
-            zones_out.append({**zd, "x": zr["x"], "y": zr["y"], "w": zr["w"], "h": zr["h"]})
+            zone_data = {**zd, "x": zr["x"], "y": zr["y"], "w": zr["w"], "h": zr["h"]}
+            # Dynamic source label based on what types are present
+            if zid == "source" and zone_buckets.get("source"):
+                src_pids = set(zone_buckets["source"])
+                ONPREM = {"oracle_db","sqlserver_db","postgresql_db","mongodb_db","mysql_db","mainframe_src"}
+                CROSS  = {"aws_s3","aws_rds_src","azure_blob_src","snowflake_src","dynamodb_src","kinesis_src","event_hubs_src"}
+                SAAS   = {"salesforce","workday","servicenow_src","sap_src","hubspot_src","jira_src","zendesk_src",
+                          "netsuite_src","shopify_src","stripe_src","dynamics365_src",
+                          "google_ads_src","fb_ads_src","ga_src","marketo_src"}
+                STREAM = {"kafka_stream","kinesis_src","event_hubs_src"}
+                GCP_N  = {"cloud_sql","alloydb_src","firestore_src","gcs_src"}
+                types = []
+                if src_pids & ONPREM:  types.append("ON-PREM")
+                if src_pids & CROSS:   types.append("CROSS-CLOUD")
+                if src_pids & SAAS:    types.append("SAAS")
+                if src_pids & STREAM:  types.append("STREAMING")
+                if src_pids & GCP_N:   types.append("GCP-NATIVE")
+                if len(types) == 1:
+                    zone_data["label"] = f"{types[0]} SOURCES (L1)"
+                elif len(types) > 1:
+                    zone_data["label"] = f"DATA SOURCES (L1)"
+                # else keeps default "DATA SOURCES (L1)"
+            zones_out.append(zone_data)
 
     # ══════════════════════════════════════════════
     # EDGES
