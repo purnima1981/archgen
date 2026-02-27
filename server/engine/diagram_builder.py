@@ -417,85 +417,87 @@ EDGE_RULES = [
 
 
 # ═══════════════════════════════════════════════════════════
-# ZONE DEFINITIONS — with authoritative SVG geometry
-# Coordinates are in SVG space (0–1520 x 0–1280)
-# Sourced from pptx_exporter.py ZONES — the proven non-overlapping layout.
+# ZONE DEFINITIONS — metadata only (geometry computed per-diagram)
 #
 # zIndex:  0 = outside zones, 1 = GCP boundary, 2 = GCP sub-zones, 3 = innermost
 # parent:  None = top-level, "gcp" = inside GCP, "data-pipeline" = inside pipeline
+# members: which subZone values this zone contains (for computing bounds)
 # ═══════════════════════════════════════════════════════════
 
 ZONE_DEFS = [
-    # ── Outside zones (rendered first, lowest z) ─────────────────
+    # ── Outside zones ──
     {"id": "consumer",      "label": "CONSUMERS (L8)",
      "color": COLORS["consumer"],   "dashed": True,
-     "x": 620,  "y": 10,   "w": 580,  "h": 170,
-     "parent": None,            "zIndex": 0},
+     "parent": None, "zIndex": 0,
+     "members": ["consumer"]},
 
     {"id": "ext-identity",  "label": "EXTERNAL IDENTITY",
      "color": COLORS["extId"],      "dashed": True,
-     "x": 30,   "y": 230,  "w": 210,  "h": 230,
-     "parent": None,            "zIndex": 0},
+     "parent": None, "zIndex": 0,
+     "members": ["ext-identity"]},
 
     {"id": "source",        "label": "ON-PREM SOURCE (L1)",
      "color": COLORS["source"],     "dashed": True,
-     "x": 30,   "y": 470,  "w": 350,  "h": 560,
-     "parent": None,            "zIndex": 0},
+     "parent": None, "zIndex": 0,
+     "members": ["source"]},
 
-    # ── GCP boundary (large wrapper) ─────────────────────────────
+    # ── GCP boundary (wrapper — computed from all GCP children) ──
     {"id": "gcp",           "label": "GOOGLE CLOUD PLATFORM",
-     "color": COLORS["gcp"],        "dashed": False,  "filled": True,
-     "x": 410,  "y": 210,  "w": 1070, "h": 830,
-     "parent": None,            "zIndex": 1},
+     "color": COLORS["gcp"],        "dashed": False, "filled": True,
+     "parent": None, "zIndex": 1,
+     "members": []},  # computed from children
 
-    # ── Sub-zones inside GCP (rendered after GCP, higher z) ──────
+    # ── Sub-zones inside GCP ──
     {"id": "gcp-security",  "label": "CONNECTIVITY & IDENTITY (L2)",
      "color": COLORS["security"],   "dashed": True,
-     "x": 425,  "y": 225,  "w": 195,  "h": 620,
-     "parent": "gcp",           "zIndex": 2},
+     "parent": "gcp", "zIndex": 2,
+     "members": ["gcp-security"]},
 
     {"id": "serving",       "label": "SERVING & DELIVERY (L7)",
      "color": COLORS["serving"],    "dashed": True,
-     "x": 635,  "y": 225,  "w": 430,  "h": 160,
-     "parent": "gcp",           "zIndex": 2},
+     "parent": "gcp", "zIndex": 2,
+     "members": ["serving"]},
 
     {"id": "orchestration", "label": "ORCHESTRATION",
      "color": COLORS["orch"],       "dashed": True,
-     "x": 1080, "y": 390,  "w": 195,  "h": 200,
-     "parent": "gcp",           "zIndex": 2},
+     "parent": "gcp", "zIndex": 2,
+     "members": ["orchestration"]},
 
     {"id": "data-pipeline", "label": "DATA PIPELINE (L3→L6)",
      "color": COLORS["pipeline"],   "dashed": True,
-     "x": 635,  "y": 395,  "w": 430,  "h": 560,
-     "parent": "gcp",           "zIndex": 2},
+     "parent": "gcp", "zIndex": 2,
+     "members": ["ingestion", "landing", "processing", "medallion"]},
 
     {"id": "gcp-obs",       "label": "OBSERVABILITY (GCP)",
      "color": COLORS["gcpObs"],     "dashed": True,
-     "x": 1080, "y": 610,  "w": 380,  "h": 410,
-     "parent": "gcp",           "zIndex": 2},
+     "parent": "gcp", "zIndex": 2,
+     "members": ["gcp-obs"]},
 
     {"id": "governance",    "label": "GOVERNANCE",
      "color": COLORS["governance"], "dashed": True,
-     "x": 425,  "y": 860,  "w": 195,  "h": 160,
-     "parent": "gcp",           "zIndex": 2},
+     "parent": "gcp", "zIndex": 2,
+     "members": ["governance"]},
 
-    # ── Medallion (innermost — inside data-pipeline) ─────────────
+    # ── Medallion (inside data-pipeline) ──
     {"id": "medallion",     "label": "MEDALLION ARCHITECTURE",
-     "color": COLORS["gold"],       "dashed": False,  "filled": True,
-     "x": 645,  "y": 400,  "w": 410,  "h": 120,
-     "parent": "data-pipeline",  "zIndex": 3},
+     "color": COLORS["gold"],       "dashed": False, "filled": True,
+     "parent": "data-pipeline", "zIndex": 3,
+     "members": ["medallion"]},
 
-    # ── External zones below GCP ─────────────────────────────────
+    # ── External zones below GCP ──
     {"id": "ext-log",       "label": "EXTERNAL LOGGING",
      "color": COLORS["extLog"],     "dashed": True,
-     "x": 410,  "y": 1100, "w": 330,  "h": 195,
-     "parent": None,            "zIndex": 0},
+     "parent": None, "zIndex": 0,
+     "members": ["ext-log"]},
 
     {"id": "ext-alert",     "label": "EXTERNAL ALERTING",
      "color": COLORS["extAlert"],   "dashed": True,
-     "x": 830,  "y": 1100, "w": 430,  "h": 195,
-     "parent": None,            "zIndex": 0},
+     "parent": None, "zIndex": 0,
+     "members": ["ext-alert"]},
 ]
+
+# Quick lookup by id
+_ZONE_BY_ID = {zd["id"]: zd for zd in ZONE_DEFS}
 
 # Zones that live inside GCP
 GCP_ZONES = {"gcp-security", "ingestion", "landing", "processing",
@@ -720,8 +722,40 @@ def build_diagram(keep_set: Set[str], title: str,
             edges.append(edge)
 
     # ══════════════════════════════════════════════
-    # ZONE BOXES (for frontend rendering)
+    # ZONE BOXES — compute geometry from node positions + column rules
+    # Column boundaries from layout constants prevent horizontal overlap.
+    # Vertical extents computed from actual node positions.
     # ══════════════════════════════════════════════
+    NODE_HALF = 42      # half of BG (visual node card = 82px)
+    PAD_OUT = 50        # padding for outside zones (source, consumer, ext-*)
+    PAD_IN = 35         # tighter padding for GCP sub-zones
+    WRAP_PAD = 12       # wrapper zone inset around children
+
+    # Three non-overlapping columns inside GCP (derived from layout constants)
+    COL_LEFT  = (X_GCP_SEC - NODE_HALF - PAD_IN,  X_GCP_SEC + NODE_HALF + PAD_IN + 30)   # security + governance
+    COL_MID   = (X_PIPELINE - NODE_HALF - PAD_IN,  X_ORCH - NODE_HALF - PAD_IN)           # pipeline + serving + medallion
+    COL_RIGHT = (X_ORCH - NODE_HALF - PAD_IN + 1,  X_GCP_OBS_2 + NODE_HALF + PAD_IN)     # orch + obs
+
+    # Map each zone's subZone → nodes
+    zone_nodes: Dict[str, List[dict]] = {}
+    for n in nodes:
+        sz = n.get("subZone", "")
+        zone_nodes.setdefault(sz, []).append(n)
+
+    def _vert_from_nodes(ns: List[dict], pad: int = PAD_IN) -> tuple:
+        """Return (y_top, y_bottom) from node centers + padding."""
+        ys = [n["y"] for n in ns]
+        return (min(ys) - NODE_HALF - pad, max(ys) + NODE_HALF + pad)
+
+    def _free_bounds(ns: List[dict], pad: int = PAD_OUT) -> dict:
+        """Free-form bounding rect from nodes (for outside zones)."""
+        xs = [n["x"] for n in ns]
+        ys = [n["y"] for n in ns]
+        return {"x": min(xs) - NODE_HALF - pad, "y": min(ys) - NODE_HALF - pad,
+                "w": max(xs) - min(xs) + 2 * NODE_HALF + 2 * pad,
+                "h": max(ys) - min(ys) + 2 * NODE_HALF + 2 * pad}
+
+    # Track active zones
     active_zones = set()
     for n in nodes:
         z = PRODUCTS.get(n["id"], {}).get("zone", "")
@@ -731,18 +765,92 @@ def build_diagram(keep_set: Set[str], title: str,
         if z in PIPELINE_ZONES:
             active_zones.add("pipeline")
 
+    # Gather nodes per zone def
+    def _gather(zd: dict) -> List[dict]:
+        ns = []
+        for m in zd.get("members", []):
+            ns.extend(zone_nodes.get(m, []))
+        return ns
+
+    zone_geom: Dict[str, dict] = {}
+
+    # 1) Outside zones — free-form
+    for zd in ZONE_DEFS:
+        if zd["parent"] is not None or zd["id"] == "gcp":
+            continue
+        ns = _gather(zd)
+        if ns:
+            zone_geom[zd["id"]] = _free_bounds(ns)
+
+    # 2) GCP leaf zones — column-constrained x, node-derived y
+    for zd in ZONE_DEFS:
+        if zd.get("parent") not in ("gcp", "data-pipeline"):
+            continue
+        ns = _gather(zd)
+        if not ns:
+            continue
+
+        zid = zd["id"]
+        y_top, y_bot = _vert_from_nodes(ns, PAD_IN)
+
+        # Assign to column
+        if zid in ("gcp-security", "governance"):
+            zone_geom[zid] = {"x": COL_LEFT[0], "y": y_top, "w": COL_LEFT[1] - COL_LEFT[0], "h": y_bot - y_top}
+        elif zid in ("orchestration", "gcp-obs"):
+            zone_geom[zid] = {"x": COL_RIGHT[0], "y": y_top, "w": COL_RIGHT[1] - COL_RIGHT[0], "h": y_bot - y_top}
+        elif zid in ("serving", "medallion"):
+            # Serving + medallion stay in COL_MID — secondary serving nodes (right column) excluded from bounds
+            mid_ns = [n for n in ns if n["x"] < COL_RIGHT[0]] if zid == "serving" else ns
+            if not mid_ns:
+                mid_ns = ns  # fallback: use all if none in mid column
+            y_top, y_bot = _vert_from_nodes(mid_ns, PAD_IN)
+            zone_geom[zid] = {"x": COL_MID[0], "y": y_top, "w": COL_MID[1] - COL_MID[0], "h": y_bot - y_top}
+        else:
+            zone_geom[zid] = _free_bounds(ns, PAD_IN)
+
+    # 3) Data-pipeline wrapper — union of pipeline member nodes (L3-L6), column-constrained
+    if "pipeline" in active_zones:
+        pipe_ns = []
+        for m in ("ingestion", "landing", "processing", "medallion"):
+            pipe_ns.extend(zone_nodes.get(m, []))
+        if pipe_ns:
+            y_top, y_bot = _vert_from_nodes(pipe_ns, PAD_IN)
+            # Expand to contain medallion sub-zone if present
+            if "medallion" in zone_geom:
+                y_top = min(y_top, zone_geom["medallion"]["y"])
+                y_bot = max(y_bot, zone_geom["medallion"]["y"] + zone_geom["medallion"]["h"])
+            # Stay within COL_MID horizontally — no WRAP_PAD on x (column already has room)
+            zone_geom["data-pipeline"] = {
+                "x": COL_MID[0],
+                "y": y_top - WRAP_PAD,
+                "w": COL_MID[1] - COL_MID[0],
+                "h": y_bot - y_top + 2 * WRAP_PAD,
+            }
+
+    # 4) GCP wrapper — union of ALL child zone rects
+    if "gcp" in active_zones:
+        gcp_rects = [zone_geom[z["id"]] for z in ZONE_DEFS
+                     if z.get("parent") == "gcp" and z["id"] in zone_geom]
+        if gcp_rects:
+            x1 = min(r["x"] for r in gcp_rects) - WRAP_PAD
+            y1 = min(r["y"] for r in gcp_rects) - WRAP_PAD - 8  # extra for pill label
+            x2 = max(r["x"] + r["w"] for r in gcp_rects) + WRAP_PAD
+            y2 = max(r["y"] + r["h"] for r in gcp_rects) + WRAP_PAD
+            zone_geom["gcp"] = {"x": x1, "y": y1, "w": x2 - x1, "h": y2 - y1}
+
+    # Build zones_out with geometry attached
     zones_out = []
     for zd in ZONE_DEFS:
         zid = zd["id"]
-        # Only include zones that have nodes (or wrapper zones with active children)
-        if zid == "gcp" and "gcp" in active_zones:
-            zones_out.append(zd)
-        elif zid == "data-pipeline" and "pipeline" in active_zones:
-            zones_out.append(zd)
-        elif zid == "medallion" and "medallion" in active_zones:
-            zones_out.append(zd)
-        elif zid in active_zones:
-            zones_out.append(zd)
+        if zid in zone_geom:
+            geom = zone_geom[zid]
+            zones_out.append({
+                **zd,
+                "x": int(geom["x"]),
+                "y": int(geom["y"]),
+                "w": int(geom["w"]),
+                "h": int(geom["h"]),
+            })
 
     # ══════════════════════════════════════════════
     # PHASES — named to match canvas layer band renderer
