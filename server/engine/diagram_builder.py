@@ -417,22 +417,84 @@ EDGE_RULES = [
 
 
 # ═══════════════════════════════════════════════════════════
-# ZONE DEFINITIONS (rendered as dashed/solid boxes)
+# ZONE DEFINITIONS — with authoritative SVG geometry
+# Coordinates are in SVG space (0–1520 x 0–1280)
+# Sourced from pptx_exporter.py ZONES — the proven non-overlapping layout.
+#
+# zIndex:  0 = outside zones, 1 = GCP boundary, 2 = GCP sub-zones, 3 = innermost
+# parent:  None = top-level, "gcp" = inside GCP, "data-pipeline" = inside pipeline
 # ═══════════════════════════════════════════════════════════
 
 ZONE_DEFS = [
-    {"id": "consumer",     "label": "CONSUMERS (L8)",         "color": COLORS["consumer"],  "dashed": True},
-    {"id": "ext-identity", "label": "EXTERNAL IDENTITY",      "color": COLORS["extId"],     "dashed": True},
-    {"id": "source",       "label": "ON-PREM SOURCE (L1)",    "color": COLORS["source"],    "dashed": True},
-    {"id": "gcp",          "label": "GOOGLE CLOUD PLATFORM",  "color": COLORS["gcp"],       "dashed": False, "filled": True},
-    {"id": "gcp-security", "label": "SECURITY (L2)",          "color": COLORS["security"],  "dashed": True},
-    {"id": "data-pipeline","label": "DATA PIPELINE (L3→L6)",  "color": COLORS["pipeline"],  "dashed": True},  # unified L3-L6
-    {"id": "serving",      "label": "SERVING (L7)",           "color": COLORS["serving"],   "dashed": True},
-    {"id": "orchestration","label": "ORCHESTRATION",          "color": COLORS["orch"],      "dashed": True},
-    {"id": "gcp-obs",      "label": "OBSERVABILITY (GCP)",    "color": COLORS["gcpObs"],    "dashed": True},
-    {"id": "governance",   "label": "GOVERNANCE",             "color": COLORS["governance"],"dashed": True},
-    {"id": "ext-log",      "label": "EXTERNAL LOGGING",       "color": COLORS["extLog"],    "dashed": True},
-    {"id": "ext-alert",    "label": "EXTERNAL ALERTING",      "color": COLORS["extAlert"],  "dashed": True},
+    # ── Outside zones (rendered first, lowest z) ─────────────────
+    {"id": "consumer",      "label": "CONSUMERS (L8)",
+     "color": COLORS["consumer"],   "dashed": True,
+     "x": 620,  "y": 10,   "w": 580,  "h": 170,
+     "parent": None,            "zIndex": 0},
+
+    {"id": "ext-identity",  "label": "EXTERNAL IDENTITY",
+     "color": COLORS["extId"],      "dashed": True,
+     "x": 30,   "y": 230,  "w": 210,  "h": 230,
+     "parent": None,            "zIndex": 0},
+
+    {"id": "source",        "label": "ON-PREM SOURCE (L1)",
+     "color": COLORS["source"],     "dashed": True,
+     "x": 30,   "y": 470,  "w": 350,  "h": 560,
+     "parent": None,            "zIndex": 0},
+
+    # ── GCP boundary (large wrapper) ─────────────────────────────
+    {"id": "gcp",           "label": "GOOGLE CLOUD PLATFORM",
+     "color": COLORS["gcp"],        "dashed": False,  "filled": True,
+     "x": 410,  "y": 210,  "w": 1070, "h": 830,
+     "parent": None,            "zIndex": 1},
+
+    # ── Sub-zones inside GCP (rendered after GCP, higher z) ──────
+    {"id": "gcp-security",  "label": "CONNECTIVITY & IDENTITY (L2)",
+     "color": COLORS["security"],   "dashed": True,
+     "x": 425,  "y": 225,  "w": 195,  "h": 620,
+     "parent": "gcp",           "zIndex": 2},
+
+    {"id": "serving",       "label": "SERVING & DELIVERY (L7)",
+     "color": COLORS["serving"],    "dashed": True,
+     "x": 635,  "y": 225,  "w": 430,  "h": 160,
+     "parent": "gcp",           "zIndex": 2},
+
+    {"id": "orchestration", "label": "ORCHESTRATION",
+     "color": COLORS["orch"],       "dashed": True,
+     "x": 1080, "y": 390,  "w": 195,  "h": 200,
+     "parent": "gcp",           "zIndex": 2},
+
+    {"id": "data-pipeline", "label": "DATA PIPELINE (L3→L6)",
+     "color": COLORS["pipeline"],   "dashed": True,
+     "x": 635,  "y": 395,  "w": 430,  "h": 560,
+     "parent": "gcp",           "zIndex": 2},
+
+    {"id": "gcp-obs",       "label": "OBSERVABILITY (GCP)",
+     "color": COLORS["gcpObs"],     "dashed": True,
+     "x": 1080, "y": 610,  "w": 380,  "h": 410,
+     "parent": "gcp",           "zIndex": 2},
+
+    {"id": "governance",    "label": "GOVERNANCE",
+     "color": COLORS["governance"], "dashed": True,
+     "x": 425,  "y": 860,  "w": 195,  "h": 160,
+     "parent": "gcp",           "zIndex": 2},
+
+    # ── Medallion (innermost — inside data-pipeline) ─────────────
+    {"id": "medallion",     "label": "MEDALLION ARCHITECTURE",
+     "color": COLORS["gold"],       "dashed": False,  "filled": True,
+     "x": 645,  "y": 400,  "w": 410,  "h": 120,
+     "parent": "data-pipeline",  "zIndex": 3},
+
+    # ── External zones below GCP ─────────────────────────────────
+    {"id": "ext-log",       "label": "EXTERNAL LOGGING",
+     "color": COLORS["extLog"],     "dashed": True,
+     "x": 410,  "y": 1100, "w": 330,  "h": 195,
+     "parent": None,            "zIndex": 0},
+
+    {"id": "ext-alert",     "label": "EXTERNAL ALERTING",
+     "color": COLORS["extAlert"],   "dashed": True,
+     "x": 830,  "y": 1100, "w": 430,  "h": 195,
+     "parent": None,            "zIndex": 0},
 ]
 
 # Zones that live inside GCP
@@ -672,10 +734,12 @@ def build_diagram(keep_set: Set[str], title: str,
     zones_out = []
     for zd in ZONE_DEFS:
         zid = zd["id"]
-        # Only include zones that have nodes (or GCP/pipeline wrappers)
+        # Only include zones that have nodes (or wrapper zones with active children)
         if zid == "gcp" and "gcp" in active_zones:
             zones_out.append(zd)
-        elif zid == "pipeline" and "pipeline" in active_zones:
+        elif zid == "data-pipeline" and "pipeline" in active_zones:
+            zones_out.append(zd)
+        elif zid == "medallion" and "medallion" in active_zones:
             zones_out.append(zd)
         elif zid in active_zones:
             zones_out.append(zd)
