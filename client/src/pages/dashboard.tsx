@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import type { User } from "@shared/models/auth";
 import { ServicePalette, EnhancedNodePopover, EdgeEditPop, EditingToolbar, GCP_SERVICES } from "../components/diagram-editor-components";
@@ -91,6 +91,10 @@ const LAYER_CAT: Record<string, { bg: string; border: string }> = {
   gold: { bg: "#fef9c3", border: "#eab308" },     // gold (Layer 6)
   serve_: { bg: "#fff7ed", border: "#c2410c" },   // burnt orange (Layer 7)
   pillar_: { bg: "#fce4ec", border: "#ad1457" },   // dark pink (crosscutting)
+  sec_: { bg: "#fef2f2", border: "#dc2626" },       // red (security)
+  gov_: { bg: "#eff6ff", border: "#2563eb" },        // blue (governance)
+  obs_: { bg: "#fffbeb", border: "#d97706" },        // amber (observability)
+  orch_: { bg: "#f5f3ff", border: "#7c3aed" },       // purple (orchestration)
   con_: { bg: "#ecfeff", border: "#0e7490" },     // teal (Layer 8)
 };
 function getCat(ic?: string | null, nodeId?: string) {
@@ -228,10 +232,10 @@ function HighlightsTab({ diag, decisions, antiPatterns, keptProducts, removedPro
         {decs.map((d, i) => {
           const isL1 = d.startsWith("L1"); const isL2 = d.startsWith("L2"); const isL3 = d.startsWith("L3");
           const isL4 = d.startsWith("L4"); const isL5 = d.startsWith("L5"); const isL6 = d.startsWith("L6");
-          const isL7 = d.startsWith("L7"); const isL8 = d.startsWith("L8");
+          const isL7 = d.startsWith("L7") || d.startsWith("L8");
           const isOrch = d.includes("Orchestration"); const isObs = d.includes("Observability"); const isSec = d.includes("Security");
-          const color = isL1 ? "#546e7a" : isL2 ? "#be185d" : isL3 ? "#1d4ed8" : isL4 ? "#047857" : isL5 ? "#6d28d9" : isL6 ? "#d97706" : isL7 ? "#c2410c" : isL8 ? "#0e7490" : isOrch ? "#7c3aed" : isObs ? "#d97706" : isSec ? "#dc2626" : "#6b7280";
-          const bg = isL1 ? "#f1f5f9" : isL2 ? "#fdf2f8" : isL3 ? "#eff6ff" : isL4 ? "#ecfdf5" : isL5 ? "#f5f3ff" : isL6 ? "#fffbeb" : isL7 ? "#fff7ed" : isL8 ? "#ecfeff" : isOrch ? "#f5f3ff" : isObs ? "#fffbeb" : isSec ? "#fef2f2" : "#f9fafb";
+          const color = isL1 ? "#546e7a" : isL2 ? "#be185d" : isL3 ? "#1d4ed8" : isL4 ? "#047857" : isL5 ? "#6d28d9" : isL6 ? "#d97706" : isL7 ? "#0e7490" : isOrch ? "#7c3aed" : isObs ? "#d97706" : isSec ? "#dc2626" : "#6b7280";
+          const bg = isL1 ? "#f1f5f9" : isL2 ? "#fdf2f8" : isL3 ? "#eff6ff" : isL4 ? "#ecfdf5" : isL5 ? "#f5f3ff" : isL6 ? "#fffbeb" : isL7 ? "#ecfeff" : isOrch ? "#f5f3ff" : isObs ? "#fffbeb" : isSec ? "#fef2f2" : "#f9fafb";
           return (
             <div key={i} style={{ padding: "8px 12px", background: bg, borderRadius: 8, borderLeft: `3px solid ${color}` }}>
               <div style={{ fontSize: 11, fontWeight: 600, color }}>{d}</div>
@@ -328,12 +332,11 @@ function FlowTab({ diag }: { diag: Diagram }) {
 
 /* ═══ BLUEPRINT VIEW — Capability Map Renderer (v9 layout) ═══ */
 const BP_LAYERS = [
-  { prefix: "con_", num: 8, name: "CONSUMERS", tag: "Experience", bg: "#ecfeff", border: "#67e8f9", numBg: "#0e7490", nameC: "#0e7490", tagBg: "#cffafe", tagC: "#155e75", capBg: "#fff", capBd: "#a5f3fc", capC: "#134e4a" },
-  { prefix: "serve_", num: 7, name: "SERVING & DELIVERY", tag: "Deliver", bg: "#fff7ed", border: "#fdba74", numBg: "#c2410c", nameC: "#c2410c", tagBg: "#ffedd5", tagC: "#9a3412", capBg: "#fff", capBd: "#fed7aa", capC: "#7c2d12" },
-  { prefix: "medal_", num: 6, name: "MEDALLION ARCHITECTURE", tag: "Curate", bg: "#fffbeb", border: "#fcd34d", numBg: "#d97706", nameC: "#b45309", tagBg: "#fef3c7", tagC: "#92400e", capBg: "", capBd: "", capC: "" },
-  { prefix: "proc_", num: 5, name: "PROCESSING & TRANSFORMATION", tag: "Transform", bg: "#f5f3ff", border: "#c4b5fd", numBg: "#6d28d9", nameC: "#6d28d9", tagBg: "#ede9fe", tagC: "#5b21b6", capBg: "#fff", capBd: "#ddd6fe", capC: "#3b0764" },
-  { prefix: "lake_", num: 4, name: "DATA LAKE — RAW LANDING", tag: "Land", bg: "#ecfdf5", border: "#6ee7b7", numBg: "#047857", nameC: "#047857", tagBg: "#d1fae5", tagC: "#065f46", capBg: "#fff", capBd: "#a7f3d0", capC: "#064e3b" },
-  { prefix: "ing_", num: 3, name: "INGESTION", tag: "All 5 Patterns", bg: "#eff6ff", border: "#93c5fd", numBg: "#1d4ed8", nameC: "#1d4ed8", tagBg: "#dbeafe", tagC: "#1e40af", capBg: "#fff", capBd: "#bfdbfe", capC: "#1e3a5f" },
+  { prefixes: ["serve_", "con_"], num: 7, name: "SERVING & CONSUMPTION", tag: "Consume", isDW: false, bg: "#ecfeff", border: "#67e8f9", numBg: "#0e7490", nameC: "#0e7490", tagBg: "#cffafe", tagC: "#155e75", capBg: "#fff", capBd: "#a5f3fc", capC: "#134e4a" },
+  { prefixes: [], num: 6, name: "DATA WAREHOUSE", tag: "BigQuery", isDW: true, bg: "#fffbeb", border: "#fcd34d", numBg: "#d97706", nameC: "#b45309", tagBg: "#fef3c7", tagC: "#92400e", capBg: "", capBd: "", capC: "" },
+  { prefixes: ["proc_"], num: 5, name: "PROCESSING & TRANSFORMATION", tag: "Transform", isDW: false, bg: "#f5f3ff", border: "#c4b5fd", numBg: "#6d28d9", nameC: "#6d28d9", tagBg: "#ede9fe", tagC: "#5b21b6", capBg: "#fff", capBd: "#ddd6fe", capC: "#3b0764" },
+  { prefixes: ["lake_"], num: 4, name: "DATA LAKE — RAW LANDING", tag: "Land", isDW: false, bg: "#ecfdf5", border: "#6ee7b7", numBg: "#047857", nameC: "#047857", tagBg: "#d1fae5", tagC: "#065f46", capBg: "#fff", capBd: "#a7f3d0", capC: "#064e3b" },
+  { prefixes: ["ing_"], num: 3, name: "INGESTION", tag: "Ingest", isDW: false, bg: "#eff6ff", border: "#93c5fd", numBg: "#1d4ed8", nameC: "#1d4ed8", tagBg: "#dbeafe", tagC: "#1e40af", capBg: "#fff", capBd: "#bfdbfe", capC: "#1e3a5f" },
 ];
 const BP_PILLARS = [
   { id: "pillar_sec", color: "#dc2626", bg: "#fef2f2", itemBg: "#fee2e2", itemC: "#991b1b", descC: "#b91c1c", badgeBg: "#fecaca", badgeC: "#991b1b", badges: ["SOC2", "ISO 27001", "HIPAA", "PCI-DSS"] },
@@ -443,16 +446,20 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {BP_LAYERS.map((layer, li) => {
                 const isLast = li === BP_LAYERS.length - 1;
-                const isMedallion = layer.prefix === "medal_";
+                const isDW = layer.isDW;
+                const layerNodes = layer.prefixes.length > 0 ? diag.nodes.filter(n => layer.prefixes.some(p => n.id.startsWith(p))) : [];
+                // Find matching gcpLayers entry for grouped rendering
+                const gcpLayer = ((diag as any).gcpLayers || []).find((gl: any) => String(gl.num) === String(layer.num));
+                const hasGroups = gcpLayer && gcpLayer.groups && !isDW;
                 return (
-                  <div key={layer.prefix}>
+                  <div key={layer.num}>
                     <div style={{ borderRadius: 10, padding: "10px 14px", border: `1.5px solid ${layer.border}`, background: layer.bg }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
                         <div style={{ width: 18, height: 18, borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", background: layer.numBg, flexShrink: 0 }}>{layer.num}</div>
                         <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: layer.nameC }}>{layer.name}</div>
                         <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, letterSpacing: 0.4, textTransform: "uppercase" as const, background: layer.tagBg, color: layer.tagC }}>{layer.tag}</div>
                       </div>
-                      {isMedallion ? (
+                      {isDW ? (
                         <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
                           {MEDAL_ZONES.map((mz, mi) => (
                             <div key={mz.id} style={{ display: "flex", alignItems: "center", gap: 5, flex: 1 }}>
@@ -464,10 +471,27 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
                             </div>
                           ))}
                         </div>
+                      ) : hasGroups ? (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          {gcpLayer.groups.map((grp: any) => {
+                            const grpNodes = grp.ids.map((id: string) => getNode(id)).filter(Boolean);
+                            if (!grpNodes.length) return null;
+                            return (
+                              <div key={grp.label} style={{ background: layer.capBg || "#fff", border: `1px solid ${layer.capBd || layer.border}`, borderRadius: 8, padding: "6px 8px", minWidth: 90 }}>
+                                <div style={{ fontSize: 7, fontWeight: 800, color: layer.nameC, textTransform: "uppercase" as const, letterSpacing: 0.5, marginBottom: 4, paddingBottom: 3, borderBottom: `1px solid ${layer.border}40` }}>{grp.label}</div>
+                                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                                  {grpNodes.map((n: any) => (
+                                    <CapBox key={n.id} nodeId={n.id} style={{ background: `${layer.border}10`, border: `1px solid ${layer.border}30`, color: layer.capC, minWidth: 80, flex: "unset" }} />
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       ) : (
                         <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                          {nodesByPrefix(layer.prefix).map(n => (
-                            <CapBox key={n.id} nodeId={n.id} style={{ background: layer.capBg, border: `1px solid ${layer.capBd}`, color: layer.capC, ...(layer.prefix === "lake_" ? { flex: 2 } : {}) }} />
+                          {layerNodes.map(n => (
+                            <CapBox key={n.id} nodeId={n.id} style={{ background: layer.capBg, border: `1px solid ${layer.capBd}`, color: layer.capC, ...(layer.prefixes.includes("lake_") ? { flex: 2 } : {}) }} />
                           ))}
                         </div>
                       )}
@@ -553,7 +577,7 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8, padding: "4px 0 0" }}>
                 <div style={{ width: 18, height: 18, borderRadius: 5, background: "#4b5563", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", flexShrink: 0 }}>①</div>
                 <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: "#4b5563" }}>Source Systems</div>
-                <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#f3f4f6", color: "#6b7280", letterSpacing: 0.4, textTransform: "uppercase" as const }}>8 Categories</div>
+                <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#f3f4f6", color: "#6b7280", letterSpacing: 0.4, textTransform: "uppercase" as const }}>{(diag.phases || []).filter(p => p.name.startsWith("L1")).length} Categories</div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 {(diag.phases || []).filter(p => p.name.startsWith("L1")).map(phase => {
@@ -661,8 +685,8 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
     );
   };
 
-  // Source groups
-  const srcGroups = [
+  // Source groups — from blueprint JSON (single source of truth: gcp_blueprint.py)
+  const srcGroups = (diag as any).srcGroups || [
     { label: "CRM & Sales", ids: ["src_salesforce", "src_hubspot", "src_dynamics365"] },
     { label: "HR & Finance", ids: ["src_workday", "src_sap", "src_netsuite", "src_adp", "src_bamboohr"] },
     { label: "ITSM & Ops", ids: ["src_servicenow", "src_jira", "src_zendesk"] },
@@ -674,35 +698,35 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
     { label: "NoSQL & Search", ids: ["src_mongodb", "src_cassandra", "src_elasticsearch", "src_redis", "src_dynamodb", "src_firestore", "src_neo4j"] },
     { label: "Streaming", ids: ["src_kafka", "src_confluent", "src_kinesis", "src_event_hubs", "src_rabbitmq", "src_mqtt"] },
     { label: "Files & Storage", ids: ["src_sftp", "src_s3", "src_azure_blob", "src_sharepoint", "src_gcs"] },
-    { label: "Cloud DW", ids: ["src_aws_rds", "src_snowflake", "src_databricks"] },
+    { label: "Cloud DW", ids: ["src_aws_rds", "src_snowflake", "src_databricks", "src_redshift", "src_teradata"] },
     { label: "APIs", ids: ["src_rest_api"] },
     { label: "Legacy", ids: ["src_mainframe", "src_as400", "src_mq_series", "src_ftp", "src_flat_file"] },
   ];
 
-  // Connectivity groups
-  const connGroups = [
-    { label: "Identity & Auth", ids: ["conn_cloud_identity", "conn_identity_platform", "conn_iam"] },
+  // Connectivity groups — from blueprint JSON
+  const connGroups = (diag as any).connGroups || [
+    { label: "Identity & Auth", ids: ["conn_cloud_identity", "conn_identity_platform", "conn_iam", "conn_wif"] },
     { label: "Vendor Identity", ids: ["conn_entra_id", "conn_cyberark", "conn_keeper"], vendor: true },
     { label: "Secrets & Network", ids: ["conn_secret_manager", "conn_vpn", "conn_interconnect", "conn_vpc", "conn_armor", "conn_dns"] },
     { label: "API Management", ids: ["conn_apigee", "conn_api_gateway"] },
   ];
 
-  // GCP layers
-  const layers = [
-    { num: "L7–L8", title: "Serving & Consumption", color: "#0E7490", groups: [
+  // GCP layers — from blueprint JSON
+  const layers = (diag as any).gcpLayers || [
+    { num: "L7", title: "Serving & Consumption", color: "#0E7490", groups: [
       { label: "BI", ids: ["serve_looker", "serve_bi_engine", "con_sheets", "con_powerbi", "con_tableau", "con_slicer"] },
       { label: "AI / ML", ids: ["con_vertex"] },
       { label: "APIs", ids: ["conn_apigee", "conn_api_gateway", "serve_run"] },
       { label: "Data Sharing", ids: ["serve_hub"] },
     ] },
-    { num: "L6", title: "Medallion", color: "#D97706", groups: [
+    { num: "L6", title: "Data Warehouse", color: "#D97706", isDW: true, groups: [
       { label: "Bronze", ids: ["bronze"] },
       { label: "Silver", ids: ["silver"] },
       { label: "Gold", ids: ["gold"] },
     ] },
     { num: "L5", title: "Processing", color: "#6D28D9", groups: [
-      { label: "Batch / Spark", ids: ["proc_dataproc", "proc_bq_sql"] },
-      { label: "Stream", ids: ["proc_dataflow"] },
+      { label: "SQL Workflows", ids: ["proc_dataform", "proc_bq_sql"] },
+      { label: "Stream / Spark", ids: ["proc_dataflow", "proc_dataproc"] },
       { label: "Data Quality", ids: ["proc_dlp"] },
       { label: "Vendor ETL", ids: ["proc_matillion"] },
     ] },
@@ -712,24 +736,50 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
     ] },
     { num: "L3", title: "Ingestion", color: "#0369A1", groups: [
       { label: "CDC", ids: ["ing_datastream"] },
-      { label: "Streaming", ids: ["ing_pubsub"] },
-      { label: "Batch / Event", ids: ["ing_dataflow", "ing_functions"] },
-      { label: "Vendor CDC", ids: ["ing_fivetran", "ing_matillion"] },
+      { label: "Connectors", ids: ["ing_bq_dts"] },
+      { label: "File Transfer", ids: ["ing_sts"] },
+      { label: "Streaming", ids: ["ing_pubsub", "ing_dataflow"] },
+      { label: "Custom / API", ids: ["ing_functions"] },
+      { label: "Migration", ids: ["ing_dms"] },
+      { label: "Vendor", ids: ["ing_fivetran", "ing_matillion"] },
     ] },
   ];
 
-  // Pillars
-  const pillars = [
-    { id: "pillar_sec", color: "#DC2626", bg: "#FEF2F2" },
-    { id: "pillar_gov", color: "#2563EB", bg: "#EFF6FF" },
-    { id: "pillar_obs", color: "#D97706", bg: "#FFFBEB" },
-    { id: "pillar_orch", color: "#7C3AED", bg: "#F5F3FF" },
+  // Pillars — 4 colored groups, auto-derived from nodes if server doesn't send pillarGroups
+  const PILLAR_DEFS = [
+    { id: "pillar_sec",  label: "Security & Encryption", color: "#DC2626", bg: "#FEF2F2", prefix: "sec_" },
+    { id: "pillar_gov",  label: "Governance & Quality",  color: "#2563EB", bg: "#EFF6FF", prefix: "gov_" },
+    { id: "pillar_obs",  label: "Observability & Ops",   color: "#D97706", bg: "#FFFBEB", prefix: "obs_" },
+    { id: "pillar_orch", label: "Orchestration & Cost",  color: "#7C3AED", bg: "#F5F3FF", prefix: "orch_" },
   ];
+  const pillarGroups = ((diag as any).pillarGroups && (diag as any).pillarGroups.length > 0)
+    ? (diag as any).pillarGroups
+    : PILLAR_DEFS.map(def => ({
+        ...def,
+        nodeIds: diag.nodes.filter(n => n.id.startsWith(def.prefix)).map(n => n.id),
+      })).filter(pg => pg.nodeIds.length > 0);
+  // Fallback: if no sub-products (sec_*, gov_*, etc), use old pillar_* nodes with parsed items
+  const hasPillarSubs = pillarGroups.some((pg: any) => pg.nodeIds.length > 0);
+  const oldPillarNodes = !hasPillarSubs ? PILLAR_DEFS.map(def => ({
+    ...def,
+    nodeIds: diag.nodes.filter(n => n.id === def.id).map(n => n.id),
+    items: (() => {
+      const n = g(def.id);
+      if (!n?.details?.notes) return [];
+      return n.details.notes.split("\n").filter((l: string) => l.trim().startsWith("•")).map((l: string) => {
+        const c = l.replace(/^[•\s]+/, "").trim();
+        const name = c.match(/^([^(]+)\(/)?.[1]?.trim() || c;
+        const firstName = name.split(/\s*·\s*/)[0].trim();
+        const ico = pillarIconMap[firstName] || pillarIconMap[name] || null;
+        return { name: firstName, icon: ico };
+      });
+    })(),
+  })).filter(pg => pg.nodeIds.length > 0 || pg.items?.length > 0) : [];
 
-  // Arrow
+  // Arrow — SOLID
   const Arr = ({ color = "#94A3B8" }: { color?: string }) => (
     <div style={{ display: "flex", alignItems: "center", padding: "0 2px", flexShrink: 0 }}>
-      <svg width="16" height="10"><line x1="0" y1="5" x2="10" y2="5" stroke={color} strokeWidth="1.5" strokeDasharray="3 2"/><polygon points="10,1.5 16,5 10,8.5" fill={color}/></svg>
+      <svg width="16" height="10"><line x1="0" y1="5" x2="10" y2="5" stroke={color} strokeWidth="1.5"/><polygon points="10,1.5 16,5 10,8.5" fill={color}/></svg>
     </div>
   );
 
@@ -786,9 +836,9 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
 
           <Arr color="#4285F4" />
 
-          {/* ── GCP CLOUD BOX (Layers 3–8 + Pillars) ── */}
+          {/* ── GCP CLOUD BOX (Layers 3–7 + Pillars) ── */}
           <div style={{ flex: 1, borderRadius: 12, border: "3px solid #4285F4", background: "#F0F6FF", padding: "14px 10px 10px 10px", position: "relative", display: "flex", gap: 16 }}>
-            <div style={{ position: "absolute", top: -11, left: 14, background: "#4285F4", color: "#FFF", fontSize: 8, fontWeight: 800, padding: "2px 10px", borderRadius: 14, letterSpacing: 0.6 }}>☁️ GOOGLE CLOUD PLATFORM — Layers 3–8</div>
+            <div style={{ position: "absolute", top: -11, left: 14, background: "#4285F4", color: "#FFF", fontSize: 8, fontWeight: 800, padding: "2px 10px", borderRadius: 14, letterSpacing: 0.6 }}>☁️ GOOGLE CLOUD PLATFORM — Layers 3–7</div>
 
             {/* Layers stack */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 0, marginTop: 2 }}>
@@ -799,6 +849,31 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
                       <span style={{ fontSize: 9, fontWeight: 800, color: layer.color }}>{layer.num}</span>
                       <span style={{ fontSize: 8, fontWeight: 700, color: layer.color, textTransform: "uppercase", letterSpacing: 0.3 }}>{layer.title}</span>
                     </div>
+                    {layer.isDW ? (
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        {layer.groups.map((grp: any, gi: number) => {
+                          const nodes = grp.ids.filter((id: string) => g(id));
+                          if (!nodes.length) return null;
+                          const zoneColors: Record<string, { bg: string; bd: string; lbl: string }> = {
+                            Bronze: { bg: "#fef3c7", bd: "#f59e0b", lbl: "#b45309" },
+                            Silver: { bg: "#f1f5f9", bd: "#94a3b8", lbl: "#475569" },
+                            Gold:   { bg: "#fef9c3", bd: "#eab308", lbl: "#a16207" },
+                          };
+                          const zc = zoneColors[grp.label] || { bg: `${layer.color}08`, bd: `${layer.color}40`, lbl: layer.color };
+                          return (
+                            <React.Fragment key={grp.label}>
+                              <div style={{ flex: 1, background: zc.bg, border: `2px solid ${zc.bd}`, borderRadius: 8, padding: "8px 10px", textAlign: "center" }}>
+                                <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: 1, color: zc.lbl, marginBottom: 4 }}>{grp.label.toUpperCase()}</div>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center" }}>
+                                  {nodes.map((id: string) => <IC key={id} id={id} bg={zc.bg} border={zc.bd} />)}
+                                </div>
+                              </div>
+                              {gi < layer.groups.length - 1 && <div style={{ fontSize: 18, color: "#d0d0d0", flexShrink: 0 }}>→</div>}
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    ) : (
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       {layer.groups.map((grp: any) => {
                         const nodes = grp.ids.filter((id: string) => g(id));
@@ -813,6 +888,7 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
                         );
                       })}
                     </div>
+                    )}
                   </div>
                   {li < layers.length - 1 && (
                     <div style={{ display: "flex", justifyContent: "center", padding: "3px 0" }}>
@@ -826,30 +902,37 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
               ))}
             </div>
 
-            {/* Pillars (right side) */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 2, width: 220, flexShrink: 0 }}>
-              {pillars.map(p => {
-                const node = g(p.id);
-                const items = pillarItems(p.id);
-                const pic = node?.icon ? iconUrl(node.name, node.icon) : null;
+            {/* Pillars — 4 separate colored groups */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 2, width: 280, flexShrink: 0 }}>
+              <div style={{ fontSize: 8, fontWeight: 900, color: "#4285F4", textAlign: "center", textTransform: "uppercase", letterSpacing: 1, paddingBottom: 4, borderBottom: "1.5px solid #4285F430" }}>Crosscutting Pillars</div>
+              {(hasPillarSubs ? pillarGroups : oldPillarNodes).map((pg: any) => {
+                const pgNodes = (pg.nodeIds || []).map((id: string) => g(id)).filter(Boolean);
+                const items = pg.items || [];
+                if (!pgNodes.length && !items.length) return null;
                 return (
-                  <div key={p.id} onClick={() => click(p.id)} style={{ flex: 1, background: p.bg, borderRadius: 8, border: `1.5px solid ${p.color}35`, padding: "6px 8px", cursor: "pointer", outline: selBorder(p.id), outlineOffset: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4, paddingBottom: 3, borderBottom: `1px solid ${p.color}20` }}>
-                      {pic && <img src={pic} alt="" style={{ width: 18, height: 18 }} />}
-                      <div style={{ fontSize: 7, fontWeight: 800, color: p.color, letterSpacing: 0.3 }}>{node?.name || p.id}</div>
+                  <div key={pg.id} style={{ flex: 1, background: pg.bg, borderRadius: 8, border: `2px solid ${pg.color}40`, padding: "6px 8px", borderLeft: `4px solid ${pg.color}` }}>
+                    <div style={{ fontSize: 7.5, fontWeight: 900, color: pg.color, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 4, paddingBottom: 3, borderBottom: `1px solid ${pg.color}20` }}>
+                      {pg.label}
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: 4, justifyItems: "center" }}>
-                      {items.map((item, j) => {
-                        const icoPath = item.icon ? iconUrl(item.name, item.icon) : null;
-                        return (
-                          <div key={j} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                            <div style={{ width: 44, height: 44, borderRadius: 10, background: `${p.color}10`, border: `1.5px solid ${p.color}30`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                              {icoPath ? <img src={icoPath} alt="" style={{ width: 30, height: 30 }} /> : <div style={{ fontSize: 7, fontWeight: 800, color: p.color, opacity: 0.5, textAlign: "center", lineHeight: 1.1 }}>{item.name.split(/[\s\/]/)[0]}</div>}
-                            </div>
-                            <div style={{ fontSize: 7, fontWeight: 700, color: `${p.color}BB`, textAlign: "center", lineHeight: 1.15 }}>{item.name}</div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {/* Sub-product nodes (sec_kms, gov_dataplex, etc.) */}
+                      {pgNodes.map((n: any) => (
+                        <div key={n.id} onClick={() => click(n.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, cursor: "pointer", outline: selBorder(n.id), outlineOffset: 1, borderRadius: 8, padding: 2 }}>
+                          <div style={{ width: 44, height: 44, borderRadius: 10, background: `${pg.color}10`, border: `1.5px solid ${pg.color}30`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                            {n.icon ? <img src={iconUrl(n.name, n.icon) || ""} alt="" style={{ width: 30, height: 30 }} /> : <div style={{ fontSize: 7, fontWeight: 800, color: pg.color, opacity: 0.5, textAlign: "center", lineHeight: 1.1 }}>{n.name.split(/[\s\/]/)[0]}</div>}
                           </div>
-                        );
-                      })}
+                          <div style={{ fontSize: 6.5, fontWeight: 700, color: `${pg.color}CC`, textAlign: "center", lineHeight: 1.15, maxWidth: 52 }}>{n.name}</div>
+                        </div>
+                      ))}
+                      {/* Fallback: parsed items from old monolithic pillar_* notes */}
+                      {items.map((item: any, j: number) => (
+                        <div key={j} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, padding: 2 }}>
+                          <div style={{ width: 44, height: 44, borderRadius: 10, background: `${pg.color}10`, border: `1.5px solid ${pg.color}30`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                            {item.icon ? <img src={iconUrl(item.name, item.icon) || ""} alt="" style={{ width: 30, height: 30 }} /> : <div style={{ fontSize: 7, fontWeight: 800, color: pg.color, opacity: 0.5, textAlign: "center", lineHeight: 1.1 }}>{item.name.split(/[\s\/]/)[0]}</div>}
+                          </div>
+                          <div style={{ fontSize: 6.5, fontWeight: 700, color: `${pg.color}CC`, textAlign: "center", lineHeight: 1.15, maxWidth: 52 }}>{item.name}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 );
@@ -861,7 +944,7 @@ function GCPBlueprintView({ diag, popover, setPopover }: { diag: Diagram; popove
         {/* ═══ LEGEND ═══ */}
         <div style={{ display: "flex", justifyContent: "center", gap: 14, padding: "4px 0", borderTop: "1px solid #E5E7EB" }}>
           {[
-            { color: "#4285F4", label: "GCP (Layers 3–8)", style: "solid", w: 3 },
+            { color: "#4285F4", label: "GCP (Layers 3–7)", style: "solid", w: 3 },
             { color: "#6B7280", label: "L1 Sources (External)", style: "solid", w: 2 },
             { color: "#7C3AED", label: "L2 Connectivity", style: "dashed", w: 2 },
             { color: "#334151", label: "⬡ Vendor (non-GCP)", style: "dashed", w: 1.5 },
@@ -1139,32 +1222,58 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
   };
 
   const BG = 82, ICO = 60;
-  const srcB = zBounds(byZone("sources"), 85, 80, 200);
-  const cloudB = zBounds(byZone("cloud"), 80, 75);
-  const conB = zBounds(byZone("consumers"), 85, 80, 200);
-  const extB = zBounds(diag.nodes.filter(n => n.zone === "external"), 85, 80, 200);
 
-  // Sub-zone boxes (from subZone field)
+  // ── Zone geometry: backend-authoritative (Phase 1) ──
+  // diag.zones carries x/y/w/h from diagram_builder.py ZONE_DEFS
+  interface BackendZone {
+    id: string; label: string; color: string;
+    dashed: boolean; filled?: boolean;
+    x: number; y: number; w: number; h: number;
+    parent?: string | null; zIndex: number;
+  }
+  const hasBackendZones = Array.isArray((diag as any).zones) &&
+    (diag as any).zones.length > 0 &&
+    (diag as any).zones[0]?.x !== undefined;
+
+  const backendZones: BackendZone[] = hasBackendZones
+    ? ((diag as any).zones as BackendZone[])
+        .filter((z: BackendZone) => z.x !== undefined && z.w !== undefined)
+        .sort((a: BackendZone, b: BackendZone) => (a.zIndex ?? 0) - (b.zIndex ?? 0))
+    : [];
+
+  // Convenience lookups for gates + arrows
+  const gcpZone = backendZones.find(z => z.id === "gcp") || null;
+  const srcZone = backendZones.find(z => z.id === "source") || null;
+  const conZone = backendZones.find(z => z.id === "consumer") || null;
+
+  // ── FALLBACK: legacy diagrams without backend zones ──
+  const srcB = hasBackendZones ? null : zBounds(byZone("sources"), 85, 80, 200);
+  const cloudB = hasBackendZones ? null : zBounds(byZone("cloud"), 80, 75);
+  const conB = hasBackendZones ? null : zBounds(byZone("consumers"), 85, 80, 200);
+  const extB = hasBackendZones ? null : zBounds(diag.nodes.filter(n => n.zone === "external"), 85, 80, 200);
+
   type SubZoneDef = { zone: string; label: string; color: string; dashed: boolean; zones?: string[] };
-  const subZoneDefs: SubZoneDef[] = [
+  const subZoneBounds = hasBackendZones ? [] : [
     { zone: "ext-identity", label: "EXTERNAL IDENTITY", color: "#37474F", dashed: true },
     { zone: "gcp-security", label: "SECURITY (L2)", color: "#1E3A5F", dashed: true },
-    { zone: "data-pipeline", label: "DATA PIPELINE (L3→L6)", color: "#137333", dashed: true, zones: ["ingestion", "landing", "processing", "medallion"] },
-    { zone: "medallion", label: "MEDALLION ARCHITECTURE", color: "#FF8F00", dashed: false },
+    { zone: "data-pipeline", label: "DATA PIPELINE (L3→L7)", color: "#137333", dashed: true, zones: ["ingestion", "landing", "processing", "medallion", "data_warehouse", "serving"] },
     { zone: "orchestration", label: "ORCHESTRATION", color: "#E65100", dashed: true },
     { zone: "gcp-obs", label: "OBSERVABILITY", color: "#00695C", dashed: true },
     { zone: "governance", label: "GOVERNANCE", color: "#00695C", dashed: true },
     { zone: "ext-log", label: "EXT LOGGING", color: "#455A64", dashed: true },
     { zone: "ext-alert", label: "EXT ALERTING", color: "#BF360C", dashed: true },
-  ];
-  const subZoneBounds = subZoneDefs.map(szd => {
-    // Multi-zone group (e.g. data-pipeline covers ingestion+landing+processing+medallion)
-    const matchZones = szd.zones || [szd.zone];
+  ].map(szd => {
+    const matchZones = (szd as any).zones || [szd.zone];
     const ns = diag.nodes.filter((n: any) => matchZones.includes(n.subZone));
     if (!ns.length) return null;
     const b = zBounds(ns, 40, 35, 140);
     return b ? { ...szd, ...b } : null;
   }).filter(Boolean) as (SubZoneDef & { x: number; y: number; w: number; h: number })[];
+
+  // Unified GCP bounds for gates + arrows (works with both paths)
+  const cloudBounds = gcpZone
+    ? { x: gcpZone.x, y: gcpZone.y, w: gcpZone.w, h: gcpZone.h }
+    : cloudB;
 
   const allXs = diag.nodes.map(n => n.x);
   const cx = allXs.length ? (Math.min(...allXs) + Math.max(...allXs)) / 2 : 600;
@@ -1190,14 +1299,14 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
 
   // Compute boundary gates
   const gates: Gate[] = [];
-  if (cloudB) {
+  if (cloudBounds) {
     diag.edges.filter(e => e.crossesBoundary && e.security).forEach(edge => {
       const fn = diag.nodes.find(n => n.id === edge.from), tn = diag.nodes.find(n => n.id === edge.to);
       if (!fn || !tn || !edge.security) return;
       const srcIn = fn.zone === "sources" && tn.zone === "cloud";
       const cloudOut = fn.zone === "cloud" && tn.zone === "consumers";
-      if (srcIn) gates.push({ id: `gate-${edge.id}`, edgeId: edge.id, x: cloudB.x, y: fn.y, direction: "in", security: edge.security!, fromName: fn.name, toName: tn.name, label: edge.label || "" });
-      if (cloudOut) gates.push({ id: `gate-${edge.id}`, edgeId: edge.id, x: cloudB.x + cloudB.w, y: fn.y, direction: "out", security: edge.security!, fromName: fn.name, toName: tn.name, label: edge.label || "" });
+      if (srcIn) gates.push({ id: `gate-${edge.id}`, edgeId: edge.id, x: cloudBounds!.x, y: fn.y, direction: "in", security: edge.security!, fromName: fn.name, toName: tn.name, label: edge.label || "" });
+      if (cloudOut) gates.push({ id: `gate-${edge.id}`, edgeId: edge.id, x: cloudBounds!.x + cloudBounds!.w, y: fn.y, direction: "out", security: edge.security!, fromName: fn.name, toName: tn.name, label: edge.label || "" });
     });
   }
 
@@ -1223,31 +1332,85 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
         <text x={cx} y={topY} textAnchor="middle" style={{ fontSize: 24, fontWeight: 800, fill: isDark ? "#e0e0e0" : "#111" }}>{diag.title}</text>
         {diag.subtitle && <text x={cx} y={topY + 22} textAnchor="middle" style={{ fontSize: 11, fill: isDark ? "#78909c" : "#999", fontStyle: "italic" }}>{diag.subtitle}</text>}
 
-        {/* Zones */}
-        {srcB && <g><rect x={srcB.x} y={srcB.y} width={srcB.w} height={srcB.h} rx={12} fill={isDark ? "#162032" : "#fafafa"} stroke={isDark ? "#2a4060" : "#bdbdbd"} strokeWidth={1.5} strokeDasharray="8 4" /><text x={srcB.x + srcB.w / 2} y={srcB.y + 18} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: isDark ? "#5a7a9a" : "#78909c", letterSpacing: 2 }}>SOURCES</text></g>}
-        {cloudB && <g><rect x={cloudB.x} y={cloudB.y} width={cloudB.w} height={cloudB.h} rx={14} fill={isDark ? "#0d1f3c" : "#f5f9ff"} stroke={isDark ? "#1a4480" : "#4285f4"} strokeWidth={2} />
-          <g transform={`translate(${cloudB.x + cloudB.w / 2 - 60},${cloudB.y - 14})`}><rect width={120} height={28} rx={6} fill="#4285f4" /><text x={60} y={19} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: "#fff", letterSpacing: .5 }}>Google Cloud</text></g></g>}
-        {conB && <g><rect x={conB.x} y={conB.y} width={conB.w} height={conB.h} rx={12} fill={isDark ? "#162032" : "#fafafa"} stroke={isDark ? "#2a4060" : "#bdbdbd"} strokeWidth={1.5} strokeDasharray="8 4" /><text x={conB.x + conB.w / 2} y={conB.y + 18} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: isDark ? "#5a7a9a" : "#78909c", letterSpacing: 2 }}>CONSUMERS</text></g>}
-
-        {/* External zone (PagerDuty, Splunk, Wiz, etc.) */}
-        {extB && <g><rect x={extB.x} y={extB.y} width={extB.w} height={extB.h} rx={12} fill={isDark ? "#1a1010" : "#fef7f5"} stroke={isDark ? "#5a2020" : "#BF360C"} strokeWidth={1.5} strokeDasharray="10 5" /><text x={extB.x + extB.w / 2} y={extB.y + 18} textAnchor="middle" style={{ fontSize: 11, fontWeight: 800, fill: isDark ? "#bf5a3c" : "#BF360C", letterSpacing: 1.5 }}>EXTERNAL SERVICES</text></g>}
-
-        {/* Sub-zone boxes — dashed group rectangles inside/outside GCP */}
-        {subZoneBounds.map(sz => {
-          const isMedallion = sz.zone === "medallion";
+        {/* ── Zone boxes: backend-authoritative or legacy fallback ── */}
+        {hasBackendZones ? backendZones.map(zone => {
+          const isGcp = zone.id === "gcp";
+          const isMedallion = zone.id === "medallion";
+          const isSource = zone.id === "source";
+          const isConsumer = zone.id === "consumer";
+          const isExternal = zone.id === "ext-log" || zone.id === "ext-alert";
+          let fillColor = "transparent";
+          if (isGcp) fillColor = isDark ? "#0d1f3c" : "#f5f9ff";
+          else if (isMedallion) fillColor = isDark ? "rgba(255,143,0,0.08)" : "rgba(255,243,224,0.7)";
+          else if (isSource || isConsumer) fillColor = isDark ? "#162032" : "#fafafa";
+          else if (isExternal) fillColor = isDark ? "#1a1010" : "#fef7f5";
+          else if (zone.filled) fillColor = isDark ? "rgba(26,115,232,0.04)" : "rgba(26,115,232,0.02)";
           return (
-          <g key={sz.zone}>
-            <rect x={sz.x} y={sz.y} width={sz.w} height={sz.h} rx={isMedallion ? 12 : 10}
-              fill={isMedallion ? (isDark ? "rgba(255,143,0,0.08)" : "rgba(255,243,224,0.7)") : "transparent"}
-              stroke={sz.color} strokeWidth={isMedallion ? 2 : 1.5}
-              strokeDasharray={sz.dashed ? "8 4" : "none"} opacity={isMedallion ? 0.9 : 0.5} />
-            <g transform={`translate(${sz.x + 8},${sz.y - 8})`}>
-              <rect width={sz.label.length * 6.5 + 12} height={16} rx={4}
-                fill={isMedallion ? (isDark ? "#3e2723" : "#FF8F00") : (isDark ? "#1a1a1a" : "#fff")}
-                stroke={sz.color} strokeWidth={0.8} />
-              <text x={6} y={11.5} style={{ fontSize: 8, fontWeight: 700, fill: isMedallion ? "#fff" : sz.color, letterSpacing: 1 }}>{sz.label}</text>
+            <g key={zone.id}>
+              <rect x={zone.x} y={zone.y} width={zone.w} height={zone.h}
+                rx={isGcp ? 14 : isMedallion ? 12 : 10}
+                fill={fillColor} stroke={zone.color}
+                strokeWidth={isGcp ? 2 : isMedallion ? 2 : 1.5}
+                strokeDasharray={zone.dashed ? "8 4" : "none"}
+                opacity={isGcp || isMedallion || isSource || isConsumer ? 1 : 0.7} />
+              {isGcp ? (
+                <g transform={`translate(${zone.x + zone.w / 2 - 60},${zone.y - 14})`}><rect width={120} height={28} rx={6} fill="#4285f4" /><text x={60} y={19} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: "#fff", letterSpacing: .5 }}>Google Cloud</text></g>
+              ) : isMedallion ? (
+                <g transform={`translate(${zone.x + 8},${zone.y - 8})`}>
+                  <rect width={zone.label.length * 6.5 + 16} height={18} rx={4} fill={isDark ? "#3e2723" : "#FF8F00"} stroke={zone.color} strokeWidth={0.8} />
+                  <text x={8} y={13} style={{ fontSize: 8, fontWeight: 700, fill: "#fff", letterSpacing: 1, pointerEvents: "none" }}>{zone.label}</text>
+                </g>
+              ) : (isSource || isConsumer) ? (
+                <text x={zone.x + zone.w / 2} y={zone.y + 18} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: isDark ? "#5a7a9a" : "#78909c", letterSpacing: 2, pointerEvents: "none" }}>{zone.label.replace(/\s*\(L\d\)/, "")}</text>
+              ) : isExternal ? (
+                <text x={zone.x + zone.w / 2} y={zone.y + 18} textAnchor="middle" style={{ fontSize: 11, fontWeight: 800, fill: isDark ? "#bf5a3c" : "#BF360C", letterSpacing: 1.5, pointerEvents: "none" }}>{zone.label}</text>
+              ) : (
+                <g transform={`translate(${zone.x + 8},${zone.y - 8})`}>
+                  <rect width={zone.label.length * 6.5 + 12} height={16} rx={4} fill={isDark ? "#1a1a1a" : "#fff"} stroke={zone.color} strokeWidth={0.8} />
+                  <text x={6} y={11.5} style={{ fontSize: 8, fontWeight: 700, fill: zone.color, letterSpacing: 1, pointerEvents: "none" }}>{zone.label}</text>
+                </g>
+              )}
             </g>
-          </g>
+          );
+        }) : <>
+          {srcB && <g><rect x={srcB.x} y={srcB.y} width={srcB.w} height={srcB.h} rx={12} fill={isDark ? "#162032" : "#fafafa"} stroke={isDark ? "#2a4060" : "#bdbdbd"} strokeWidth={1.5} strokeDasharray="8 4" /><text x={srcB.x + srcB.w / 2} y={srcB.y + 18} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: isDark ? "#5a7a9a" : "#78909c", letterSpacing: 2 }}>SOURCES</text></g>}
+          {cloudB && <g><rect x={cloudB.x} y={cloudB.y} width={cloudB.w} height={cloudB.h} rx={14} fill={isDark ? "#0d1f3c" : "#f5f9ff"} stroke={isDark ? "#1a4480" : "#4285f4"} strokeWidth={2} />
+            <g transform={`translate(${cloudB.x + cloudB.w / 2 - 60},${cloudB.y - 14})`}><rect width={120} height={28} rx={6} fill="#4285f4" /><text x={60} y={19} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: "#fff", letterSpacing: .5 }}>Google Cloud</text></g></g>}
+          {conB && <g><rect x={conB.x} y={conB.y} width={conB.w} height={conB.h} rx={12} fill={isDark ? "#162032" : "#fafafa"} stroke={isDark ? "#2a4060" : "#bdbdbd"} strokeWidth={1.5} strokeDasharray="8 4" /><text x={conB.x + conB.w / 2} y={conB.y + 18} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: isDark ? "#5a7a9a" : "#78909c", letterSpacing: 2 }}>CONSUMERS</text></g>}
+          {extB && <g><rect x={extB.x} y={extB.y} width={extB.w} height={extB.h} rx={12} fill={isDark ? "#1a1010" : "#fef7f5"} stroke={isDark ? "#5a2020" : "#BF360C"} strokeWidth={1.5} strokeDasharray="10 5" /><text x={extB.x + extB.w / 2} y={extB.y + 18} textAnchor="middle" style={{ fontSize: 11, fontWeight: 800, fill: isDark ? "#bf5a3c" : "#BF360C", letterSpacing: 1.5 }}>EXTERNAL SERVICES</text></g>}
+          {subZoneBounds.map(sz => (
+            <g key={sz.zone}>
+              <rect x={sz.x} y={sz.y} width={sz.w} height={sz.h} rx={10}
+                fill="transparent" stroke={sz.color} strokeWidth={1.5}
+                strokeDasharray={sz.dashed ? "8 4" : "none"} opacity={0.5} />
+              <g transform={`translate(${sz.x + 8},${sz.y - 8})`}>
+                <rect width={sz.label.length * 6.5 + 12} height={16} rx={4}
+                  fill={isDark ? "#1a1a1a" : "#fff"} stroke={sz.color} strokeWidth={0.8} />
+                <text x={6} y={11.5} style={{ fontSize: 8, fontWeight: 700, fill: sz.color, letterSpacing: 1 }}>{sz.label}</text>
+              </g>
+            </g>
+          ))}
+        </>}
+
+        {/* Source category groups (RDBMS, SaaS, Streaming, etc.) */}
+        {(diag as any).sourceGroups?.map((sg: any) => {
+          const ns = sg.nodeIds.map((id: string) => diag.nodes.find(n => n.id === id)).filter(Boolean) as DiagNode[];
+          if (!ns.length) return null;
+          const b = zBounds(ns, 30, 25, 120);
+          if (!b) return null;
+          const catColors: Record<string, string> = { rdbms: "#1565C0", saas: "#6A1B9A", streaming: "#E65100", files: "#2E7D32", nosql: "#00695C" };
+          const c = catColors[sg.category] || "#546E7A";
+          return (
+            <g key={sg.category}>
+              <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={8}
+                fill={isDark ? `${c}10` : `${c}08`} stroke={c} strokeWidth={1}
+                strokeDasharray="5 3" opacity={0.6} />
+              <g transform={`translate(${b.x + 6},${b.y - 6})`}>
+                <rect width={sg.label.length * 5.5 + 10} height={14} rx={3}
+                  fill={isDark ? "#1a1a1a" : "#fff"} stroke={c} strokeWidth={0.6} />
+                <text x={5} y={10} style={{ fontSize: 7, fontWeight: 700, fill: c, letterSpacing: 0.5 }}>{sg.label}</text>
+              </g>
+            </g>
           );
         })}
 
@@ -1301,14 +1464,15 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
               return <path d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`} fill="none" stroke="#f472b6" strokeWidth={1.5} strokeDasharray="6 3" />;
             })()}
             {/* Arrows: Sources → L2 connectivity */}
-            {srcB && (() => {
+            {(srcZone || srcB) && (() => {
+              const sB = srcZone ? { x: srcZone.x, y: srcZone.y, w: srcZone.w, h: srcZone.h } : srcB!;
               const l2Phases = phaseBounds.filter(p => p.name.includes("L2"));
               if (!l2Phases.length) return null;
               const l2Left = Math.min(...l2Phases.map(p => p.x));
               const l2Top = Math.min(...l2Phases.map(p => p.y));
               const l2Bot = Math.max(...l2Phases.map(p => p.y + p.h));
               return [0.25, 0.5, 0.75].map((f, i) => {
-                const x1 = srcB.x + srcB.w, y1 = srcB.y + srcB.h * f;
+                const x1 = sB.x + sB.w, y1 = sB.y + sB.h * f;
                 const y2 = l2Top + (l2Bot - l2Top) * f;
                 const midX = (x1 + l2Left) / 2;
                 return <path key={`s-l2-${i}`} d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${l2Left},${y2}`} fill="none" stroke="#f472b6" strokeWidth={1.5} strokeDasharray="6 3" />;
@@ -1323,10 +1487,11 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
               return <path key={`up-${i}`} d={`M${x1},${y1} C${x1},${midY} ${x2},${midY} ${x2},${y2}`} fill="none" stroke={nb.border} strokeWidth={1.5} strokeDasharray="6 3" />;
             })}
             {/* Arrow: L7 (top) → Consumers */}
-            {conB && boxes.length > 0 && (() => {
+            {(conZone || conB) && boxes.length > 0 && (() => {
+              const cB = conZone ? { x: conZone.x, y: conZone.y, w: conZone.w, h: conZone.h } : conB!;
               const l7 = boxes[0]; // L7 is first (top)
               const x1 = l7.x + l7.w, y1 = l7.y + l7.h / 2;
-              const x2 = conB.x, y2 = conB.y + conB.h / 2;
+              const x2 = cB.x, y2 = cB.y + cB.h / 2;
               const midX = (x1 + x2) / 2;
               return <path d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`} fill="none" stroke="#67e8f9" strokeWidth={1.5} strokeDasharray="6 3" />;
             })()}
@@ -1439,6 +1604,7 @@ export default function Dashboard({ user }: { user: User }) {
   const [showExport, setShowExport] = useState(false);
   const [showTheme, setShowTheme] = useState(false);
   const [saved, setSaved] = useState<any>(null);
+  const [deckLoading, setDeckLoading] = useState(false);
   
   // Mingrammer engine state
   const [pngUrl, setPngUrl] = useState<string | null>(null);
@@ -1691,6 +1857,33 @@ export default function Dashboard({ user }: { user: User }) {
   }, [diag]);
   const exportJSON = useCallback(() => { if (!diag) return; const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(diag, null, 2)], { type: "application/json" })); a.download = `${diag.title.replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}.json`; a.click(); }, [diag]);
 
+  const exportDeck = useCallback(async () => {
+    if (!prompt || deckLoading) return;
+    setDeckLoading(true);
+    try {
+      const res = await fetch("/api/diagrams/export-deck", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Export failed" }));
+        throw new Error(err.error || "Export failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(diag?.title || "architecture").replace(/[^a-zA-Z0-9]+/g, "-").toLowerCase()}.pptx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      console.error("Deck export failed:", e);
+      alert("Deck export failed: " + (e.message || e));
+    }
+    setDeckLoading(false);
+  }, [prompt, diag, deckLoading]);
+
   const TABS = [{ id: "diagram" as const, l: "Diagram", icon: "◇" }, { id: "highlights" as const, l: "Highlights", icon: "📊" }, { id: "flow" as const, l: "Flow", icon: "🔄" }];
 
   return (
@@ -1736,7 +1929,8 @@ export default function Dashboard({ user }: { user: User }) {
               <span>📥 Export</span><span>▾</span></button>
             {showExport && <div style={{ position: "absolute", bottom: 38, left: 0, right: 0, background: "#fff", border: "1px solid #e0e0e0", borderRadius: 10, boxShadow: "0 6px 20px rgba(0,0,0,.12)", zIndex: 200, overflow: "hidden" }}>
               <button onClick={() => { exportDrawio(); setShowExport(false); }} style={{ width: "100%", padding: "10px 14px", background: "none", border: "none", borderBottom: "1px solid #f5f5f5", cursor: "pointer", textAlign: "left", fontSize: 11 }}><b>📐 Draw.io</b><br /><span style={{ fontSize: 9, color: "#999" }}>Open in diagrams.net</span></button>
-              <button onClick={() => { exportJSON(); setShowExport(false); }} style={{ width: "100%", padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: 11 }}><b>📋 JSON</b><br /><span style={{ fontSize: 9, color: "#999" }}>Template data</span></button>
+              <button onClick={() => { exportJSON(); setShowExport(false); }} style={{ width: "100%", padding: "10px 14px", background: "none", border: "none", borderBottom: "1px solid #f5f5f5", cursor: "pointer", textAlign: "left", fontSize: 11 }}><b>📋 JSON</b><br /><span style={{ fontSize: 9, color: "#999" }}>Template data</span></button>
+              <button onClick={() => { exportDeck(); setShowExport(false); }} disabled={deckLoading} style={{ width: "100%", padding: "10px 14px", background: deckLoading ? "#f0f0f0" : "none", border: "none", cursor: deckLoading ? "wait" : "pointer", textAlign: "left", fontSize: 11, opacity: deckLoading ? 0.6 : 1 }}><b>📊 PowerPoint Deck</b><br /><span style={{ fontSize: 9, color: "#999" }}>{deckLoading ? "Generating 6 slides..." : "Objective → Architecture → Flow → Terraform"}</span></button>
             </div>}
           </div>}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -1770,7 +1964,7 @@ export default function Dashboard({ user }: { user: User }) {
         {diag && tab === "diagram" && diag.layout === "blueprint" && (
           <BlueprintView diag={diag} popover={popover} setPopover={setPopover} />
         )}
-        {diag && tab === "diagram" && diag.layout === "gcp_blueprint" && (
+        {diag && tab === "diagram" && diag.layout === "gcp_blueprint" && source !== "mingrammer" && (
           <GCPBlueprintView diag={diag} popover={popover} setPopover={setPopover} />
         )}
         {diag && tab === "diagram" && source === "mingrammer" && (
