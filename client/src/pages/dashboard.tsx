@@ -1487,7 +1487,9 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
         })()}
 
         {/* ═══ NODE-TO-NODE EDGES — only shown when a node is selected ═══ */}
-        {sel && diag.edges.filter(e => e.from === sel || e.to === sel).map(edge => {
+        {popover?.type === "node" && (() => {
+          const selId = popover.id;
+          return diag.edges.filter(e => e.from === selId || e.to === selId).map(edge => {
           const fn = diag.nodes.find(n => n.id === edge.from), tn = diag.nodes.find(n => n.id === edge.to); if (!fn || !tn) return null;
           const isCtrl = edge.edgeType === "control", isObs = edge.edgeType === "observe", isAlert = edge.edgeType === "alert";
           const { path, mx, my } = edgePath(fn.x, fn.y, tn.x, tn.y);
@@ -1503,7 +1505,7 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
             <path d={path} fill="none" stroke={col} strokeWidth={w} markerEnd={mk} opacity={0.8} />
             {edge.label && <text x={mx} y={my - 6} textAnchor="middle" style={{ fontSize: 7, fontWeight: 600, fill: col }}>{edge.label}</text>}
           </g>);
-        })}
+        });})()}
 
         {/* Boundary Gates — lock icons on cloud zone border */}
         {gates.map(gate => {
