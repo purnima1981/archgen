@@ -633,14 +633,14 @@ def build_diagram(keep_set: Set[str], title: str,
     # ── Consumer zone (above GCP) ──
     h_consumer = _zone_h(n_consumer, 4)
     con_w = max(_zone_w(n_consumer, 4), 200) if n_consumer else 0
-    consumer_y = 30
+    consumer_y = 80
     consumer_x = int(GCP_X + (GCP_W - con_w) / 2) if con_w else 0
 
     if n_consumer:
         zone_rects["consumer"] = {"x": consumer_x, "y": consumer_y, "w": con_w, "h": h_consumer}
 
     # ── GCP zone ──
-    gcp_y = (consumer_y + h_consumer + GAP) if n_consumer else 60
+    gcp_y = (consumer_y + h_consumer + GAP) if n_consumer else 80
     gcp_inner_top = gcp_y + GCP_PAD + GCP_LABEL  # below pill label
 
     if has_gcp:
