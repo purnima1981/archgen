@@ -1338,38 +1338,31 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
         {hasBackendZones ? backendZones.map(zone => {
           const isGcp = zone.id === "gcp";
           const isMedallion = zone.id === "medallion";
-          const isSource = zone.id === "source";
-          const isConsumer = zone.id === "consumer";
-          const isExternal = zone.id === "ext-log" || zone.id === "ext-alert";
-          let fillColor = "transparent";
-          if (isGcp) fillColor = isDark ? "#0d1f3c" : "#f5f9ff";
-          else if (isMedallion) fillColor = isDark ? "rgba(255,143,0,0.08)" : "rgba(255,243,224,0.7)";
-          else if (isSource || isConsumer) fillColor = isDark ? "#162032" : "#fafafa";
-          else if (isExternal) fillColor = isDark ? "#1a1010" : "#fef7f5";
-          else if (zone.filled) fillColor = isDark ? "rgba(26,115,232,0.04)" : "rgba(26,115,232,0.02)";
+          // Consistent fill: use bg from backend if available, else derive from zone type
+          const bgMap: Record<string, string> = {
+            gcp: isDark ? "#0d1f3c" : "#f0f4ff",
+            medallion: isDark ? "rgba(255,143,0,0.08)" : "rgba(255,243,224,0.6)",
+          };
+          const fillColor = bgMap[zone.id] || (zone.bg ? (isDark ? zone.color + "10" : zone.bg) : (isDark ? "#111820" : "#f8f9fb"));
+          const strokeW = isGcp ? 2.5 : 1.5;
+          const rx = isGcp ? 16 : 12;
           return (
             <g key={zone.id}>
               <rect x={zone.x} y={zone.y} width={zone.w} height={zone.h}
-                rx={isGcp ? 14 : isMedallion ? 12 : 10}
-                fill={fillColor} stroke={zone.color}
-                strokeWidth={isGcp ? 2 : isMedallion ? 2 : 1.5}
-                strokeDasharray={zone.dashed ? "8 4" : "none"}
-                opacity={isGcp || isMedallion || isSource || isConsumer ? 1 : 0.7} />
+                rx={rx} fill={fillColor} stroke={zone.color}
+                strokeWidth={strokeW}
+                strokeDasharray={zone.dashed ? "8 4" : "none"} />
               {isGcp ? (
-                <g transform={`translate(${zone.x + zone.w / 2 - 60},${zone.y - 14})`}><rect width={120} height={28} rx={6} fill="#4285f4" /><text x={60} y={19} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: "#fff", letterSpacing: .5 }}>Google Cloud</text></g>
-              ) : isMedallion ? (
-                <g transform={`translate(${zone.x + 8},${zone.y - 8})`}>
-                  <rect width={zone.label.length * 6.5 + 16} height={18} rx={4} fill={isDark ? "#3e2723" : "#FF8F00"} stroke={zone.color} strokeWidth={0.8} />
-                  <text x={8} y={13} style={{ fontSize: 8, fontWeight: 700, fill: "#fff", letterSpacing: 1, pointerEvents: "none" }}>{zone.label}</text>
+                <g transform={`translate(${zone.x + zone.w / 2 - 65},${zone.y - 15})`}>
+                  <rect width={130} height={30} rx={8} fill="#4285f4" />
+                  <text x={65} y={20} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: "#fff", letterSpacing: .5 }}>Google Cloud</text>
                 </g>
-              ) : (isSource || isConsumer) ? (
-                <text x={zone.x + zone.w / 2} y={zone.y + 18} textAnchor="middle" style={{ fontSize: 12, fontWeight: 800, fill: isDark ? "#5a7a9a" : "#78909c", letterSpacing: 2, pointerEvents: "none" }}>{zone.label.replace(/\s*\(L\d\)/, "")}</text>
-              ) : isExternal ? (
-                <text x={zone.x + zone.w / 2} y={zone.y + 18} textAnchor="middle" style={{ fontSize: 11, fontWeight: 800, fill: isDark ? "#bf5a3c" : "#BF360C", letterSpacing: 1.5, pointerEvents: "none" }}>{zone.label}</text>
               ) : (
-                <g transform={`translate(${zone.x + 8},${zone.y - 8})`}>
-                  <rect width={zone.label.length * 6.5 + 12} height={16} rx={4} fill={isDark ? "#1a1a1a" : "#fff"} stroke={zone.color} strokeWidth={0.8} />
-                  <text x={6} y={11.5} style={{ fontSize: 8, fontWeight: 700, fill: zone.color, letterSpacing: 1, pointerEvents: "none" }}>{zone.label}</text>
+                <g transform={`translate(${zone.x + 10},${zone.y - 9})`}>
+                  <rect width={zone.label.length * 6 + 16} height={18} rx={5}
+                    fill={isMedallion ? (isDark ? "#3e2723" : "#FF8F00") : (isDark ? "#1a1a2e" : "#fff")}
+                    stroke={zone.color} strokeWidth={0.8} />
+                  <text x={8} y={13} style={{ fontSize: 8.5, fontWeight: 700, fill: isMedallion ? "#fff" : zone.color, letterSpacing: 0.8, pointerEvents: "none" }}>{zone.label}</text>
                 </g>
               )}
             </g>
