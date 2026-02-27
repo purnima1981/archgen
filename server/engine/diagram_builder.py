@@ -368,11 +368,11 @@ EDGE_RULES = [
 import math
 
 # ── Grid constants ──
-GAP        = 20    # between EVERY pair of adjacent zones — constant, always
-GCP_PAD    = 15    # GCP wrapper inset around children
-GCP_LABEL  = 30    # space for "Google Cloud" pill at top of GCP
-ZONE_PAD   = 30    # internal padding inside each zone
-LABEL_H    = 24    # room for zone label text at top
+GAP        = 40    # between EVERY pair of adjacent zones — constant, always
+GCP_PAD    = 25    # GCP wrapper inset around children
+GCP_LABEL  = 36    # space for "Google Cloud" pill at top of GCP
+ZONE_PAD   = 36    # internal padding inside each zone
+LABEL_H    = 28    # room for zone label text at top
 NODE_W     = 82    # node card size
 NODE_HALF  = 41    # half of NODE_W
 H_SPACE    = 150   # horizontal spacing between node centers
