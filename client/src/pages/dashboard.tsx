@@ -1279,7 +1279,9 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
 
   const allXs = diag.nodes.map(n => n.x);
   const cx = allXs.length ? (Math.min(...allXs) + Math.max(...allXs)) / 2 : 600;
-  const topY = Math.min(...diag.nodes.map(n => n.y)) - 100;
+  const zoneMinY = diag.zones?.length ? Math.min(...diag.zones.map((z: any) => z.y)) : Infinity;
+  const nodeMinY = diag.nodes.length ? Math.min(...diag.nodes.map(n => n.y)) : Infinity;
+  const topY = Math.min(zoneMinY, nodeMinY) - 60;
 
   // Phase group bounds
   const phaseBounds = (diag.phases || []).map(p => {
@@ -1331,8 +1333,8 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
         </defs>
 
         {/* Title */}
-        <text x={cx} y={topY} textAnchor="middle" style={{ fontSize: 24, fontWeight: 800, fill: isDark ? "#e0e0e0" : "#111" }}>{diag.title}</text>
-        {diag.subtitle && <text x={cx} y={topY + 22} textAnchor="middle" style={{ fontSize: 11, fill: isDark ? "#78909c" : "#999", fontStyle: "italic" }}>{diag.subtitle}</text>}
+        <text x={cx} y={topY} textAnchor="middle" style={{ fontSize: 28, fontWeight: 800, fill: isDark ? "#e0e0e0" : "#111", letterSpacing: -0.5 }}>{diag.title}</text>
+        {diag.subtitle && <text x={cx} y={topY + 26} textAnchor="middle" style={{ fontSize: 12, fill: isDark ? "#78909c" : "#999", fontStyle: "italic" }}>{diag.subtitle}</text>}
 
         {/* ── Zone boxes: backend-authoritative or legacy fallback ── */}
         {hasBackendZones ? backendZones.map(zone => {
