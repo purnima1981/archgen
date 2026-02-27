@@ -28,6 +28,104 @@ Data flows BOTTOM-UP inside GCP: Ingestion → Landing → Processing → Medall
 from typing import Set, Dict, List, Any
 
 # ═══════════════════════════════════════════════════════════
+# ID BRIDGE — gcp_blueprint.py IDs → diagram_builder.py IDs
+# gcp_blueprint uses prefixed IDs (src_kafka, conn_iam, ing_pubsub)
+# diagram_builder uses its own IDs (kafka_stream, cloud_iam, pubsub)
+# This map bridges the two so auto_wire() output renders correctly.
+# ═══════════════════════════════════════════════════════════
+
+ID_MAP: Dict[str, str] = {
+    # Sources (L1)
+    "src_oracle": "oracle_db", "src_sqlserver": "sqlserver_db",
+    "src_postgresql": "postgresql_db", "src_mongodb": "mongodb_db",
+    "src_mysql": "oracle_db",  # fallback
+    "src_s3": "aws_s3", "src_salesforce": "salesforce",
+    "src_workday": "workday", "src_servicenow": "servicenow_src",
+    "src_sap": "sap_src", "src_kafka": "kafka_stream",
+    "src_cloud_sql": "cloud_sql", "src_sftp": "sftp_server",
+    # Connectivity (L2)
+    "conn_iam": "cloud_iam", "conn_cloud_identity": "cloud_iam",
+    "conn_secret_manager": "secret_manager", "conn_vpn": "cloud_vpn",
+    "conn_vpc": "vpc", "conn_armor": "cloud_armor",
+    "conn_apigee": "apigee", "conn_entra_id": "entra_id",
+    "conn_cyberark": "cyberark",
+    # Ingestion (L3)
+    "ing_pubsub": "pubsub", "ing_dataflow": "dataflow_ing",
+    "ing_datastream": "datastream", "ing_functions": "cloud_functions",
+    "ing_fivetran": "fivetran", "ing_matillion": "matillion",
+    # Landing (L4)
+    "lake_gcs": "gcs_raw", "lake_bq_staging": "bq_staging",
+    # Processing (L5)
+    "proc_bq_sql": "dataform", "proc_dataflow": "dataflow_proc",
+    "proc_dataproc": "dataproc", "proc_dlp": "cloud_dlp",
+    "proc_matillion": "matillion",
+    # Serving (L7)
+    "serve_looker": "looker", "serve_run": "cloud_run",
+    "serve_hub": "analytics_hub", "serve_bi_engine": "looker",
+    # Consumers (L8)
+    "con_looker": "analysts", "con_run": "downstream_sys",
+    "con_hub": "downstream_sys", "con_powerbi": "executives",
+    "con_vertex": "data_scientists",
+    # Pillars → Crosscutting
+    "pillar_sec": "scc_pillar", "pillar_gov": "dataplex",
+    "pillar_obs": "cloud_monitoring", "pillar_orch": "cloud_composer",
+}
+
+# Zone mapping: gcp_blueprint layer prefixes → diagram_builder zones
+BLUEPRINT_ZONE_MAP: Dict[str, str] = {
+    "L1": "source", "L2": "gcp-security", "L3": "ingestion",
+    "L4": "landing", "L5": "processing", "L6": "medallion",
+    "L7": "serving", "L8": "consumer",
+}
+
+
+def _resolve_keep_set(keep_set: Set[str]) -> Set[str]:
+    """Translate gcp_blueprint IDs to diagram_builder IDs."""
+    resolved = set()
+    for pid in keep_set:
+        if pid in PRODUCTS:
+            resolved.add(pid)  # direct match (bronze, silver, gold)
+        elif pid in ID_MAP and ID_MAP[pid] in PRODUCTS:
+            resolved.add(ID_MAP[pid])
+        else:
+            # Dynamic: try to create product from gcp_blueprint NODES
+            try:
+                from gcp_blueprint import NODES as BP_NODES
+                bp_node = BP_NODES.get(pid)
+                if bp_node:
+                    zone = _guess_zone(pid, bp_node)
+                    PRODUCTS[pid] = {
+                        "name": bp_node.get("name", pid),
+                        "icon": bp_node.get("icon"),
+                        "zone": zone,
+                        "subtitle": bp_node.get("subtitle", ""),
+                    }
+                    resolved.add(pid)
+            except ImportError:
+                pass
+    return resolved
+
+
+def _guess_zone(pid: str, bp_node: dict) -> str:
+    """Guess diagram_builder zone from gcp_blueprint node."""
+    layer = bp_node.get("layer", "")
+    zone = bp_node.get("zone", "")
+    # Map by layer prefix
+    if pid.startswith("src_"): return "source"
+    if pid.startswith("conn_"): return "gcp-security"
+    if pid.startswith("ing_"): return "ingestion"
+    if pid.startswith("lake_"): return "landing"
+    if pid.startswith("proc_"): return "processing"
+    if pid.startswith("serve_"): return "serving"
+    if pid.startswith("con_"): return "consumer"
+    if pid.startswith("pillar_"): return "governance"
+    if zone == "sources": return "source"
+    if zone == "consumers": return "consumer"
+    if zone == "connectivity": return "gcp-security"
+    return "gcp-security"  # safe default inside GCP box
+
+
+# ═══════════════════════════════════════════════════════════
 # COLOR SYSTEM v2 — SEMANTIC
 # ═══════════════════════════════════════════════════════════
 # Blue/Navy  = TRUST (security, identity, GCP)
@@ -385,13 +483,17 @@ def build_diagram(keep_set: Set[str], title: str,
     """
     Convert a keep_set of product IDs into a full Diagram JSON.
     Zone-based layout with bottom-up flow inside GCP.
+    Accepts IDs from BOTH gcp_blueprint.py and diagram_builder.py.
     """
+    # ── Resolve gcp_blueprint IDs → diagram_builder IDs ──
+    resolved = _resolve_keep_set(keep_set)
+
     nodes: List[dict] = []
     edges: List[dict] = []
 
     # ── Bucket products by zone ──
     zone_buckets: Dict[str, List[str]] = {}
-    for pid in sorted(keep_set):
+    for pid in sorted(resolved):
         prod = PRODUCTS.get(pid)
         if not prod:
             continue
