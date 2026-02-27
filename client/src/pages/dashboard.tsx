@@ -1150,6 +1150,7 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
     { zone: "ext-identity", label: "EXTERNAL IDENTITY", color: "#37474F", dashed: true },
     { zone: "gcp-security", label: "SECURITY (L2)", color: "#1E3A5F", dashed: true },
     { zone: "data-pipeline", label: "DATA PIPELINE (L3→L6)", color: "#137333", dashed: true, zones: ["ingestion", "landing", "processing", "medallion"] },
+    { zone: "medallion", label: "MEDALLION ARCHITECTURE", color: "#FF8F00", dashed: false },
     { zone: "orchestration", label: "ORCHESTRATION", color: "#E65100", dashed: true },
     { zone: "gcp-obs", label: "OBSERVABILITY", color: "#00695C", dashed: true },
     { zone: "governance", label: "GOVERNANCE", color: "#00695C", dashed: true },
@@ -1232,18 +1233,23 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
         {extB && <g><rect x={extB.x} y={extB.y} width={extB.w} height={extB.h} rx={12} fill={isDark ? "#1a1010" : "#fef7f5"} stroke={isDark ? "#5a2020" : "#BF360C"} strokeWidth={1.5} strokeDasharray="10 5" /><text x={extB.x + extB.w / 2} y={extB.y + 18} textAnchor="middle" style={{ fontSize: 11, fontWeight: 800, fill: isDark ? "#bf5a3c" : "#BF360C", letterSpacing: 1.5 }}>EXTERNAL SERVICES</text></g>}
 
         {/* Sub-zone boxes — dashed group rectangles inside/outside GCP */}
-        {subZoneBounds.map(sz => (
+        {subZoneBounds.map(sz => {
+          const isMedallion = sz.zone === "medallion";
+          return (
           <g key={sz.zone}>
-            <rect x={sz.x} y={sz.y} width={sz.w} height={sz.h} rx={10}
-              fill="transparent" stroke={sz.color} strokeWidth={1.5}
-              strokeDasharray={sz.dashed ? "8 4" : "none"} opacity={0.5} />
+            <rect x={sz.x} y={sz.y} width={sz.w} height={sz.h} rx={isMedallion ? 12 : 10}
+              fill={isMedallion ? (isDark ? "rgba(255,143,0,0.08)" : "rgba(255,243,224,0.7)") : "transparent"}
+              stroke={sz.color} strokeWidth={isMedallion ? 2 : 1.5}
+              strokeDasharray={sz.dashed ? "8 4" : "none"} opacity={isMedallion ? 0.9 : 0.5} />
             <g transform={`translate(${sz.x + 8},${sz.y - 8})`}>
               <rect width={sz.label.length * 6.5 + 12} height={16} rx={4}
-                fill={isDark ? "#1a1a1a" : "#fff"} stroke={sz.color} strokeWidth={0.8} />
-              <text x={6} y={11.5} style={{ fontSize: 8, fontWeight: 700, fill: sz.color, letterSpacing: 1 }}>{sz.label}</text>
+                fill={isMedallion ? (isDark ? "#3e2723" : "#FF8F00") : (isDark ? "#1a1a1a" : "#fff")}
+                stroke={sz.color} strokeWidth={0.8} />
+              <text x={6} y={11.5} style={{ fontSize: 8, fontWeight: 700, fill: isMedallion ? "#fff" : sz.color, letterSpacing: 1 }}>{sz.label}</text>
             </g>
           </g>
-        ))}
+          );
+        })}
 
         {/* Phase groups — for L1, L2, and Vendor (L3-L7 are shown as layer bands inside GCP) */}
         {phaseBounds.filter(p => p.name.includes("L1") || p.name.includes("L2") || p.name.includes("Vendor")).map((p, i) => {
