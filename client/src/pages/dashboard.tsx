@@ -1423,9 +1423,9 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
           </g>);
         })}
 
-        {/* Layer bands — only L7 Serving gets its own band (L3-L6 are in unified DATA PIPELINE sub-zone) */}
+        {/* Layer bands — skip when backend zones provide labels, keep connection arrows */}
         {(() => {
-          const layerDefs = [
+          const layerDefs = hasBackendZones ? [] : [
             { prefix: "L7", num: 7, label: "SERVING & DELIVERY", bg: "#fff7ed", border: "#fdba74", text: "#c2410c", numBg: "#c2410c" },
           ];
           const boxes: (typeof layerDefs[0] & { x: number; y: number; w: number; h: number })[] = [];
@@ -1487,9 +1487,13 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
               return <path key={`up-${i}`} d={`M${x1},${y1} C${x1},${midY} ${x2},${midY} ${x2},${y2}`} fill="none" stroke={nb.border} strokeWidth={1.5} strokeDasharray="6 3" />;
             })}
             {/* Arrow: L7 (top) → Consumers */}
-            {(conZone || conB) && boxes.length > 0 && (() => {
+            {(conZone || conB) && (() => {
               const cB = conZone ? { x: conZone.x, y: conZone.y, w: conZone.w, h: conZone.h } : conB!;
-              const l7 = boxes[0]; // L7 is first (top)
+              // Use serving zone from backend, or L7 layer band box
+              const servZone = backendZones.find(z => z.id === "serving");
+              const l7 = servZone ? { x: servZone.x, y: servZone.y, w: servZone.w, h: servZone.h }
+                : boxes.length > 0 ? boxes[0] : null;
+              if (!l7) return null;
               const x1 = l7.x + l7.w, y1 = l7.y + l7.h / 2;
               const x2 = cB.x, y2 = cB.y + cB.h / 2;
               const midX = (x1 + x2) / 2;
