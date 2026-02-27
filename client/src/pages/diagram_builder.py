@@ -258,63 +258,6 @@ PRODUCTS: Dict[str, Dict[str, Any]] = {
 
 
 # ═══════════════════════════════════════════════════════════
-# LAYOUT CONSTANTS (SVG coordinate space 0-1520 x 0-1280)
-# These match the React mockup and PPTX exporter exactly
-# ═══════════════════════════════════════════════════════════
-
-# ── ZONE X POSITIONS ──
-X_SOURCE       = 70     # L1 sources, far left
-X_EXT_ID       = 70     # External identity, far left
-X_GCP_SEC      = 460    # L2 security column, left inside GCP
-X_PIPELINE     = 660    # L3-L5 pipeline column (left edge)
-X_SERVING      = 660    # L7 serving
-X_SERVING_2    = 1100   # L7 overflow (Vertex AI etc)
-X_ORCH         = 1100   # Orchestration (right side)
-X_GCP_OBS      = 1100   # GCP observability
-X_GCP_OBS_2    = 1280   # Obs overflow (Audit Logs)
-X_EXT_LOG      = 460    # External logging, below GCP
-X_EXT_ALERT    = 880    # External alerting, below GCP
-X_CONSUMER     = 660    # L8 consumers, top
-
-# ── MEDALLION HORIZONTAL (Bronze → Silver → Gold) ──
-X_MEDAL_START  = 660    # Bronze starts here
-X_MEDAL_SPACE  = 170    # spacing between each medal tier
-
-# ── ZONE Y POSITIONS ──
-Y_CONSUMER     = 60     # L8 consumers at top
-
-# GCP internals (BOTTOM-UP: ingestion at bottom, serving at top)
-Y_SERVING      = 250    # L7 top of GCP
-
-# ── DATA PIPELINE GROUP (L3→L6 unified) ──
-Y_MEDALLION    = 430    # L6 medallion — HORIZONTAL row (top of pipeline group)
-Y_PROCESSING   = 580    # L5 processing
-Y_LANDING      = 730    # L4 landing
-Y_INGESTION    = 880    # L3 ingestion (bottom of pipeline group)
-
-Y_ORCH         = 430    # Orchestration (right side, same row as medallion)
-
-# Security column spread across full GCP height
-Y_SEC_START    = 250
-Y_SEC_SPACING  = 140
-
-# External identity (outside left)
-Y_EXT_ID_START = 280
-Y_EXT_ID_SPACE = 140
-
-# Source (outside left)
-Y_SOURCE_START = 480
-Y_SOURCE_SPACE = 130
-
-# External boxes below GCP
-Y_EXTERNAL     = 1110
-
-# Spacing within a zone when multiple nodes
-NODE_SPACING   = 150     # horizontal spacing for same-y nodes
-VERT_SPACING   = 140     # vertical spacing for stacked nodes
-
-
-# ═══════════════════════════════════════════════════════════
 # SORT PRIORITIES (within zones)
 # ═══════════════════════════════════════════════════════════
 
@@ -330,7 +273,7 @@ SORT_PRIORITY = {
     "vpc": 3, "vpc_sc": 4, "cloud_armor": 5, "cloud_vpn": 6, "apigee": 7,
     # Serving
     "looker": 0, "looker_studio": 1, "power_bi": 2,
-    "vertex_ai": 10, "cloud_run": 11, "analytics_hub": 12,
+    "vertex_ai": 3, "cloud_run": 4, "analytics_hub": 5,
     # Consumers
     "analysts": 0, "executives": 1, "data_scientists": 2, "downstream_sys": 3,
     # Observability: monitoring first, then logging, then audit
@@ -417,86 +360,102 @@ EDGE_RULES = [
 
 
 # ═══════════════════════════════════════════════════════════
-# ZONE DEFINITIONS — metadata only (geometry computed per-diagram)
-#
-# zIndex:  0 = outside zones, 1 = GCP boundary, 2 = GCP sub-zones, 3 = innermost
-# parent:  None = top-level, "gcp" = inside GCP, "data-pipeline" = inside pipeline
-# members: which subZone values this zone contains (for computing bounds)
+# ZONE-GRID-FIRST LAYOUT ENGINE
+# Zones define the grid. Nodes fill the grid.
+# GAP between every pair of adjacent zones is CONSTANT.
+# ═══════════════════════════════════════════════════════════
+
+import math
+
+# ── Grid constants ──
+GAP        = 20    # between EVERY pair of adjacent zones — constant, always
+GCP_PAD    = 15    # GCP wrapper inset around children
+GCP_LABEL  = 30    # space for "Google Cloud" pill at top of GCP
+ZONE_PAD   = 30    # internal padding inside each zone
+LABEL_H    = 24    # room for zone label text at top
+NODE_W     = 82    # node card size
+NODE_HALF  = 41    # half of NODE_W
+H_SPACE    = 150   # horizontal spacing between node centers
+V_SPACE    = 140   # vertical spacing between node row centers
+MEDAL_SPACE = 170  # horizontal spacing for medallion tiers (wider)
+
+# ── Column widths ──
+COL_L_W    = 180   # left GCP column:  security, governance  (1-node wide)
+COL_C_W    = 480   # center GCP column: serving, pipeline+medallion (3-wide for medallion)
+COL_R_W    = 300   # right GCP column:  orchestration, observability (2-wide)
+OUTSIDE_W  = 180   # outside-left zones: ext-identity, source (1-wide)
+
+# ── Derived X positions ──
+OUTSIDE_X  = 30
+GCP_X      = OUTSIDE_X + OUTSIDE_W + GAP                       # 230
+COL_L_X    = GCP_X + GCP_PAD                                   # 245
+COL_C_X    = COL_L_X + COL_L_W + GAP                           # 445
+COL_R_X    = COL_C_X + COL_C_W + GAP                           # 945
+GCP_W      = (COL_R_X + COL_R_W + GCP_PAD) - GCP_X             # 1030
+
+
+def _zone_h(count: int, max_cols: int = 2) -> int:
+    """Height of a zone rect containing `count` nodes in `max_cols` columns."""
+    if count == 0:
+        return 0
+    rows = math.ceil(count / max_cols)
+    return LABEL_H + ZONE_PAD + (rows - 1) * V_SPACE + NODE_W + ZONE_PAD
+
+
+def _section_h(count: int, max_cols: int = 2) -> int:
+    """Height of a raw node section (no zone label/padding overhead)."""
+    if count == 0:
+        return 0
+    rows = math.ceil(count / max_cols)
+    return (rows - 1) * V_SPACE + NODE_W
+
+
+def _zone_w(count: int, max_cols: int = 2, h_space: int = H_SPACE) -> int:
+    """Width of a zone rect for `count` nodes."""
+    if count == 0:
+        return 0
+    cols = min(count, max_cols)
+    return 2 * ZONE_PAD + (cols - 1) * h_space + NODE_W
+
+
+# ═══════════════════════════════════════════════════════════
+# ZONE METADATA — geometry computed per-diagram in build_diagram()
 # ═══════════════════════════════════════════════════════════
 
 ZONE_DEFS = [
     # ── Outside zones ──
-    {"id": "consumer",      "label": "CONSUMERS (L8)",
-     "color": COLORS["consumer"],   "dashed": True,
-     "parent": None, "zIndex": 0,
-     "members": ["consumer"]},
-
-    {"id": "ext-identity",  "label": "EXTERNAL IDENTITY",
-     "color": COLORS["extId"],      "dashed": True,
-     "parent": None, "zIndex": 0,
-     "members": ["ext-identity"]},
-
-    {"id": "source",        "label": "ON-PREM SOURCE (L1)",
-     "color": COLORS["source"],     "dashed": True,
-     "parent": None, "zIndex": 0,
-     "members": ["source"]},
-
-    # ── GCP boundary (wrapper — computed from all GCP children) ──
-    {"id": "gcp",           "label": "GOOGLE CLOUD PLATFORM",
-     "color": COLORS["gcp"],        "dashed": False, "filled": True,
-     "parent": None, "zIndex": 1,
-     "members": []},  # computed from children
-
-    # ── Sub-zones inside GCP ──
-    {"id": "gcp-security",  "label": "CONNECTIVITY & IDENTITY (L2)",
-     "color": COLORS["security"],   "dashed": True,
-     "parent": "gcp", "zIndex": 2,
-     "members": ["gcp-security"]},
-
-    {"id": "serving",       "label": "SERVING & DELIVERY (L7)",
-     "color": COLORS["serving"],    "dashed": True,
-     "parent": "gcp", "zIndex": 2,
-     "members": ["serving"]},
-
-    {"id": "orchestration", "label": "ORCHESTRATION",
-     "color": COLORS["orch"],       "dashed": True,
-     "parent": "gcp", "zIndex": 2,
-     "members": ["orchestration"]},
-
-    {"id": "data-pipeline", "label": "DATA PIPELINE (L3→L6)",
-     "color": COLORS["pipeline"],   "dashed": True,
-     "parent": "gcp", "zIndex": 2,
-     "members": ["ingestion", "landing", "processing", "medallion"]},
-
-    {"id": "gcp-obs",       "label": "OBSERVABILITY (GCP)",
-     "color": COLORS["gcpObs"],     "dashed": True,
-     "parent": "gcp", "zIndex": 2,
-     "members": ["gcp-obs"]},
-
-    {"id": "governance",    "label": "GOVERNANCE",
-     "color": COLORS["governance"], "dashed": True,
-     "parent": "gcp", "zIndex": 2,
-     "members": ["governance"]},
-
+    {"id": "consumer",      "label": "CONSUMERS (L8)",              "color": COLORS["consumer"],    "dashed": True,
+     "parent": None,            "zIndex": 0, "bg": "#E0F7FA"},
+    {"id": "ext-identity",  "label": "EXTERNAL IDENTITY",           "color": COLORS["extId"],       "dashed": True,
+     "parent": None,            "zIndex": 0, "bg": "#ECEFF1"},
+    {"id": "source",        "label": "ON-PREM SOURCE (L1)",         "color": COLORS["source"],      "dashed": True,
+     "parent": None,            "zIndex": 0, "bg": "#ECEFF1"},
+    # ── GCP boundary ──
+    {"id": "gcp",           "label": "GOOGLE CLOUD PLATFORM",       "color": COLORS["gcp"],         "dashed": False, "filled": True,
+     "parent": None,            "zIndex": 1, "bg": "#E8F0FE"},
+    # ── GCP children ──
+    {"id": "gcp-security",  "label": "CONNECTIVITY & IDENTITY (L2)","color": COLORS["security"],    "dashed": True,
+     "parent": "gcp",          "zIndex": 2, "bg": "#E8EAF6"},
+    {"id": "serving",       "label": "SERVING & DELIVERY (L7)",     "color": COLORS["serving"],     "dashed": True,
+     "parent": "gcp",          "zIndex": 2, "bg": "#F3E5F5"},
+    {"id": "orchestration", "label": "ORCHESTRATION",               "color": COLORS["orch"],        "dashed": True,
+     "parent": "gcp",          "zIndex": 2, "bg": "#FFF3E0"},
+    {"id": "data-pipeline", "label": "DATA PIPELINE (L3→L6)",       "color": COLORS["pipeline"],    "dashed": True,
+     "parent": "gcp",          "zIndex": 2, "bg": "#E8F5E9"},
+    {"id": "gcp-obs",       "label": "OBSERVABILITY (GCP)",         "color": COLORS["gcpObs"],      "dashed": True,
+     "parent": "gcp",          "zIndex": 2, "bg": "#E0F2F1"},
+    {"id": "governance",    "label": "GOVERNANCE",                  "color": COLORS["governance"],  "dashed": True,
+     "parent": "gcp",          "zIndex": 2, "bg": "#E0F2F1"},
     # ── Medallion (inside data-pipeline) ──
-    {"id": "medallion",     "label": "MEDALLION ARCHITECTURE",
-     "color": COLORS["gold"],       "dashed": False, "filled": True,
-     "parent": "data-pipeline", "zIndex": 3,
-     "members": ["medallion"]},
-
+    {"id": "medallion",     "label": "MEDALLION ARCHITECTURE",      "color": COLORS["gold"],        "dashed": False, "filled": True,
+     "parent": "data-pipeline","zIndex": 3, "bg": "#FFF8E1"},
     # ── External zones below GCP ──
-    {"id": "ext-log",       "label": "EXTERNAL LOGGING",
-     "color": COLORS["extLog"],     "dashed": True,
-     "parent": None, "zIndex": 0,
-     "members": ["ext-log"]},
-
-    {"id": "ext-alert",     "label": "EXTERNAL ALERTING",
-     "color": COLORS["extAlert"],   "dashed": True,
-     "parent": None, "zIndex": 0,
-     "members": ["ext-alert"]},
+    {"id": "ext-log",       "label": "EXTERNAL LOGGING",            "color": COLORS["extLog"],      "dashed": True,
+     "parent": None,            "zIndex": 0, "bg": "#ECEFF1"},
+    {"id": "ext-alert",     "label": "EXTERNAL ALERTING",           "color": COLORS["extAlert"],    "dashed": True,
+     "parent": None,            "zIndex": 0, "bg": "#FBE9E7"},
 ]
 
-# Quick lookup by id
 _ZONE_BY_ID = {zd["id"]: zd for zd in ZONE_DEFS}
 
 # Zones that live inside GCP
@@ -542,12 +501,48 @@ def _make_node(pid: str, prod: dict, x: int, y: int) -> dict:
     }
 
 
+def _place_in_zone(pids: list, zx: int, zy: int, zw: int,
+                   max_cols: int = 2, h_space: int = H_SPACE) -> List[dict]:
+    """Place nodes in a centered grid inside a zone rect. Returns node dicts."""
+    if not pids:
+        return []
+    cols = min(len(pids), max_cols)
+    grid_w = (cols - 1) * h_space + NODE_W
+    grid_x = zx + (zw - grid_w) / 2  # center grid horizontally
+    nx0 = grid_x + NODE_HALF
+    ny0 = zy + LABEL_H + ZONE_PAD + NODE_HALF
+    result = []
+    for i, pid in enumerate(pids):
+        c = i % max_cols
+        r = i // max_cols
+        result.append(_make_node(pid, PRODUCTS[pid], int(nx0 + c * h_space), int(ny0 + r * V_SPACE)))
+    return result
+
+
+def _place_raw(pids: list, zx: int, zw: int, start_y: int,
+               max_cols: int = 2, h_space: int = H_SPACE) -> List[dict]:
+    """Place nodes in a centered grid at start_y (no zone label overhead)."""
+    if not pids:
+        return []
+    cols = min(len(pids), max_cols)
+    grid_w = (cols - 1) * h_space + NODE_W
+    grid_x = zx + (zw - grid_w) / 2
+    nx0 = grid_x + NODE_HALF
+    ny0 = start_y + NODE_HALF
+    result = []
+    for i, pid in enumerate(pids):
+        c = i % max_cols
+        r = i // max_cols
+        result.append(_make_node(pid, PRODUCTS[pid], int(nx0 + c * h_space), int(ny0 + r * V_SPACE)))
+    return result
+
+
 def build_diagram(keep_set: Set[str], title: str,
                   decisions: List[str], anti_patterns: List[str]) -> dict:
     """
     Convert a keep_set of product IDs into a full Diagram JSON.
-    Zone-based layout with bottom-up flow inside GCP.
-    Accepts IDs from BOTH gcp_blueprint.py and diagram_builder.py.
+    Zone-grid-first: zones define the grid, nodes fill the grid.
+    GAP between every adjacent zone pair is constant.
     """
     # ── Resolve gcp_blueprint IDs → diagram_builder IDs ──
     resolved = _resolve_keep_set(keep_set)
@@ -568,117 +563,255 @@ def build_diagram(keep_set: Set[str], title: str,
     for z in zone_buckets:
         zone_buckets[z].sort(key=lambda p: (SORT_PRIORITY.get(p, 50), p))
 
-    # ── CONSUMERS (top) ──
-    for i, pid in enumerate(zone_buckets.get("consumer", [])):
-        nodes.append(_make_node(pid, PRODUCTS[pid],
-                                X_CONSUMER + i * NODE_SPACING, Y_CONSUMER))
+    # ── Count nodes per zone ──
+    def _n(z: str) -> int:
+        return len(zone_buckets.get(z, []))
 
-    # ── EXTERNAL IDENTITY (outside left) ──
-    for i, pid in enumerate(zone_buckets.get("ext-identity", [])):
-        nodes.append(_make_node(pid, PRODUCTS[pid],
-                                X_EXT_ID, Y_EXT_ID_START + i * Y_EXT_ID_SPACE))
+    n_consumer   = _n("consumer")
+    n_ext_id     = _n("ext-identity")
+    n_source     = _n("source")
+    n_security   = _n("gcp-security")
+    n_serving    = _n("serving")
+    n_orch       = _n("orchestration")
+    n_obs        = _n("gcp-obs")
+    n_governance = _n("governance")
+    n_medallion  = _n("medallion")
+    n_processing = _n("processing")
+    n_landing    = _n("landing")
+    n_ingestion  = _n("ingestion")
+    n_ext_log    = _n("ext-log")
+    n_ext_alert  = _n("ext-alert")
 
-    # ── SOURCE (outside left, below ext-id) ──
-    for i, pid in enumerate(zone_buckets.get("source", [])):
-        nodes.append(_make_node(pid, PRODUCTS[pid],
-                                X_SOURCE, Y_SOURCE_START + i * Y_SOURCE_SPACE))
+    has_gcp = any(_n(z) > 0 for z in GCP_ZONES)
 
-    # ── GCP SECURITY (left column inside GCP, dynamic spacing) ──
-    sec_list = zone_buckets.get("gcp-security", [])
-    max_sec_height = Y_INGESTION - Y_SEC_START  # must fit between top and bottom of GCP
-    sec_spacing = min(Y_SEC_SPACING, max_sec_height // max(len(sec_list), 1))
-    for i, pid in enumerate(sec_list):
-        nodes.append(_make_node(pid, PRODUCTS[pid],
-                                X_GCP_SEC, Y_SEC_START + i * sec_spacing))
+    # ══════════════════════════════════════════════
+    # PHASE 1: Compute zone rectangles
+    # ══════════════════════════════════════════════
+    zone_rects: Dict[str, Dict[str, int]] = {}  # zone_id → {x, y, w, h}
 
-    # ── INGESTION L3 (bottom of pipeline, max 2 per row) ──
-    ing_list = zone_buckets.get("ingestion", [])
-    for i, pid in enumerate(ing_list):
-        col = i % 2
-        row = i // 2
-        nodes.append(_make_node(pid, PRODUCTS[pid],
-                                X_PIPELINE + col * NODE_SPACING,
-                                Y_INGESTION + row * VERT_SPACING))
+    # ── GCP internal column heights ──
 
-    # ── LANDING L4 ──
-    land_list = zone_buckets.get("landing", [])
-    for i, pid in enumerate(land_list):
-        col = i % 2
-        row = i // 2
-        nodes.append(_make_node(pid, PRODUCTS[pid],
-                                X_PIPELINE + col * NODE_SPACING,
-                                Y_LANDING + row * VERT_SPACING))
+    # LEFT column: security (top) → governance (bottom)
+    h_security   = _zone_h(n_security, 1)
+    h_governance = _zone_h(n_governance, 1)
+    col_l_parts  = [h for h in [h_security, h_governance] if h > 0]
+    col_l_h      = sum(col_l_parts) + max(0, len(col_l_parts) - 1) * GAP
 
-    # ── PROCESSING L5 ──
-    proc_list = zone_buckets.get("processing", [])
-    for i, pid in enumerate(proc_list):
-        col = i % 2
-        row = i // 2
-        nodes.append(_make_node(pid, PRODUCTS[pid],
-                                X_PIPELINE + col * NODE_SPACING,
-                                Y_PROCESSING + row * VERT_SPACING))
+    # CENTER column: serving (top) → data-pipeline (bottom)
+    h_serving    = _zone_h(n_serving, 2)
 
-    # ── MEDALLION L6 (HORIZONTAL: Bronze → Silver → Gold) ──
-    medal_list = zone_buckets.get("medallion", [])
-    # Sort: bronze=0, silver=1, gold=2
-    medal_order = {"bronze": 0, "silver": 1, "gold": 2}
-    medal_list.sort(key=lambda p: medal_order.get(p, 5))
-    for i, pid in enumerate(medal_list):
-        nodes.append(_make_node(pid, PRODUCTS[pid],
-                                X_MEDAL_START + i * X_MEDAL_SPACE, Y_MEDALLION))
+    # Pipeline internals (stacked top-down inside pipeline zone)
+    h_medallion_z = _zone_h(n_medallion, 3)   # has its own zone rect with label
+    h_processing  = _section_h(n_processing, 2)  # raw node section
+    h_landing     = _section_h(n_landing, 2)
+    h_ingestion   = _section_h(n_ingestion, 2)
+    pipe_sections = []
+    if h_medallion_z > 0: pipe_sections.append(h_medallion_z)
+    if h_processing > 0:  pipe_sections.append(h_processing)
+    if h_landing > 0:     pipe_sections.append(h_landing)
+    if h_ingestion > 0:   pipe_sections.append(h_ingestion)
+    h_pipeline = 0
+    if pipe_sections:
+        h_pipeline = (LABEL_H + ZONE_PAD
+                      + sum(pipe_sections)
+                      + max(0, len(pipe_sections) - 1) * GAP
+                      + ZONE_PAD)
 
-    # ── SERVING L7 (top of GCP) ──
-    serving_list = zone_buckets.get("serving", [])
-    primary_serving = [p for p in serving_list if SORT_PRIORITY.get(p, 50) < 10]
-    secondary_serving = [p for p in serving_list if SORT_PRIORITY.get(p, 50) >= 10]
+    col_c_parts = [h for h in [h_serving, h_pipeline] if h > 0]
+    col_c_h     = sum(col_c_parts) + max(0, len(col_c_parts) - 1) * GAP
 
-    for i, pid in enumerate(primary_serving):
-        nodes.append(_make_node(pid, PRODUCTS[pid],
-                                X_SERVING + i * NODE_SPACING, Y_SERVING))
-    for i, pid in enumerate(secondary_serving):
-        nodes.append(_make_node(pid, PRODUCTS[pid],
-                                X_SERVING_2 + i * NODE_SPACING, Y_PROCESSING))
+    # RIGHT column: orchestration (top) → obs (bottom)
+    h_orch = _zone_h(n_orch, 2)
+    h_obs  = _zone_h(n_obs, 2)
+    col_r_parts = [h for h in [h_orch, h_obs] if h > 0]
+    col_r_h     = sum(col_r_parts) + max(0, len(col_r_parts) - 1) * GAP
 
-    # ── ORCHESTRATION ──
-    for i, pid in enumerate(zone_buckets.get("orchestration", [])):
-        nodes.append(_make_node(pid, PRODUCTS[pid],
-                                X_ORCH + i * NODE_SPACING, Y_ORCH))
+    # GCP height
+    gcp_inner_h = max(col_l_h, col_c_h, col_r_h, 0)
+    gcp_h = GCP_PAD + GCP_LABEL + gcp_inner_h + GCP_PAD if has_gcp else 0
 
-    # ── GCP OBSERVABILITY ──
-    obs_list = zone_buckets.get("gcp-obs", [])
-    for i, pid in enumerate(obs_list):
-        if i < 2:
-            nodes.append(_make_node(pid, PRODUCTS[pid],
-                                    X_GCP_OBS, Y_LANDING + i * VERT_SPACING))
-        else:
-            nodes.append(_make_node(pid, PRODUCTS[pid],
-                                    X_GCP_OBS_2, Y_LANDING + (i - 2) * VERT_SPACING))
+    # ── Consumer zone (above GCP) ──
+    h_consumer = _zone_h(n_consumer, 4)
+    con_w = max(_zone_w(n_consumer, 4), 200) if n_consumer else 0
+    consumer_y = 30
+    consumer_x = int(GCP_X + (GCP_W - con_w) / 2) if con_w else 0
 
-    # ── Find the bottom of GCP content ──
-    gcp_bottom = Y_INGESTION  # minimum
-    for n in nodes:
-        z = PRODUCTS.get(n["id"], {}).get("zone", "")
-        if z in GCP_ZONES:
-            gcp_bottom = max(gcp_bottom, n["y"])
-    gcp_bottom += 130  # room below last node
+    if n_consumer:
+        zone_rects["consumer"] = {"x": consumer_x, "y": consumer_y, "w": con_w, "h": h_consumer}
 
-    # ── GOVERNANCE (below GCP content) ──
-    gov_y = gcp_bottom + 30
-    gov_list = zone_buckets.get("governance", [])
-    for i, pid in enumerate(gov_list):
-        nodes.append(_make_node(pid, PRODUCTS[pid],
-                                X_EXT_LOG + i * NODE_SPACING, gov_y))
+    # ── GCP zone ──
+    gcp_y = (consumer_y + h_consumer + GAP) if n_consumer else 60
+    gcp_inner_top = gcp_y + GCP_PAD + GCP_LABEL  # below pill label
 
-    # ── EXTERNAL LOGGING (below governance) ──
-    ext_y = gov_y + (VERT_SPACING if gov_list else 0) + 60
-    for i, pid in enumerate(zone_buckets.get("ext-log", [])):
-        nodes.append(_make_node(pid, PRODUCTS[pid],
-                                X_EXT_LOG + i * NODE_SPACING, ext_y))
+    if has_gcp:
+        zone_rects["gcp"] = {"x": GCP_X, "y": gcp_y, "w": GCP_W, "h": gcp_h}
 
-    # ── EXTERNAL ALERTING (same row as ext-log) ──
-    for i, pid in enumerate(zone_buckets.get("ext-alert", [])):
-        nodes.append(_make_node(pid, PRODUCTS[pid],
-                                X_EXT_ALERT + i * NODE_SPACING, ext_y))
+    # ── LEFT column zones ──
+    y_cursor = gcp_inner_top
+
+    if n_security:
+        zone_rects["gcp-security"] = {"x": COL_L_X, "y": y_cursor, "w": COL_L_W, "h": h_security}
+        y_cursor += h_security + GAP
+
+    if n_governance:
+        zone_rects["governance"] = {"x": COL_L_X, "y": y_cursor, "w": COL_L_W, "h": h_governance}
+
+    # ── CENTER column zones ──
+    y_cursor = gcp_inner_top
+
+    if n_serving:
+        zone_rects["serving"] = {"x": COL_C_X, "y": y_cursor, "w": COL_C_W, "h": h_serving}
+        y_cursor += h_serving + GAP
+
+    if h_pipeline > 0:
+        pipe_x = COL_C_X
+        pipe_y = y_cursor
+        zone_rects["data-pipeline"] = {"x": pipe_x, "y": pipe_y, "w": COL_C_W, "h": h_pipeline}
+
+        # Internal cursor within pipeline
+        py = pipe_y + LABEL_H + ZONE_PAD
+
+        if n_medallion:
+            zone_rects["medallion"] = {"x": pipe_x + ZONE_PAD // 2, "y": py,
+                                       "w": COL_C_W - ZONE_PAD, "h": h_medallion_z}
+            py += h_medallion_z + GAP
+
+        # processing, landing, ingestion Y offsets stored for node placement
+        proc_y = py if n_processing else 0
+        if n_processing:
+            py += h_processing + GAP
+
+        land_y = py if n_landing else 0
+        if n_landing:
+            py += h_landing + GAP
+
+        ing_y = py if n_ingestion else 0
+
+    # ── RIGHT column zones ──
+    y_cursor = gcp_inner_top
+
+    if n_orch:
+        zone_rects["orchestration"] = {"x": COL_R_X, "y": y_cursor, "w": COL_R_W, "h": h_orch}
+        y_cursor += h_orch + GAP
+
+    if n_obs:
+        zone_rects["gcp-obs"] = {"x": COL_R_X, "y": y_cursor, "w": COL_R_W, "h": h_obs}
+
+    # ── Outside-left zones (ext-identity, source) ──
+    y_cursor = gcp_y  # align with GCP top
+
+    if n_ext_id:
+        h_ext_id = _zone_h(n_ext_id, 1)
+        zone_rects["ext-identity"] = {"x": OUTSIDE_X, "y": y_cursor, "w": OUTSIDE_W, "h": h_ext_id}
+        y_cursor += h_ext_id + GAP
+
+    if n_source:
+        h_source = _zone_h(n_source, 1)
+        zone_rects["source"] = {"x": OUTSIDE_X, "y": y_cursor, "w": OUTSIDE_W, "h": h_source}
+
+    # ── External zones below GCP ──
+    ext_y = gcp_y + gcp_h + GAP if has_gcp else gcp_y + GAP
+
+    if n_ext_log:
+        elw = max(_zone_w(n_ext_log, 2), 200)
+        zone_rects["ext-log"] = {"x": GCP_X, "y": ext_y, "w": elw, "h": _zone_h(n_ext_log, 2)}
+
+    if n_ext_alert:
+        eaw = max(_zone_w(n_ext_alert, 2), 200)
+        ea_x = (zone_rects["ext-log"]["x"] + zone_rects["ext-log"]["w"] + GAP) if "ext-log" in zone_rects else GCP_X
+        zone_rects["ext-alert"] = {"x": ea_x, "y": ext_y, "w": eaw, "h": _zone_h(n_ext_alert, 2)}
+
+    # ══════════════════════════════════════════════
+    # PHASE 2: Place nodes inside zones
+    # ══════════════════════════════════════════════
+
+    # Consumer
+    if n_consumer and "consumer" in zone_rects:
+        zr = zone_rects["consumer"]
+        nodes.extend(_place_in_zone(zone_buckets["consumer"], zr["x"], zr["y"], zr["w"], max_cols=4))
+
+    # External identity
+    if n_ext_id and "ext-identity" in zone_rects:
+        zr = zone_rects["ext-identity"]
+        nodes.extend(_place_in_zone(zone_buckets["ext-identity"], zr["x"], zr["y"], zr["w"], max_cols=1))
+
+    # Source
+    if n_source and "source" in zone_rects:
+        zr = zone_rects["source"]
+        nodes.extend(_place_in_zone(zone_buckets["source"], zr["x"], zr["y"], zr["w"], max_cols=1))
+
+    # Security
+    if n_security and "gcp-security" in zone_rects:
+        zr = zone_rects["gcp-security"]
+        nodes.extend(_place_in_zone(zone_buckets["gcp-security"], zr["x"], zr["y"], zr["w"], max_cols=1))
+
+    # Serving (all serving nodes in center column, 2-col grid)
+    if n_serving and "serving" in zone_rects:
+        zr = zone_rects["serving"]
+        nodes.extend(_place_in_zone(zone_buckets["serving"], zr["x"], zr["y"], zr["w"], max_cols=2))
+
+    # Orchestration
+    if n_orch and "orchestration" in zone_rects:
+        zr = zone_rects["orchestration"]
+        nodes.extend(_place_in_zone(zone_buckets["orchestration"], zr["x"], zr["y"], zr["w"], max_cols=2))
+
+    # Observability
+    if n_obs and "gcp-obs" in zone_rects:
+        zr = zone_rects["gcp-obs"]
+        nodes.extend(_place_in_zone(zone_buckets["gcp-obs"], zr["x"], zr["y"], zr["w"], max_cols=2))
+
+    # Governance
+    if n_governance and "governance" in zone_rects:
+        zr = zone_rects["governance"]
+        nodes.extend(_place_in_zone(zone_buckets["governance"], zr["x"], zr["y"], zr["w"], max_cols=1))
+
+    # Pipeline internals
+    if h_pipeline > 0:
+        pipe_r = zone_rects["data-pipeline"]
+
+        # Medallion (inside its own sub-zone)
+        if n_medallion and "medallion" in zone_rects:
+            mr = zone_rects["medallion"]
+            medal_list = zone_buckets["medallion"]
+            medal_order = {"bronze": 0, "silver": 1, "gold": 2}
+            medal_list.sort(key=lambda p: medal_order.get(p, 5))
+            nodes.extend(_place_in_zone(medal_list, mr["x"], mr["y"], mr["w"],
+                                        max_cols=3, h_space=MEDAL_SPACE))
+
+        # Processing (raw section, no zone rect)
+        if n_processing:
+            nodes.extend(_place_raw(zone_buckets["processing"],
+                                    pipe_r["x"], pipe_r["w"], proc_y, max_cols=2))
+
+        # Landing
+        if n_landing:
+            nodes.extend(_place_raw(zone_buckets["landing"],
+                                    pipe_r["x"], pipe_r["w"], land_y, max_cols=2))
+
+        # Ingestion
+        if n_ingestion:
+            nodes.extend(_place_raw(zone_buckets["ingestion"],
+                                    pipe_r["x"], pipe_r["w"], ing_y, max_cols=2))
+
+    # External logging
+    if n_ext_log and "ext-log" in zone_rects:
+        zr = zone_rects["ext-log"]
+        nodes.extend(_place_in_zone(zone_buckets["ext-log"], zr["x"], zr["y"], zr["w"], max_cols=2))
+
+    # External alerting
+    if n_ext_alert and "ext-alert" in zone_rects:
+        zr = zone_rects["ext-alert"]
+        nodes.extend(_place_in_zone(zone_buckets["ext-alert"], zr["x"], zr["y"], zr["w"], max_cols=2))
+
+    # ══════════════════════════════════════════════
+    # PHASE 3: Build zone output for frontend
+    # ══════════════════════════════════════════════
+    zones_out = []
+    for zd in ZONE_DEFS:
+        zid = zd["id"]
+        if zid in zone_rects:
+            zr = zone_rects[zid]
+            zones_out.append({**zd, "x": zr["x"], "y": zr["y"], "w": zr["w"], "h": zr["h"]})
 
     # ══════════════════════════════════════════════
     # EDGES
@@ -720,137 +853,6 @@ def build_diagram(keep_set: Set[str], title: str,
                 edge["security"] = rule["security"]
 
             edges.append(edge)
-
-    # ══════════════════════════════════════════════
-    # ZONE BOXES — compute geometry from node positions + column rules
-    # Column boundaries from layout constants prevent horizontal overlap.
-    # Vertical extents computed from actual node positions.
-    # ══════════════════════════════════════════════
-    NODE_HALF = 42      # half of BG (visual node card = 82px)
-    PAD_OUT = 50        # padding for outside zones (source, consumer, ext-*)
-    PAD_IN = 35         # tighter padding for GCP sub-zones
-    WRAP_PAD = 12       # wrapper zone inset around children
-
-    # Three non-overlapping columns inside GCP (derived from layout constants)
-    COL_LEFT  = (X_GCP_SEC - NODE_HALF - PAD_IN,  X_GCP_SEC + NODE_HALF + PAD_IN + 30)   # security + governance
-    COL_MID   = (X_PIPELINE - NODE_HALF - PAD_IN,  X_ORCH - NODE_HALF - PAD_IN)           # pipeline + serving + medallion
-    COL_RIGHT = (X_ORCH - NODE_HALF - PAD_IN + 1,  X_GCP_OBS_2 + NODE_HALF + PAD_IN)     # orch + obs
-
-    # Map each zone's subZone → nodes
-    zone_nodes: Dict[str, List[dict]] = {}
-    for n in nodes:
-        sz = n.get("subZone", "")
-        zone_nodes.setdefault(sz, []).append(n)
-
-    def _vert_from_nodes(ns: List[dict], pad: int = PAD_IN) -> tuple:
-        """Return (y_top, y_bottom) from node centers + padding."""
-        ys = [n["y"] for n in ns]
-        return (min(ys) - NODE_HALF - pad, max(ys) + NODE_HALF + pad)
-
-    def _free_bounds(ns: List[dict], pad: int = PAD_OUT) -> dict:
-        """Free-form bounding rect from nodes (for outside zones)."""
-        xs = [n["x"] for n in ns]
-        ys = [n["y"] for n in ns]
-        return {"x": min(xs) - NODE_HALF - pad, "y": min(ys) - NODE_HALF - pad,
-                "w": max(xs) - min(xs) + 2 * NODE_HALF + 2 * pad,
-                "h": max(ys) - min(ys) + 2 * NODE_HALF + 2 * pad}
-
-    # Track active zones
-    active_zones = set()
-    for n in nodes:
-        z = PRODUCTS.get(n["id"], {}).get("zone", "")
-        active_zones.add(z)
-        if z in GCP_ZONES:
-            active_zones.add("gcp")
-        if z in PIPELINE_ZONES:
-            active_zones.add("pipeline")
-
-    # Gather nodes per zone def
-    def _gather(zd: dict) -> List[dict]:
-        ns = []
-        for m in zd.get("members", []):
-            ns.extend(zone_nodes.get(m, []))
-        return ns
-
-    zone_geom: Dict[str, dict] = {}
-
-    # 1) Outside zones — free-form
-    for zd in ZONE_DEFS:
-        if zd["parent"] is not None or zd["id"] == "gcp":
-            continue
-        ns = _gather(zd)
-        if ns:
-            zone_geom[zd["id"]] = _free_bounds(ns)
-
-    # 2) GCP leaf zones — column-constrained x, node-derived y
-    for zd in ZONE_DEFS:
-        if zd.get("parent") not in ("gcp", "data-pipeline"):
-            continue
-        ns = _gather(zd)
-        if not ns:
-            continue
-
-        zid = zd["id"]
-        y_top, y_bot = _vert_from_nodes(ns, PAD_IN)
-
-        # Assign to column
-        if zid in ("gcp-security", "governance"):
-            zone_geom[zid] = {"x": COL_LEFT[0], "y": y_top, "w": COL_LEFT[1] - COL_LEFT[0], "h": y_bot - y_top}
-        elif zid in ("orchestration", "gcp-obs"):
-            zone_geom[zid] = {"x": COL_RIGHT[0], "y": y_top, "w": COL_RIGHT[1] - COL_RIGHT[0], "h": y_bot - y_top}
-        elif zid in ("serving", "medallion"):
-            # Serving + medallion stay in COL_MID — secondary serving nodes (right column) excluded from bounds
-            mid_ns = [n for n in ns if n["x"] < COL_RIGHT[0]] if zid == "serving" else ns
-            if not mid_ns:
-                mid_ns = ns  # fallback: use all if none in mid column
-            y_top, y_bot = _vert_from_nodes(mid_ns, PAD_IN)
-            zone_geom[zid] = {"x": COL_MID[0], "y": y_top, "w": COL_MID[1] - COL_MID[0], "h": y_bot - y_top}
-        else:
-            zone_geom[zid] = _free_bounds(ns, PAD_IN)
-
-    # 3) Data-pipeline wrapper — union of pipeline member nodes (L3-L6), column-constrained
-    if "pipeline" in active_zones:
-        pipe_ns = []
-        for m in ("ingestion", "landing", "processing", "medallion"):
-            pipe_ns.extend(zone_nodes.get(m, []))
-        if pipe_ns:
-            y_top, y_bot = _vert_from_nodes(pipe_ns, PAD_IN)
-            # Expand to contain medallion sub-zone if present
-            if "medallion" in zone_geom:
-                y_top = min(y_top, zone_geom["medallion"]["y"])
-                y_bot = max(y_bot, zone_geom["medallion"]["y"] + zone_geom["medallion"]["h"])
-            # Stay within COL_MID horizontally — no WRAP_PAD on x (column already has room)
-            zone_geom["data-pipeline"] = {
-                "x": COL_MID[0],
-                "y": y_top - WRAP_PAD,
-                "w": COL_MID[1] - COL_MID[0],
-                "h": y_bot - y_top + 2 * WRAP_PAD,
-            }
-
-    # 4) GCP wrapper — union of ALL child zone rects
-    if "gcp" in active_zones:
-        gcp_rects = [zone_geom[z["id"]] for z in ZONE_DEFS
-                     if z.get("parent") == "gcp" and z["id"] in zone_geom]
-        if gcp_rects:
-            x1 = min(r["x"] for r in gcp_rects) - WRAP_PAD
-            y1 = min(r["y"] for r in gcp_rects) - WRAP_PAD - 8  # extra for pill label
-            x2 = max(r["x"] + r["w"] for r in gcp_rects) + WRAP_PAD
-            y2 = max(r["y"] + r["h"] for r in gcp_rects) + WRAP_PAD
-            zone_geom["gcp"] = {"x": x1, "y": y1, "w": x2 - x1, "h": y2 - y1}
-
-    # Build zones_out with geometry attached
-    zones_out = []
-    for zd in ZONE_DEFS:
-        zid = zd["id"]
-        if zid in zone_geom:
-            geom = zone_geom[zid]
-            zones_out.append({
-                **zd,
-                "x": int(geom["x"]),
-                "y": int(geom["y"]),
-                "w": int(geom["w"]),
-                "h": int(geom["h"]),
-            })
 
     # ══════════════════════════════════════════════
     # PHASES — named to match canvas layer band renderer
