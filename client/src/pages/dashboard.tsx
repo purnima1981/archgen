@@ -1498,11 +1498,7 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
           </g>);
         })()}
 
-        {/* Ops group — draggable */}
-        {opsBound && diag.opsGroup && <g onMouseDown={e => startGroupDrag(diag.opsGroup!.nodeIds, e)} style={{ cursor: "move" }}>
-          <rect x={opsBound.x} y={opsBound.y} width={opsBound.w} height={opsBound.h} rx={10} fill={isDark ? "rgba(84,110,122,0.1)" : "rgba(84,110,122,0.06)"} stroke={isDark ? "#37474f" : "#b0bec5"} strokeWidth={1.2} strokeDasharray="4 3" />
-          <text x={opsBound.x + opsBound.w / 2} y={opsBound.y + 14} textAnchor="middle" style={{ fontSize: 9, fontWeight: 700, fill: isDark ? "#607d8b" : "#90a4ae", letterSpacing: 1, pointerEvents: "none" }}>{(diag.opsGroup?.name || "OPS").toUpperCase()}</text>
-        </g>}
+        {/* Ops group — removed: zones handle this now */}
 
         {/* Edges */}
         {diag.edges.map(edge => {
