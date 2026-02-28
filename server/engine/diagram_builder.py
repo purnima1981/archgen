@@ -817,11 +817,20 @@ def build_diagram(keep_set: Set[str], title: str,
     col_c_parts = [h for h in [h_serving, h_pipeline] if h > 0]
     col_c_h     = sum(col_c_parts) + max(0, len(col_c_parts) - 1) * GAP
 
-    # RIGHT column: orchestration (top) → obs (bottom)
+    # RIGHT column: orchestration keeps its original lower position, obs below it
     h_orch = _zone_h(n_orch, 2)
     h_obs  = _zone_h(n_obs, 2)
-    col_r_parts = [h for h in [h_orch, h_obs] if h > 0]
-    col_r_h     = sum(col_r_parts) + max(0, len(col_r_parts) - 1) * GAP
+    # Original layout had obs on top, orch below.
+    # Keep orch at same Y (slot 2) and move obs below orch.
+    orch_offset = (h_obs + GAP) if (n_obs and n_orch) else 0
+    if n_orch and n_obs:
+        col_r_h = orch_offset + h_orch + GAP + h_obs
+    elif n_orch:
+        col_r_h = h_orch
+    elif n_obs:
+        col_r_h = h_obs
+    else:
+        col_r_h = 0
 
     # GCP height
     gcp_inner_h = max(col_l_h, col_c_h, col_r_h, 0)
@@ -885,14 +894,20 @@ def build_diagram(keep_set: Set[str], title: str,
         ing_y = py if n_ingestion else 0
 
     # ── RIGHT column zones ──
+    # Orchestration keeps its original Y (slot 2 — below where obs used to be)
+    # Obs moves below orchestration
     y_cursor = gcp_inner_top
 
     if n_orch:
-        zone_rects["orchestration"] = {"x": COL_R_X, "y": y_cursor, "w": COL_R_W, "h": h_orch}
-        y_cursor += h_orch + GAP
+        orch_y = y_cursor + orch_offset  # orch_offset = h_obs + GAP when both exist
+        zone_rects["orchestration"] = {"x": COL_R_X, "y": orch_y, "w": COL_R_W, "h": h_orch}
 
     if n_obs:
-        zone_rects["gcp-obs"] = {"x": COL_R_X, "y": y_cursor, "w": COL_R_W, "h": h_obs}
+        if n_orch:
+            obs_y = zone_rects["orchestration"]["y"] + h_orch + GAP
+        else:
+            obs_y = y_cursor
+        zone_rects["gcp-obs"] = {"x": COL_R_X, "y": obs_y, "w": COL_R_W, "h": h_obs}
 
     # ── Outside-left zones (ext-identity, source) ──
     y_cursor = gcp_y  # align with GCP top
