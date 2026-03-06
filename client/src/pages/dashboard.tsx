@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import type { User } from "@shared/models/auth";
 import { ServicePalette, EnhancedNodePopover, EdgeEditPop, EditingToolbar, GCP_SERVICES } from "../components/diagram-editor-components";
+import ReactFlowCanvas from "../components/ReactFlowCanvas";
+import yaml from "js-yaml";
 
 /* ── Icons ─────────────────────────────────────────── */
 interface IconEntry { id: string; name: string; path: string; aliases: string[] }
@@ -110,13 +112,21 @@ function getCat(ic?: string | null, nodeId?: string) {
 
 /* ── Types ────────────────────────────────────────── */
 interface NodeDetails { project?: string; region?: string; serviceAccount?: string; iamRoles?: string; encryption?: string; monitoring?: string; retry?: string; alerting?: string; cost?: string; troubleshoot?: string; guardrails?: string; compliance?: string; notes?: string }
-interface DiagNode { id: string; name: string; icon?: string | null; subtitle?: string; zone: "sources" | "cloud" | "consumers" | "connectivity" | "external"; subZone?: string; x: number; y: number; details?: NodeDetails }
+interface NodeStyle { bgColor?: string; borderColor?: string; labelColor?: string; labelSize?: number }
+interface DiagNode { id: string; name: string; icon?: string | null; subtitle?: string; zone: "sources" | "cloud" | "consumers" | "connectivity" | "external"; subZone?: string; x: number; y: number; details?: NodeDetails; style?: NodeStyle }
 interface EdgeSecurity { transport: string; auth: string; classification: string; private: boolean; network?: string; vpcsc?: string; dlp?: string; keyRotation?: string; egressPolicy?: string; compliance?: string }
-interface DiagEdge { id: string; from: string; to: string; label?: string; subtitle?: string; step: number; security?: EdgeSecurity; crossesBoundary?: boolean; edgeType?: "data" | "control" | "observe" | "alert" }
+interface EdgeStyle { color?: string; width?: number; dash?: "solid" | "dashed" | "dotted"; arrowHead?: "arrow" | "arrowclosed" | "none" }
+interface DiagEdge { id: string; from: string; to: string; label?: string; subtitle?: string; step: number; security?: EdgeSecurity; crossesBoundary?: boolean; edgeType?: "data" | "control" | "observe" | "alert"; sourceHandle?: string; targetHandle?: string; pathOffset?: number; style?: EdgeStyle }
 interface Threat { id: string; target: string; stride: string; severity: string; title: string; description: string; impact: string; mitigation: string; compliance?: string | null }
 interface Phase { id: string; name: string; nodeIds: string[] }
 interface OpsGroup { name: string; nodeIds: string[] }
 interface Diagram { title: string; subtitle?: string; layout?: string; nodes: DiagNode[]; edges: DiagEdge[]; threats?: Threat[]; phases?: Phase[]; opsGroup?: OpsGroup }
+
+/** Ensure diagram has required arrays to prevent .map() on undefined */
+function safeDiagram(d: any): Diagram {
+  if (!d || typeof d !== "object") return { title: "Untitled", nodes: [], edges: [] };
+  return { ...d, nodes: d.nodes || [], edges: d.edges || [], threats: d.threats || [], phases: d.phases || [] };
+}
 
 const SEV: Record<string, string> = { critical: "#b71c1c", high: "#e53935", medium: "#fb8c00", low: "#fdd835" };
 const THEMES: Record<string, { label: string; bg: string; grid?: boolean; gridColor?: string }> = {
@@ -394,7 +404,7 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
     if (!n) return null;
     const isSel = selectedCap === nodeId;
     return (
-      <div onClick={() => capClick(nodeId)} style={{ flex: 1, minWidth: 100, padding: "8px 10px", borderRadius: 7, cursor: "pointer", transition: "all 0.12s", outline: isSel ? "2px solid #1a73e8" : "none", outlineOffset: 1, ...style }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 3px 8px rgba(0,0,0,0.06)"; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ""; (e.currentTarget as HTMLDivElement).style.boxShadow = ""; }}>
+      <div onClick={() => capClick(nodeId)} style={{ minWidth: 100, padding: "8px 10px", borderRadius: 7, cursor: "pointer", transition: "all 0.12s", outline: isSel ? "2px solid #1a73e8" : "none", outlineOffset: 1, ...style }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "0 3px 8px rgba(0,0,0,0.06)"; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = ""; (e.currentTarget as HTMLDivElement).style.boxShadow = ""; }}>
         <div style={{ fontSize: 10, fontWeight: 700, lineHeight: 1.2 }}>{n.name}</div>
         {n.subtitle && <div style={{ fontSize: 8, opacity: 0.5, marginTop: 1 }}>{n.subtitle}</div>}
       </div>
@@ -436,9 +446,75 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
         <h1 style={{ fontSize: 18, fontWeight: 900, color: "#111", letterSpacing: -0.3, margin: 0 }}>{diag.title}</h1>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-        {/* ═══ UPPER: Platform + Connectors + Pillars ═══ */}
-        <div style={{ display: "flex", gap: 0, alignItems: "stretch" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 0, minWidth: 1100 }}>
+        {/* ═══ UPPER: L1/L2 (left) + Platform + Connectors + Pillars ═══ */}
+        <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+
+          {/* ── L1 Sources → Trust Boundary → L2 Connectivity (left to right) ── */}
+
+          {/* L1 — Source Systems */}
+          <div style={{ width: 150, flexShrink: 0, alignSelf: "center", border: "2px dashed #d1d5db", borderRadius: 12, padding: "8px 10px", background: "#f9fafb", position: "relative" }}>
+            <div style={{ position: "absolute", top: -9, left: 12, background: "#fff", padding: "0 8px", fontSize: 7.5, fontWeight: 800, color: "#6b7280", letterSpacing: 1, textTransform: "uppercase" as const }}>EXTERNAL SOURCES</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, padding: "4px 0 0" }}>
+              <div style={{ width: 16, height: 16, borderRadius: 4, background: "#4b5563", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 900, color: "#fff", flexShrink: 0 }}>①</div>
+              <div style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase" as const, color: "#4b5563" }}>Source Systems</div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {(diag.phases || []).filter(p => p.name.startsWith("L1")).map(phase => {
+                const label = phase.name.replace(/^L1\s*·\s*/, "");
+                const nodes = phase.nodeIds.map(id => getNode(id)).filter(Boolean);
+                if (!nodes.length) return null;
+                return (
+                  <div key={phase.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 6, padding: "5px 7px" }}>
+                    <div style={{ fontSize: 7, fontWeight: 800, color: "#6b7280", textTransform: "uppercase" as const, letterSpacing: 0.5, marginBottom: 3, paddingBottom: 2, borderBottom: "1px solid #f3f4f6" }}>{label}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      {nodes.map((n: any) => (
+                        <div key={n.id} onClick={() => capClick(n.id)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 3px", borderRadius: 3, cursor: "pointer", outline: selectedCap === n.id ? "2px solid #1a73e8" : "none", outlineOffset: 1 }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "#f9fafb"; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = ""; }}>
+                          {n.icon && <img src={iconUrl(n.name, n.icon)} alt="" style={{ width: 14, height: 14, flexShrink: 0 }} />}
+                          <div style={{ fontSize: 8, fontWeight: 700, color: "#374151", lineHeight: 1.2 }}>{n.name}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {!(diag.phases || []).some(p => p.name.startsWith("L1")) && srcNodes.map(n => (
+                <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #e5e7eb", color: "#374151" }} />
+              ))}
+            </div>
+          </div>
+
+          {/* Trust Boundary (vertical divider between L1 and L2) */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 2px", flexShrink: 0 }}>
+            <div style={{ flex: 1, borderLeft: "2px dashed #e11d48", opacity: 0.3 }} />
+            <div style={{ padding: "4px 2px", fontSize: 6.5, fontWeight: 800, color: "#e11d48", letterSpacing: 0.8, textTransform: "uppercase" as const, writingMode: "vertical-lr" as const, whiteSpace: "nowrap" }}>◄ Trust ►</div>
+            <div style={{ flex: 1, borderLeft: "2px dashed #e11d48", opacity: 0.3 }} />
+          </div>
+
+          {/* L2 — Connectivity & Access */}
+          <div style={{ width: 150, flexShrink: 0, alignSelf: "center", border: "2px solid #f472b6", borderRadius: 12, padding: "8px 10px", background: "#fdf2f8", position: "relative" }}>
+            <div style={{ position: "absolute", top: -9, left: 12, background: "#fff", padding: "0 8px", fontSize: 7.5, fontWeight: 800, color: "#be185d", letterSpacing: 1, textTransform: "uppercase" as const }}>CONNECTIVITY</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <div style={{ width: 16, height: 16, borderRadius: 4, background: "#be185d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 900, color: "#fff", flexShrink: 0 }}>②</div>
+              <div style={{ fontSize: 8.5, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase" as const, color: "#be185d" }}>Access Layer</div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {connNodes.map(n => (
+                <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #f9a8d4", color: "#831843" }} />
+              ))}
+            </div>
+            <div style={{ marginTop: 8, paddingTop: 6, borderTop: "1px solid #f9a8d4" }}>
+              <div style={{ fontSize: 6.5, fontWeight: 700, padding: "1px 6px", borderRadius: 6, background: "#fce7f3", color: "#9d174d", letterSpacing: 0.3, textTransform: "uppercase" as const, textAlign: "center" }}>Trust Boundary</div>
+            </div>
+          </div>
+
+          {/* ── Arrow from L1/L2 → Pipeline ── */}
+          <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+            <svg width="24" height="2" viewBox="0 0 24 2" style={{ overflow: "visible" }}>
+              <line x1="0" y1="1" x2="18" y2="1" stroke="#94a3b8" strokeWidth="1.5" />
+              <polygon points="24,1 16,-3 16,5" fill="#94a3b8" />
+            </svg>
+          </div>
 
           {/* Platform Group Box */}
           <div style={{ flex: 1, border: "2px solid #94a3b8", borderRadius: 14, padding: 14, background: "#f8fafc", position: "relative" }}>
@@ -514,9 +590,9 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
               const node = getNode(p.id);
               const items = parsePillarItems(p.id);
               return (
-                <div key={p.id} ref={el => { pillarRefs.current[p.id] = el; }} style={{ flex: 1, borderRadius: 10, padding: "12px 14px", borderLeft: `4px solid ${p.color}`, background: p.bg, display: "flex", flexDirection: "column" }}>
-                  <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase" as const, marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid rgba(0,0,0,0.06)", color: p.descC }}>{node?.name || p.id}</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, flex: 1 }}>
+                <div key={p.id} ref={el => { pillarRefs.current[p.id] = el; }} style={{ borderRadius: 10, padding: "10px 12px", borderLeft: `4px solid ${p.color}`, background: p.bg }}>
+                  <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 0.8, textTransform: "uppercase" as const, marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid rgba(0,0,0,0.06)", color: p.descC }}>{node?.name || p.id}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
                     {items.map((item, i) => (
                       <div key={i} style={{ padding: "5px 9px", borderRadius: 6, background: p.itemBg, color: p.itemC, display: "flex", flexDirection: "column", gap: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -536,78 +612,7 @@ function BlueprintView({ diag, popover, setPopover }: { diag: Diagram; popover: 
           </div>
         </div>
 
-        {/* ═══ LOWER: Aligned to platform width only ═══ */}
-        <div style={{ display: "flex" }}>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-            {/* Trust Boundary */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "4px 0" }}>
-              <div style={{ flex: 1, borderTop: "2px dashed #e11d48", opacity: 0.3 }} />
-              <div style={{ padding: "2px 14px", fontSize: 7.5, fontWeight: 800, color: "#e11d48", letterSpacing: 1.5, textTransform: "uppercase" as const, whiteSpace: "nowrap" }}>▲ Trust Boundary ▲</div>
-              <div style={{ flex: 1, borderTop: "2px dashed #e11d48", opacity: 0.3 }} />
-            </div>
-
-            {/* Connectivity Layer */}
-            <div style={{ border: "2px solid #f472b6", borderRadius: 12, padding: "10px 14px", background: "#fdf2f8", position: "relative" }}>
-              <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#be185d", letterSpacing: 1.2, textTransform: "uppercase" as const }}>CONNECTIVITY & ACCESS — HANDSHAKE LAYER</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
-                <div style={{ width: 18, height: 18, borderRadius: 5, background: "#be185d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", flexShrink: 0 }}>②</div>
-                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: "#be185d" }}>Connectivity & Access</div>
-                <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#fce7f3", color: "#9d174d", letterSpacing: 0.4, textTransform: "uppercase" as const }}>Trust Boundary</div>
-              </div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {connNodes.map(n => (
-                  <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #f9a8d4", color: "#831843" }} />
-                ))}
-              </div>
-            </div>
-
-            {/* Flow arrow */}
-            <div style={{ display: "flex", justifyContent: "center", gap: 24, padding: "5px 0" }}>
-              {[0,1,2].map(i => (
-                <svg key={i} width="2" height="22" viewBox="0 0 2 22" style={{ overflow: "visible" }}>
-                  <line x1="1" y1="22" x2="1" y2="6" stroke="#94a3b8" strokeWidth="1.5" />
-                  <polygon points="1,0 -3.5,8 5.5,8" fill="#94a3b8" />
-                </svg>
-              ))}
-            </div>
-
-            {/* Sources (external) */}
-            <div style={{ border: "2px dashed #d1d5db", borderRadius: 12, padding: "10px 14px", background: "#f9fafb", position: "relative" }}>
-              <div style={{ position: "absolute", top: -9, left: 20, background: "#fff", padding: "0 10px", fontSize: 8.5, fontWeight: 800, color: "#6b7280", letterSpacing: 1.2, textTransform: "uppercase" as const }}>EXTERNAL — SOURCE SYSTEMS (YOU DON'T OWN THESE)</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8, padding: "4px 0 0" }}>
-                <div style={{ width: 18, height: 18, borderRadius: 5, background: "#4b5563", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", flexShrink: 0 }}>①</div>
-                <div style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" as const, color: "#4b5563" }}>Source Systems</div>
-                <div style={{ marginLeft: "auto", fontSize: 7.5, fontWeight: 700, padding: "2px 8px", borderRadius: 8, background: "#f3f4f6", color: "#6b7280", letterSpacing: 0.4, textTransform: "uppercase" as const }}>{(diag.phases || []).filter(p => p.name.startsWith("L1")).length} Categories</div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {(diag.phases || []).filter(p => p.name.startsWith("L1")).map(phase => {
-                  const label = phase.name.replace(/^L1\s*·\s*/, "");
-                  const nodes = phase.nodeIds.map(id => getNode(id)).filter(Boolean);
-                  if (!nodes.length) return null;
-                  return (
-                    <div key={phase.id} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: "6px 8px" }}>
-                      <div style={{ fontSize: 7.5, fontWeight: 800, color: "#6b7280", textTransform: "uppercase" as const, letterSpacing: 0.6, marginBottom: 4, paddingBottom: 3, borderBottom: "1px solid #f3f4f6" }}>{label}</div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        {nodes.map((n: any) => (
-                          <div key={n.id} onClick={() => capClick(n.id)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 4px", borderRadius: 4, cursor: "pointer", outline: selectedCap === n.id ? "2px solid #1a73e8" : "none", outlineOffset: 1 }} onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "#f9fafb"; }} onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = ""; }}>
-                            {n.icon && <img src={iconUrl(n.name, n.icon)} alt="" style={{ width: 16, height: 16, flexShrink: 0 }} />}
-                            <div style={{ fontSize: 9, fontWeight: 700, color: "#374151", lineHeight: 1.2 }}>{n.name}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-                {/* Fallback if no L1 phases */}
-                {!(diag.phases || []).some(p => p.name.startsWith("L1")) && srcNodes.map(n => (
-                  <CapBox key={n.id} nodeId={n.id} style={{ background: "#fff", border: "1px solid #e5e7eb", color: "#374151" }} />
-                ))}
-              </div>
-            </div>
-          </div>
-          {/* Spacer to match connector + pillar width */}
-          <div style={{ width: 324, flexShrink: 0 }} />
-        </div>
+        {/* Lower section removed — L1/L2 now in left column above */}
       </div>
 
     </div>
@@ -1124,6 +1129,307 @@ function MingrammerCanvas({ pngUrl, title, subtitle, decisions, antiPatterns, ke
   );
 }
 
+/* ═══ DIAGRAM-AS-CODE: YAML + D2 serializers ═══ */
+
+function diagramToYaml(d: Diagram): string {
+  const obj: any = { title: d.title };
+  if (d.subtitle) obj.subtitle = d.subtitle;
+  if (d.layout) obj.layout = d.layout;
+  obj.nodes = d.nodes.map(n => {
+    const o: any = { id: n.id, name: n.name, zone: n.zone, x: n.x, y: n.y };
+    if (n.icon) o.icon = n.icon;
+    if (n.subtitle) o.subtitle = n.subtitle;
+    if (n.subZone) o.subZone = n.subZone;
+    if (n.details) {
+      const det: any = {};
+      for (const [k, v] of Object.entries(n.details)) { if (v) det[k] = v; }
+      if (Object.keys(det).length) o.details = det;
+    }
+    if (n.style) {
+      const s: any = {};
+      if (n.style.bgColor) s.bgColor = n.style.bgColor;
+      if (n.style.borderColor) s.borderColor = n.style.borderColor;
+      if (n.style.labelColor) s.labelColor = n.style.labelColor;
+      if (n.style.labelSize) s.labelSize = n.style.labelSize;
+      if (Object.keys(s).length) o.style = s;
+    }
+    return o;
+  });
+  obj.edges = d.edges.map(e => {
+    const o: any = { id: e.id, from: e.from, to: e.to };
+    if (e.label) o.label = e.label;
+    if (e.step) o.step = e.step;
+    if (e.edgeType && e.edgeType !== "data") o.edgeType = e.edgeType;
+    if (e.crossesBoundary) o.crossesBoundary = true;
+    if (e.sourceHandle) o.sourceHandle = e.sourceHandle;
+    if (e.targetHandle) o.targetHandle = e.targetHandle;
+    if (e.pathOffset != null) o.pathOffset = e.pathOffset;
+    if (e.security) {
+      const s: any = {};
+      for (const [k, v] of Object.entries(e.security)) { if (v !== undefined && v !== "") s[k] = v; }
+      if (Object.keys(s).length) o.security = s;
+    }
+    if (e.style) {
+      const s: any = {};
+      if (e.style.color) s.color = e.style.color;
+      if (e.style.width) s.width = e.style.width;
+      if (e.style.dash && e.style.dash !== "solid") s.dash = e.style.dash;
+      if (e.style.arrowHead && e.style.arrowHead !== "arrow") s.arrowHead = e.style.arrowHead;
+      if (Object.keys(s).length) o.style = s;
+    }
+    return o;
+  });
+  if (d.threats?.length) obj.threats = d.threats;
+  if (d.phases?.length) obj.phases = d.phases;
+  if (d.opsGroup) obj.opsGroup = d.opsGroup;
+  return yaml.dump(obj, { lineWidth: 120, noRefs: true, sortKeys: false });
+}
+
+function yamlToDiagram(text: string): Diagram {
+  const obj: any = yaml.load(text);
+  return safeDiagram(obj);
+}
+
+function diagramToD2(d: Diagram): string {
+  const lines: string[] = [];
+  lines.push(`# ${d.title}`);
+  if (d.subtitle) lines.push(`# ${d.subtitle}`);
+  lines.push("direction: right");
+  lines.push("");
+
+  // Group nodes by zone
+  const zones: Record<string, typeof d.nodes> = {};
+  d.nodes.forEach(n => { (zones[n.zone] ||= []).push(n); });
+
+  for (const [zone, nodes] of Object.entries(zones)) {
+    const zoneLabel = zone === "cloud" ? "Google Cloud" : zone === "sources" ? "External Sources" : zone === "consumers" ? "Consumers" : zone;
+    lines.push(`${zone}: ${zoneLabel} {`);
+    if (zone === "sources") lines.push("  style.stroke-dash: 3");
+    if (zone === "cloud") lines.push('  style.fill: "#f0f4ff"');
+    lines.push("");
+    for (const n of nodes) {
+      const sub = n.subtitle ? ` | ${n.subtitle}` : "";
+      lines.push(`  ${n.id}: ${n.name}${sub}`);
+      if (n.icon) lines.push(`  ${n.id}.icon: ${n.icon}`);
+      lines.push(`  ${n.id}.x: ${n.x}`);
+      lines.push(`  ${n.id}.y: ${n.y}`);
+      if (n.details?.encryption) lines.push(`  ${n.id}.encryption: ${n.details.encryption}`);
+      if (n.details?.cost) lines.push(`  ${n.id}.cost: ${n.details.cost}`);
+      if (n.style?.bgColor) lines.push(`  ${n.id}.bgColor: ${n.style.bgColor}`);
+      if (n.style?.borderColor) lines.push(`  ${n.id}.borderColor: ${n.style.borderColor}`);
+      if (n.style?.labelColor) lines.push(`  ${n.id}.labelColor: ${n.style.labelColor}`);
+      if (n.style?.labelSize) lines.push(`  ${n.id}.labelSize: ${n.style.labelSize}`);
+    }
+    lines.push("}");
+    lines.push("");
+  }
+
+  // Edges
+  lines.push("# ── Data Flow ──");
+  const sorted = [...d.edges].sort((a, b) => a.step - b.step);
+  for (const e of sorted) {
+    const label = e.label ? `: ${e.label}` : "";
+    const from = e.from, to = e.to;
+    lines.push(`${from} -> ${to}${label}`);
+    if (e.sourceHandle) lines.push(`  (${from} -> ${to}).sourceHandle: ${e.sourceHandle}`);
+    if (e.targetHandle) lines.push(`  (${from} -> ${to}).targetHandle: ${e.targetHandle}`);
+    if (e.pathOffset != null) lines.push(`  (${from} -> ${to}).pathOffset: ${e.pathOffset}`);
+    if (e.security) {
+      if (e.security.transport) lines.push(`  (${from} -> ${to}).transport: ${e.security.transport}`);
+      if (e.security.auth) lines.push(`  (${from} -> ${to}).auth: ${e.security.auth}`);
+      if (e.security.private) lines.push(`  (${from} -> ${to}).private: true`);
+    }
+    if (e.style) {
+      if (e.style.color) lines.push(`  (${from} -> ${to}).color: ${e.style.color}`);
+      if (e.style.width) lines.push(`  (${from} -> ${to}).width: ${e.style.width}`);
+      if (e.style.dash && e.style.dash !== "solid") lines.push(`  (${from} -> ${to}).dash: ${e.style.dash}`);
+      if (e.style.arrowHead && e.style.arrowHead !== "arrow") lines.push(`  (${from} -> ${to}).arrowHead: ${e.style.arrowHead}`);
+    }
+  }
+
+  if (d.threats?.length) {
+    lines.push("");
+    lines.push("# ── Threats ──");
+    for (const t of d.threats) {
+      lines.push(`# THREAT [${t.severity}] ${t.target}: ${t.title} — ${t.mitigation}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function d2ToDiagram(text: string, existing: Diagram): Diagram {
+  // Simple D2 parser: extract nodes and edges from D2 text
+  const nodes: any[] = [];
+  const edges: any[] = [];
+  let currentZone: string | null = null;
+  let step = 0;
+
+  for (const rawLine of text.split("\n")) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    if (line === "}") { currentZone = null; continue; }
+
+    // Zone start: "zone: Label {"
+    const zoneMatch = line.match(/^(\w+):\s*(.+?)\s*\{$/);
+    if (zoneMatch) { currentZone = zoneMatch[1]; continue; }
+
+    // Style lines — skip
+    if (line.startsWith("style.") || line.startsWith("direction:")) continue;
+
+    // Edge: "from -> to: label"
+    const edgeMatch = line.match(/^([\w.]+)\s*->\s*([\w.]+)(?:\s*:\s*(.+))?$/);
+    if (edgeMatch) {
+      const from = edgeMatch[1].includes(".") ? edgeMatch[1].split(".").pop()! : edgeMatch[1];
+      const to = edgeMatch[2].includes(".") ? edgeMatch[2].split(".").pop()! : edgeMatch[2];
+      edges.push({ id: `e_${from}_${to}`, from, to, label: edgeMatch[3] || "", step: step++, edgeType: "data" as const });
+      continue;
+    }
+
+    // Edge property: "(from -> to).prop: val"
+    const edgePropMatch = line.match(/^\((\w+)\s*->\s*(\w+)\)\.(\w+):\s*(.+)$/);
+    if (edgePropMatch) {
+      const [, epFrom, epTo, prop, val] = edgePropMatch;
+      const edge = edges.find((e: any) => e.from === epFrom && e.to === epTo);
+      if (edge) {
+        if (prop === "sourceHandle") edge.sourceHandle = val.trim();
+        else if (prop === "targetHandle") edge.targetHandle = val.trim();
+        else if (prop === "pathOffset") edge.pathOffset = parseFloat(val);
+        else if (prop === "color" || prop === "dash" || prop === "arrowHead") {
+          edge.style = edge.style || {};
+          edge.style[prop] = val.trim();
+        } else if (prop === "width") {
+          edge.style = edge.style || {};
+          edge.style.width = parseFloat(val);
+        }
+      }
+      continue;
+    }
+
+    // Node property: "node_id.prop: value"
+    const nodePropMatch = line.match(/^(\w+)\.(\w+):\s*(.+)$/);
+    if (nodePropMatch && currentZone) {
+      const [, nId, prop, val] = nodePropMatch;
+      const node = nodes.find((n: any) => n.id === nId);
+      if (node) {
+        if (prop === "x") node.x = parseInt(val);
+        else if (prop === "y") node.y = parseInt(val);
+        else if (prop === "icon") node.icon = val.trim();
+        else if (prop === "bgColor" || prop === "borderColor" || prop === "labelColor") {
+          node.style = node.style || {};
+          node.style[prop] = val.trim();
+        } else if (prop === "labelSize") {
+          node.style = node.style || {};
+          node.style.labelSize = parseInt(val);
+        }
+      }
+      continue;
+    }
+
+    // Node: "id: Name | subtitle" or "id: Name"
+    const nodeMatch = line.match(/^([\w.]+):\s*(.+)$/);
+    if (nodeMatch && currentZone) {
+      const id = nodeMatch[1];
+      // Skip dotted property lines not caught above
+      if (id.includes(".")) continue;
+      const parts = nodeMatch[2].split("|").map(s => s.trim());
+      const existingNode = existing.nodes.find(n => n.id === id);
+      nodes.push({
+        id,
+        name: parts[0],
+        subtitle: parts[1] || existingNode?.subtitle,
+        icon: existingNode?.icon || null,
+        zone: currentZone === "cloud" ? "cloud" : currentZone === "consumers" ? "consumers" : "sources",
+        x: existingNode?.x || 300,
+        y: existingNode?.y || 200 + nodes.length * 100,
+        details: existingNode?.details,
+      });
+    }
+  }
+
+  return safeDiagram({
+    ...existing,
+    title: existing.title,
+    nodes: nodes.length ? nodes : existing.nodes,
+    edges: edges.length ? edges : existing.edges,
+  });
+}
+
+/* ═══ CODE TAB ═══ */
+function CodeTab({ diag, onApply }: { diag: Diagram; onApply: (d: Diagram) => void }) {
+  const [format, setFormat] = useState<"yaml" | "d2">("yaml");
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const userEditing = useRef(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const diagRef = useRef(diag);
+  diagRef.current = diag;
+
+  // Sync code when diagram changes externally (not from user edits)
+  useEffect(() => {
+    if (userEditing.current) { userEditing.current = false; return; }
+    try {
+      setCode(format === "yaml" ? diagramToYaml(diag) : diagramToD2(diag));
+      setError("");
+    } catch (e: any) { setError(e.message); }
+  }, [diag, format]);
+
+  // Auto-apply code changes to diagram (debounced)
+  const onCodeChange = useCallback((newCode: string) => {
+    setCode(newCode);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      try {
+        const d = format === "yaml" ? yamlToDiagram(newCode) : d2ToDiagram(newCode, diagRef.current);
+        userEditing.current = true;
+        onApply(d);
+        setError("");
+      } catch (e: any) { setError(e.message); }
+    }, 600);
+  }, [format, onApply]);
+
+  // Cleanup debounce on unmount
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "#1e1e2e", overflow: "hidden" }}>
+      {/* Toolbar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", background: "#181825", borderBottom: "1px solid #313244" }}>
+        {(["yaml", "d2"] as const).map(f => (
+          <button key={f} onClick={() => setFormat(f)} style={{
+            padding: "5px 14px", borderRadius: 6, border: format === f ? "1px solid #89b4fa" : "1px solid #45475a",
+            background: format === f ? "#313244" : "transparent", color: format === f ? "#89b4fa" : "#a6adc8",
+            fontSize: 12, fontWeight: 700, cursor: "pointer", textTransform: "uppercase", letterSpacing: 0.5
+          }}>{f}</button>
+        ))}
+        <div style={{ flex: 1 }} />
+        <div style={{ fontSize: 10, color: "#585b70" }}>auto-sync</div>
+      </div>
+
+      {/* Error bar */}
+      {error && <div style={{ padding: "6px 16px", background: "#f38ba8", color: "#1e1e2e", fontSize: 11, fontWeight: 600 }}>{error}</div>}
+
+      {/* Editor */}
+      <textarea
+        value={code}
+        onChange={e => onCodeChange(e.target.value)}
+        spellCheck={false}
+        style={{
+          flex: 1, padding: "16px 20px", background: "#1e1e2e", color: "#cdd6f4", border: "none",
+          fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace", fontSize: 12,
+          lineHeight: 1.6, resize: "none", outline: "none", tabSize: 2, whiteSpace: "pre",
+          overflowY: "auto",
+        }}
+      />
+
+      {/* Footer hint */}
+      <div style={{ padding: "6px 16px", background: "#181825", borderTop: "1px solid #313244", color: "#585b70", fontSize: 10 }}>
+        {format === "yaml" ? "YAML ↔ Canvas — changes sync automatically" : "D2 ↔ Canvas — changes sync automatically"}
+      </div>
+    </div>
+  );
+}
+
 function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, connectMode, connectSource, onConnectClick }: { diag: Diagram; setDiag: (d: Diagram) => void; popover: any; setPopover: (p: any) => void; theme: string; onDragEnd?: (d: Diagram) => void; connectMode?: boolean; connectSource?: string | null; onConnectClick?: (nodeId: string) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -1415,7 +1721,7 @@ function DiagramCanvas({ diag, setDiag, popover, setPopover, theme, onDragEnd, c
 
         {/* ═══ ZONE-TO-ZONE FLOW ARROWS ═══ */}
         {(() => {
-          const zoneRects = new Map<string, any>(diag.zones.map((z: any) => [z.id, z]));
+          const zoneRects = new Map<string, any>(((diag as any).zones || []).map((z: any) => [z.id, z]));
           const pipeZones = new Set(["ingestion", "landing", "processing", "medallion"]);
           const vizZone = (subZ: string) => pipeZones.has(subZ) ? "data-pipeline" : subZ;
 
@@ -1563,7 +1869,8 @@ export default function Dashboard({ user }: { user: User }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [source, setSource] = useState<string | null>(null);
-  const [tab, setTab] = useState<"diagram" | "highlights" | "flow">("diagram");
+  const [tab, setTab] = useState<"diagram" | "highlights" | "flow" | "code">("diagram");
+  const [tabFlash, setTabFlash] = useState(false);
   const [theme, setTheme] = useState("light");
   const [showExport, setShowExport] = useState(false);
   const [showTheme, setShowTheme] = useState(false);
@@ -1597,8 +1904,8 @@ export default function Dashboard({ user }: { user: User }) {
     try {
       const res = await fetch(`/api/templates/${templateId}`, { credentials: "include" });
       if (!res.ok) throw new Error("Template not found");
-      const diagram = await res.json();
-      setDiag(diagram as Diagram);
+      const diagram = safeDiagram(await res.json());
+      setDiag(diagram);
       setSource("template");
     } catch (e: any) { setError(e.message) } setLoading(false);
   }, []);
@@ -1616,7 +1923,7 @@ export default function Dashboard({ user }: { user: User }) {
       
       if (data.source === "mingrammer") {
         // Mingrammer engine — editable diagram JSON + PNG reference
-        setDiag(data.diagram as Diagram);
+        setDiag(safeDiagram(data.diagram));
         setPngUrl(data.png_url);
         setDecisions(data.decisions || []);
         setAntiPatterns(data.anti_patterns || []);
@@ -1628,7 +1935,7 @@ export default function Dashboard({ user }: { user: User }) {
         setSource("mingrammer");
       } else {
         // Template / slicer / LLM — standard diagram JSON
-        setDiag(data.diagram as Diagram);
+        setDiag(safeDiagram(data.diagram));
         setSource(data.source);
         setSaved(data.saved);
         setDecisions(data.decisions || []);
@@ -1806,6 +2113,26 @@ export default function Dashboard({ user }: { user: User }) {
     }
   }, [diag, saved, isDirty]);
 
+  // Auto-save diagram to backend (silent, no UI feedback needed)
+  const autoSave = useCallback(async (d: Diagram) => {
+    if (!saved) return;
+    try {
+      const response = await fetch(`/api/diagrams/${saved.id}/edit`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ diagram: d })
+      });
+      if (response.ok) {
+        const result = await response.json();
+        setSaved(result.saved);
+        console.log("Auto-saved diagram");
+      }
+    } catch (err) {
+      console.error("Auto-save failed:", err);
+    }
+  }, [saved]);
+
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const exportDrawio = useCallback(() => {
     if (!diag) return;
@@ -1848,7 +2175,7 @@ export default function Dashboard({ user }: { user: User }) {
     setDeckLoading(false);
   }, [prompt, diag, deckLoading]);
 
-  const TABS = [{ id: "diagram" as const, l: "Diagram", icon: "◇" }, { id: "highlights" as const, l: "Highlights", icon: "📊" }, { id: "flow" as const, l: "Flow", icon: "🔄" }];
+  const TABS = [{ id: "diagram" as const, l: "Diagram", icon: "◇" }, { id: "highlights" as const, l: "Highlights", icon: "📊" }, { id: "flow" as const, l: "Flow", icon: "🔄" }, { id: "code" as const, l: "Code", icon: "</>" }];
 
   return (
     <div style={{ height: "100vh", display: "flex", fontFamily: "'Inter','DM Sans',system-ui,sans-serif", background: "#f0f2f5" }}>
@@ -1907,8 +2234,8 @@ export default function Dashboard({ user }: { user: User }) {
       {/* ── MAIN AREA ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {diag && <div style={{ height: 44, padding: "0 20px", background: "#fff", borderBottom: "1px solid #e5e5e5", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-          {TABS.map(t => (<button key={t.id} onClick={() => setTab(t.id)} style={{ padding: "8px 16px", background: tab === t.id ? "#f0f7ff" : "none", border: tab === t.id ? "1px solid #4285f4" : "1px solid transparent", borderRadius: 8, fontSize: 12, fontWeight: tab === t.id ? 700 : 500, color: tab === t.id ? "#1a73e8" : "#888", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, transition: "all .12s" }}>
-            <span>{t.icon}</span>{t.l}</button>))}
+          {TABS.map(t => { const flashing = tabFlash && t.id === "diagram"; return (<button key={t.id} onClick={() => { setTab(t.id); if (t.id === "diagram") setTabFlash(false); }} style={{ padding: "8px 16px", background: flashing ? "#d4edda" : tab === t.id ? "#f0f7ff" : "none", border: flashing ? "1px solid #28a745" : tab === t.id ? "1px solid #4285f4" : "1px solid transparent", borderRadius: 8, fontSize: 12, fontWeight: tab === t.id || flashing ? 700 : 500, color: flashing ? "#28a745" : tab === t.id ? "#1a73e8" : "#888", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, transition: "all .3s" }}>
+            <span>{t.icon}</span>{t.l}</button>); })}
           <div style={{ flex: 1 }} />
         </div>}
         {!diag && !loading && (
@@ -1953,17 +2280,14 @@ export default function Dashboard({ user }: { user: User }) {
               />
             )}
 
-            {/* Editable Canvas — same as template/slicer diagrams */}
-            <DiagramCanvas
+            {/* React Flow Canvas */}
+            <ReactFlowCanvas
               diag={diag}
               setDiag={setDiag}
-              popover={popover}
-              setPopover={setPopover}
               theme={theme}
-              onDragEnd={editMode ? (d: Diagram) => { setIsDirty(true); saveToHistory(d); } : undefined}
-              connectMode={connectMode}
-              connectSource={connectSource}
-              onConnectClick={editMode ? handleConnectClick : undefined}
+              onDragEnd={(d: Diagram) => { if (editMode) { setIsDirty(true); saveToHistory(d); } autoSave(d); }}
+              onNodeDoubleClick={(nodeId, e) => { const rc = diagAreaRef.current?.getBoundingClientRect(); if (rc) setPopover({ type: "node", id: nodeId, px: e.clientX - rc.left, py: e.clientY - rc.top }); }}
+              onEdgeDoubleClick={(edgeId, e) => { const rc = diagAreaRef.current?.getBoundingClientRect(); if (rc) setPopover({ type: "edge", id: edgeId, px: e.clientX - rc.left, py: e.clientY - rc.top }); }}
             />
 
             {/* Popovers */}
@@ -1974,7 +2298,7 @@ export default function Dashboard({ user }: { user: User }) {
               const rc = diagAreaRef.current?.getBoundingClientRect();
               const cw = rc?.width || 1200, ch = rc?.height || 800;
               const px = Math.min(popover.px + 10, cw - 470), py = Math.min(Math.max(popover.py - 60, 10), ch - 440);
-              return (<div style={{ position: "absolute", left: px, top: py, zIndex: 200 }}><EnhancedNodePopover node={node} threats={threats} onClose={() => setPopover(null)} onUpdate={updateNode} onDelete={deleteNode} /></div>);
+              return (<div style={{ position: "absolute", left: px, top: py, zIndex: 200 }}><EnhancedNodePopover node={node as any} threats={threats} onClose={() => setPopover(null)} onUpdate={updateNode} onDelete={deleteNode} /></div>);
             })()}
             {popover && popover.type === "edge" && (() => {
               const edge = diag.edges.find(e => e.id === popover.id);
@@ -1982,7 +2306,7 @@ export default function Dashboard({ user }: { user: User }) {
               const rc = diagAreaRef.current?.getBoundingClientRect();
               const cw = rc?.width || 1200, ch = rc?.height || 800;
               const px = Math.min(popover.px + 10, cw - 420), py = Math.min(Math.max(popover.py - 60, 10), ch - 450);
-              return (<div style={{ position: "absolute", left: px, top: py, zIndex: 200 }}><EdgeEditPop edge={edge} nodes={diag.nodes} onClose={() => setPopover(null)} onUpdate={updateEdge} onDelete={deleteEdge} /></div>);
+              return (<div style={{ position: "absolute", left: px, top: py, zIndex: 200 }}><EdgeEditPop edge={edge} nodes={diag.nodes as any} onClose={() => setPopover(null)} onUpdate={updateEdge} onDelete={deleteEdge} /></div>);
             })()}
             <ServicePalette visible={showServicePalette} onClose={() => setShowServicePalette(false)} onAddNode={addNode} resolveIcon={iconUrl} />
           </div>
@@ -2051,17 +2375,14 @@ export default function Dashboard({ user }: { user: User }) {
               />
             )}
 
-            {/* Enhanced Diagram Canvas */}
-            <DiagramCanvas 
-              diag={diag} 
+            {/* React Flow Canvas */}
+            <ReactFlowCanvas
+              diag={diag}
               setDiag={setDiag}
-              popover={popover} 
-              setPopover={setPopover} 
               theme={theme}
-              onDragEnd={editMode ? (d: Diagram) => { setIsDirty(true); saveToHistory(d); } : undefined}
-              connectMode={connectMode}
-              connectSource={connectSource}
-              onConnectClick={editMode ? handleConnectClick : undefined}
+              onDragEnd={(d: Diagram) => { if (editMode) { setIsDirty(true); saveToHistory(d); } autoSave(d); }}
+              onNodeDoubleClick={(nodeId, e) => { const rc = diagAreaRef.current?.getBoundingClientRect(); if (rc) setPopover({ type: "node", id: nodeId, px: e.clientX - rc.left, py: e.clientY - rc.top }); }}
+              onEdgeDoubleClick={(edgeId, e) => { const rc = diagAreaRef.current?.getBoundingClientRect(); if (rc) setPopover({ type: "edge", id: edgeId, px: e.clientX - rc.left, py: e.clientY - rc.top }); }}
             />
 
             {/* Enhanced popover for editing */}
@@ -2142,6 +2463,7 @@ export default function Dashboard({ user }: { user: User }) {
         )}
         {diag && tab === "highlights" && <div style={{ flex: 1, overflow: "auto", background: "#fff" }}><HighlightsTab diag={diag} decisions={decisions} antiPatterns={antiPatterns} keptProducts={keptProducts} removedProducts={removedProducts} /></div>}
         {diag && tab === "flow" && <div style={{ flex: 1, overflow: "auto", background: "#fff" }}><FlowTab diag={diag} /></div>}
+        {diag && tab === "code" && <CodeTab diag={diag} onApply={(d) => { setDiag(d); autoSave(d); setTabFlash(true); setTimeout(() => setTabFlash(false), 1500); }} />}
       </div>
     </div>
   );

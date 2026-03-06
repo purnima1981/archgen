@@ -56,6 +56,12 @@ async function callClaude(prompt: string): Promise<string> {
   return data.content?.[0]?.text || "";
 }
 
+/** Ensure diagram has required arrays so the client never calls .map() on undefined */
+function normalizeDiagram(d: any): any {
+  if (!d || typeof d !== "object") return { title: "Untitled", nodes: [], edges: [] };
+  return { ...d, nodes: d.nodes || [], edges: d.edges || [], threats: d.threats || [], phases: d.phases || [] };
+}
+
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
 
   // GET templates list
@@ -66,7 +72,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // GET specific template by ID
   app.get("/api/templates/:id", isAuthenticated, (req, res) => {
     const t = TEMPLATES.find(t => t.id === req.params.id);
-    t ? res.json(t.diagram) : res.status(404).json({ error: "Template not found" });
+    t ? res.json(normalizeDiagram(t.diagram)) : res.status(404).json({ error: "Template not found" });
   });
 
   // Serve generated diagram PNGs
@@ -87,7 +93,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // Step 1: Try exact template match (instant, free)
       const matched = matchTemplate(prompt);
       if (matched) {
-        const diagram = JSON.parse(JSON.stringify(matched.diagram));
+        const diagram = normalizeDiagram(JSON.parse(JSON.stringify(matched.diagram)));
         const userId = req.user.claims.sub;
         const [saved] = await db.insert(diagrams).values({
           title: diagram.title, prompt, diagramJson: JSON.stringify(diagram), userId
@@ -113,7 +119,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           kept_count: result.kept_count,
           removed_count: result.removed_count,
           python_source: result.python_source,
-          diagram: result.diagram,
+          diagram: normalizeDiagram(result.diagram),
         };
 
         const [saved] = await db.insert(diagrams).values({
@@ -133,9 +139,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const gcpTemplate = TEMPLATES.find(t => t.id === "gcp-technical-blueprint");
       if (gcpTemplate) {
         try {
-          const { diagram, tokensUsed, decisions, anti_patterns } = await sliceBlueprint(
+          const slicerResult = await sliceBlueprint(
             gcpTemplate.diagram, prompt, process.env.ANTHROPIC_API_KEY || ""
           );
+          const diagram = normalizeDiagram(slicerResult.diagram);
+          const { tokensUsed } = slicerResult;
+          const decisions = (slicerResult as any).decisions;
+          const anti_patterns = (slicerResult as any).anti_patterns;
 
           const userId = req.user.claims.sub;
           const [saved] = await db.insert(diagrams).values({
@@ -184,7 +194,7 @@ Rules: sources x~100, cloud x=350-1050, consumers x~1250. Source edges step=0 (p
 
       if (!response.ok) { const e = await response.json(); throw new Error(e.error?.message || "API error"); }
       const data = await response.json();
-      const dj = JSON.parse((data.content?.[0]?.text || "").replace(/```json\s*/g, "").replace(/```/g, "").trim());
+      const dj = normalizeDiagram(JSON.parse((data.content?.[0]?.text || "").replace(/```json\s*/g, "").replace(/```/g, "").trim()));
 
       const userId = req.user.claims.sub;
       const [saved] = await db.insert(diagrams).values({ title: dj.title || "Untitled", prompt, diagramJson: JSON.stringify(dj), userId }).returning();
